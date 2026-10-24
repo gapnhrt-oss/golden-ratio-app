@@ -119,6 +119,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .cal-r span{color:var(--muted)}
 .cal-r.soon{background:color-mix(in srgb,#FF4D5E 10%,transparent)}.cal-r.soon b{color:#FF4D5E}
 .newsalert{display:grid;gap:8px;text-decoration:none;color:var(--fg);border-color:color-mix(in srgb,#FF4D5E 35%,var(--line))}
+.newsalert.res{border-color:var(--line)}.newsalert.res.up{border-color:var(--up)}.newsalert.res.dn{border-color:var(--down)}
 .newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
 .news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
@@ -519,13 +520,32 @@ async function getCal() {
 async function nextNewsCard() {
   let list = null; try { list = await getCal(); } catch (_) {}
   if (!list) return null;
-  const soon = list.filter(e => e.importance === 1 && new Date(e.date) > Date.now() && new Date(e.date) - Date.now() < 48 * 3600e3 && ["US", "EU", "CN"].includes(e.country)).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
-  if (!soon) return null;
-  const near = new Date(soon.date) - Date.now() < 3600e3;
-  return h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
-    h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + "الخبر القوي الجاي"), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), "🔴 قوي")),
-    h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[soon.country] || ""), h("b", null, arTitle(soon.title) || soon.title)),
-    h("p", { class: "muted num" }, kw(soon.date, { weekday: "long", hour: "2-digit", minute: "2-digit" }) + " · " + until(soon.date) + (near ? " — انتبه للتذبذب" : "")));
+  const now = Date.now(), big = e => e.importance === 1 && ["US", "EU", "CN"].includes(e.country);
+  const box = h("div", { class: "screen", style: "gap:10px" });
+  // 1) خبر قوي نزل خلال آخر 3 ساعات: نعرض نتيجته على الذهب
+  const done = list.filter(e => big(e) && new Date(e.date) <= now && now - new Date(e.date) < 3 * 3600e3 && verdict(e)).sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+  if (done) {
+    const v = verdict(done);
+    box.append(h("a", { class: "card newsalert res " + v.cls, href: "#market/cal" },
+      h("div", { class: "between" }, h("b", null, "📣 نزل خبر قوي"), h("small", { class: "muted" }, ago(done.date))),
+      h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[done.country] || ""), h("b", null, arTitle(done.title) || done.title)),
+      h("div", { class: "cal-v" },
+        h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big " + v.cls }, calVal(done.actual, done))),
+        h("div", null, h("small", null, "المتوقع"), h("b", { class: "num" }, calVal(done.forecast, done))),
+        h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(done.previous, done)))),
+      h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub))));
+  }
+  // 2) الخبر القوي الجاي خلال يومين، مع عد تنازلي
+  const soon = list.filter(e => big(e) && new Date(e.date) > now && new Date(e.date) - now < 48 * 3600e3).sort((a, b) => new Date(a.date) - new Date(b.date));
+  if (soon.length) {
+    const n = soon[0], near = new Date(n.date) - now < 3600e3;
+    const more = soon.filter(e => e !== n && new Date(e.date) - new Date(n.date) < 3 * 3600e3).length;
+    box.append(h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
+      h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + "الخبر القوي الجاي"), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), "🔴 قوي")),
+      h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[n.country] || ""), h("b", null, arTitle(n.title) || n.title)),
+      h("p", { class: "muted num" }, kw(n.date, { weekday: "long", hour: "2-digit", minute: "2-digit" }) + " · " + until(n.date) + (near ? " — انتبه للتذبذب" : "") + (more ? " · ومعاه " + more + (more === 1 ? " خبر قوي ثاني" : " أخبار قوية") : ""))));
+  }
+  return box.childNodes.length ? box : null;
 }
 async function fnGet(q) {
   for (const slug of ["smooth-worker", "super-task", "calendar"]) {
