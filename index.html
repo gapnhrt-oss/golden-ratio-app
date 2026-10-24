@@ -116,7 +116,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .cal-v b.up,.cal-r.up b{color:var(--up)}.cal-v b.dn,.cal-r.dn b{color:var(--down)}
 .cal-r{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;padding:6px 10px;border-radius:10px}
 .cal-r.up{background:color-mix(in srgb,var(--up) 13%,transparent)}.cal-r.dn{background:color-mix(in srgb,var(--down) 13%,transparent)}.cal-r.eq{background:color-mix(in srgb,var(--muted) 12%,transparent)}
-.cal-r span{color:var(--fg)}
+.cal-r span{color:var(--muted)}
+.cal-r.soon{background:color-mix(in srgb,#FF4D5E 10%,transparent)}.cal-r.soon b{color:#FF4D5E}
+.newsalert{display:grid;gap:8px;text-decoration:none;color:var(--fg);border-color:color-mix(in srgb,#FF4D5E 35%,var(--line))}
+.newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
 .news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
 .tv.price{max-height:84px}
@@ -436,6 +439,7 @@ async function Home() {
   if (!S.session) root.append(h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
     h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))));
 
+  add(root, await nextNewsCard().catch(() => null));
   root.append(brokerCard());
   add(root, installHint(), notifyHint());
 
@@ -490,11 +494,39 @@ function verdict(e) {
   let ref = Number(e.forecastRaw ?? e.forecast); let vs = "المتوقع";
   if (e.forecast === null || e.forecast === undefined || isNaN(ref)) { ref = Number(e.previousRaw ?? e.previous); vs = "السابق"; }
   if (isNaN(ref)) return null;
-  if (a === ref) return { cls: "eq", word: vs === "المتوقع" ? "مطابق للمتوقع" : "نفس السابق" };
-  let good = a > ref; if (INVERSE.test(e.title || "")) good = !good;
-  return { cls: good ? "up" : "dn", word: (good ? "إيجابي ✅ أحسن من " : "سلبي ❌ أسوأ من ") + vs, good };
+  if (a === ref) return { cls: "eq", word: "⚪ محايد للذهب", sub: vs === "المتوقع" ? "مطابق للمتوقع" : "نفس السابق" };
+  let better = a > ref; if (INVERSE.test(e.title || "")) better = !better;
+  // أخبار أمريكا: الأحسن = دولار أقوى = سلبي للذهب. باقي الدول: عملتهم تقوى = الدولار يضعف = إيجابي خفيف للذهب
+  const us = e.country === "US";
+  const gold = us ? !better : better;
+  return { cls: gold ? "up" : "dn", gold, light: !us,
+    word: gold ? "🟢 إيجابي للذهب 🔺" : "🔴 سلبي للذهب 🔻",
+    sub: (better ? "أحسن من " : "أسوأ من ") + vs + (us ? (better ? " · الدولار يقوى" : " · الدولار يضعف") : " · تأثيره خفيف") };
 }
 const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : fmt(v) + (e.unit ? e.unit : "") + (e.scale ? e.scale : "");
+function until(d) {
+  const m = Math.round((new Date(d) - Date.now()) / 60000);
+  if (m <= 0) return "الحين";
+  if (m < 60) return "بعد " + m + " دقيقة";
+  const hh = Math.floor(m / 60); if (hh < 24) return "بعد " + hh + " ساعة" + (m % 60 ? " و" + (m % 60) + " دقيقة" : "");
+  const dd = Math.round(hh / 24); return dd === 1 ? "بكرة" : "بعد " + dd + " أيام";
+}
+let calCache = { at: 0, list: null };
+async function getCal() {
+  if (calCache.list && Date.now() - calCache.at < 5 * 60000) return calCache.list;
+  const l = await fnGet(""); if (l) calCache = { at: Date.now(), list: l }; return l;
+}
+async function nextNewsCard() {
+  let list = null; try { list = await getCal(); } catch (_) {}
+  if (!list) return null;
+  const soon = list.filter(e => e.importance === 1 && new Date(e.date) > Date.now() && new Date(e.date) - Date.now() < 48 * 3600e3 && ["US", "EU", "CN"].includes(e.country)).sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+  if (!soon) return null;
+  const near = new Date(soon.date) - Date.now() < 3600e3;
+  return h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
+    h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + "الخبر القوي الجاي"), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), "🔴 قوي")),
+    h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[soon.country] || ""), h("b", null, arTitle(soon.title) || soon.title)),
+    h("p", { class: "muted num" }, kw(soon.date, { weekday: "long", hour: "2-digit", minute: "2-digit" }) + " · " + until(soon.date) + (near ? " — انتبه للتذبذب" : "")));
+}
 async function fnGet(q) {
   for (const slug of ["smooth-worker", "super-task", "calendar"]) {
     try { const r = await fetch(SUPABASE_URL + "/functions/v1/" + slug + q); if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; } } catch (_) {}
@@ -523,7 +555,7 @@ async function News() {
 async function Calendar() {
   const box = h("div", { class: "screen" });
   let list = null;
-  list = await fnGet("");
+  list = await getCal();
   if (!list) { // إذا السيرفر مو جاهز نعرض أجندة TradingView
     box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "اسحب داخل المربع عشان تشوف الأيام الجاية."),
       tvWidget("events", { locale: "ar_AE", importanceFilter: "-1,0,1", countryFilter: "us,eu,gb,cn,jp,ch,ca,au" }, fillH(520, 360)));
@@ -544,8 +576,7 @@ async function Calendar() {
       if (d !== day) { day = d; body.append(h("h3", { class: "cal-day" + (d === today ? " today" : "") }, d === today ? "اليوم · " + d : d)); }
       const v = verdict(e), imp = IMP[String(e.importance)] || IMP["-1"], ar = arTitle(e.title);
       const past = new Date(e.date) < Date.now();
-      const usd = e.country === "US" && v && v.cls !== "eq";
-      const row = h("div", { class: "cal " + (v ? v.cls : "") + (past ? "" : " soon") },
+            const row = h("div", { class: "cal " + (v ? v.cls : "") + (past ? "" : " soon") },
         h("div", { class: "cal-h" },
           h("span", { class: "cal-t num" }, kw(e.date, { hour: "2-digit", minute: "2-digit" })),
           h("span", { class: "cal-f" }, FLAG[e.country] || e.country),
@@ -555,14 +586,14 @@ async function Calendar() {
           h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big " + (v ? v.cls : "") }, calVal(e.actual, e))),
           h("div", null, h("small", null, "المتوقع"), h("b", { class: "num" }, calVal(e.forecast, e))),
           h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(e.previous, e)))),
-        v ? h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), usd ? h("span", null, v.good ? "الذهب عادةً ينزل 🔻" : "الذهب عادةً يطلع 🔺") : null) : null);
+        v ? h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub)) : (!past && e.importance === 1 ? h("div", { class: "cal-r soon" }, h("b", null, "⏰ " + until(e.date)), h("span", null, e.country === "US" ? "خبر قوي على الذهب، انتبه وقت نزوله" : "خبر قوي")) : null));
       if (!past && !firstUpcoming) firstUpcoming = row;
       body.append(row);
     });
     if (firstUpcoming) setTimeout(() => firstUpcoming.scrollIntoView({ block: "center" }), 60);
   };
   paint();
-  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "قوة الخبر: 🔴 قوي · 🟠 متوسط · 🟡 ضعيف. ولمّا تطلع النتيجة: الرقم الأخضر = إيجابي (أحسن من المتوقع)، والأحمر = سلبي (أسوأ). أخبار أمريكا الإيجابية عادةً تنزّل الذهب."), seg, body);
+  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "قوة الخبر: 🔴 قوي · 🟠 متوسط · 🟡 ضعيف. ولمّا تنزل النتيجة يتلوّن الرقم حسب تأثيره على الذهب: 🟢 أخضر = إيجابي للذهب (يطلع)، 🔴 أحمر = سلبي للذهب (ينزل)."), seg, body);
   return box;
 }
 
