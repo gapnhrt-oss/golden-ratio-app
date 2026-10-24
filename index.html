@@ -495,7 +495,7 @@ const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : fmt
 async function Calendar() {
   const box = h("div", { class: "screen" });
   let list = null;
-  try { const r = await fetch(SUPABASE_URL + "/functions/v1/super-task"); if (r.ok) { const j = await r.json(); if (Array.isArray(j)) list = j; } } catch (_) {}
+  for (const slug of ["smooth-worker", "super-task", "calendar"]) { try { const r = await fetch(SUPABASE_URL + "/functions/v1/" + slug); if (r.ok) { const j = await r.json(); if (Array.isArray(j)) { list = j; break; } } } catch (_) {} }
   if (!list) { // إذا السيرفر مو جاهز نعرض أجندة TradingView
     box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "اسحب داخل المربع عشان تشوف الأيام الجاية."),
       tvWidget("events", { locale: "ar_AE", importanceFilter: "-1,0,1", countryFilter: "us,eu,gb,cn,jp,ch,ca,au" }, fillH(520, 360)));
