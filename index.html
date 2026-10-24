@@ -492,7 +492,7 @@ function verdict(e) {
   const a = Number(e.actualRaw ?? e.actual);
   if (e.actual === null || e.actual === undefined || isNaN(a)) return null;
   let ref = Number(e.forecastRaw ?? e.forecast); let vs = "المتوقع";
-  if (e.forecast === null || e.forecast === undefined || isNaN(ref)) { ref = Number(e.previousRaw ?? e.previous); vs = "السابق"; }
+  if (e.forecast === null || e.forecast === undefined || isNaN(ref)) { if (e.importance < 0) return null; ref = Number(e.previousRaw ?? e.previous); vs = "السابق"; }
   if (isNaN(ref)) return null;
   if (a === ref) return { cls: "eq", word: "⚪ محايد للذهب", sub: vs === "المتوقع" ? "مطابق للمتوقع" : "نفس السابق" };
   let better = a > ref; if (INVERSE.test(e.title || "")) better = !better;
@@ -551,7 +551,7 @@ async function translateAll(list) {
   const jobs = todo.map(n => trOne(n.title).then(a => { if (a) mem[n.id] = a; }));
   await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, 5000))]);
   list.forEach(n => { if (!n.title_ar && mem[n.id]) n.title_ar = mem[n.id]; });
-  try { const keep = {}; list.forEach(n => { if (mem[n.id]) keep[n.id] = mem[n.id]; }); localStorage.setItem("gr-tr", JSON.stringify(keep)); } catch (_) {}
+  try { const ks = Object.keys(mem); const keep = {}; ks.slice(Math.max(0, ks.length - 400)).forEach(k => keep[k] = mem[k]); localStorage.setItem("gr-tr", JSON.stringify(keep)); } catch (_) {}
 }
 async function News() {
   const box = h("div", { class: "screen" });
@@ -587,6 +587,7 @@ async function Calendar() {
       tvWidget("events", { locale: "ar_AE", importanceFilter: "-1,0,1", countryFilter: "us,eu,gb,cn,jp,ch,ca,au" }, fillH(520, 360)));
     return box;
   }
+  try { const need = list.filter(e => !arTitle(e.title)).map(e => ({ id: "c" + e.id, title: e.title })); await translateAll(need); const m = {}; need.forEach(n => { if (n.title_ar) m[n.id] = n.title_ar; }); list.forEach(e => { if (m["c" + e.id]) e.title_ar = m["c" + e.id]; }); } catch (_) {}
   let only = "all"; try { only = localStorage.getItem("gr-cal") || "all"; } catch (_) {}
   const seg = h("div", { class: "seg" });
   const body = h("div", { class: "screen" });
@@ -600,7 +601,7 @@ async function Calendar() {
     rows.forEach(e => {
       const d = kw(e.date, { weekday: "long", day: "numeric", month: "long" });
       if (d !== day) { day = d; body.append(h("h3", { class: "cal-day" + (d === today ? " today" : "") }, d === today ? "اليوم · " + d : d)); }
-      const v = verdict(e), imp = IMP[String(e.importance)] || IMP["-1"], ar = arTitle(e.title);
+      const v = verdict(e), imp = IMP[String(e.importance)] || IMP["-1"], ar = arTitle(e.title) || e.title_ar;
       const past = new Date(e.date) < Date.now();
             const row = h("div", { class: "cal " + (v ? v.cls : "") + (past ? "" : " soon") },
         h("div", { class: "cal-h" },
