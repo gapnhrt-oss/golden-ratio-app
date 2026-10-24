@@ -1,5 +1,5 @@
 // GOLDEN RATIO — service worker: يخلي التطبيق يتركّب على الشاشة ويفتح بسرعة
-const CACHE = 'gr-v1';
+const CACHE = 'gr-v2';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png'];
 
 self.addEventListener('install', e => {
