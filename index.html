@@ -533,15 +533,41 @@ async function fnGet(q) {
   }
   return null;
 }
+// ترجمة العناوين للعربي من الجوال نفسه، وتنحفظ عشان ما تنترجم كل مرة
+async function trOne(t) {
+  try {
+    const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ar&dt=t&q=" + encodeURIComponent(t));
+    const j = await r.json(); const out = (j[0] || []).map(p => p[0]).join("").trim(); if (out) return out;
+  } catch (_) {}
+  try {
+    const r = await fetch("https://api.mymemory.translated.net/get?langpair=en|ar&q=" + encodeURIComponent(t));
+    const j = await r.json(); const out = j && j.responseData && j.responseData.translatedText; if (out && !/MYMEMORY|QUERY LENGTH/i.test(out)) return out;
+  } catch (_) {}
+  return null;
+}
+async function translateAll(list) {
+  let mem = {}; try { mem = JSON.parse(localStorage.getItem("gr-tr") || "{}"); } catch (_) {}
+  const todo = list.filter(n => !n.title_ar && !mem[n.id]);
+  const jobs = todo.map(n => trOne(n.title).then(a => { if (a) mem[n.id] = a; }));
+  await Promise.race([Promise.all(jobs), new Promise(r => setTimeout(r, 5000))]);
+  list.forEach(n => { if (!n.title_ar && mem[n.id]) n.title_ar = mem[n.id]; });
+  try { const keep = {}; list.forEach(n => { if (mem[n.id]) keep[n.id] = mem[n.id]; }); localStorage.setItem("gr-tr", JSON.stringify(keep)); } catch (_) {}
+}
 async function News() {
   const box = h("div", { class: "screen" });
-  const list = await fnGet("?t=news");
-  if (!list || !list.length || !list.some(n => n.title_ar)) {
+  let list = await fnGet("?t=news");
+  if (list) {
+    const fix = t => String(t || "").replace(/â€”/g, "—").replace(/â€“/g, "–").replace(/â€™/g, "’").replace(/â€œ|â€\u009d|â€/g, '"');
+    list = list.map(n => Object.assign({}, n, { title: fix(n.title) }))
+      .filter(n => n.title && !/CFTC|Commitments|Delivery Intentions|intraday targets|^OPINION/i.test(n.title)).slice(0, 25);
+    await translateAll(list);
+  }
+  if (!list || !list.length) {
     box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "آخر أخبار الذهب من TradingView (بالإنجليزي)، تتحدث لحالها."),
       tvWidget("timeline", { feedMode: "symbol", symbol: "OANDA:XAUUSD", displayMode: "regular", locale: "en" }, fillH(520, 360)));
     return box;
   }
-  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "آخر أخبار الذهب، مترجمة للعربي وتتحدث لحالها. اضغط الخبر عشان تقرا التفاصيل."));
+  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "آخر أخبار الذهب من رويترز وداو جونز وغيرهم، مترجمة للعربي وتتحدث لحالها. اضغط الخبر عشان تقرا التفاصيل."));
   list.forEach(n => {
     const when = n.published ? new Date(Number(n.published) * (String(n.published).length <= 10 ? 1000 : 1)) : null;
     const c = h(n.link ? "a" : "div", { class: "news", href: n.link || null, target: n.link ? "_blank" : null, rel: "noopener" },
