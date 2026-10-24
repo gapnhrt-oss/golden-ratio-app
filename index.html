@@ -96,6 +96,8 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .online b{color:var(--gold);font-family:var(--latin);font-size:1rem}
 .tv{border:1px solid var(--line);border-radius:16px;overflow:hidden;background:var(--bg2);min-height:60px}
 .tv .tradingview-widget-copyright{display:none}
+.tv iframe{color-scheme:light}
+.tv.price{background:linear-gradient(180deg,#141a4a,#0d1238);border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}
 .views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
@@ -441,7 +443,7 @@ function tvWidget(name, config, height) {
   box.append(sc);
   return box;
 }
-function goldPrice() { return tvWidget("tickers", { symbols: [{ proName: "OANDA:XAUUSD", title: "Gold / XAUUSD" }], showSymbolLogo: true, displayMode: "adaptive", locale: "en" }); }
+function goldPrice() { const w = tvWidget("single-quote", { symbol: "OANDA:XAUUSD", locale: "en" }); w.classList.add("price"); return w; }
 async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
