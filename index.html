@@ -615,13 +615,13 @@ async function Calendar() {
     return box;
   }
   try { const need = list.filter(e => !arTitle(e.title)).map(e => ({ id: "c" + e.id, title: e.title })); await translateAll(need); const m = {}; need.forEach(n => { if (n.title_ar) m[n.id] = n.title_ar; }); list.forEach(e => { if (m["c" + e.id]) e.title_ar = m["c" + e.id]; }); } catch (_) {}
-  let only = "all"; try { only = localStorage.getItem("gr-cal") || "all"; } catch (_) {}
+  let only = "imp"; try { only = localStorage.getItem("gr-cal2") || "imp"; } catch (_) {}
   const seg = h("div", { class: "seg" });
   const body = h("div", { class: "screen" });
   const paint = () => {
     seg.textContent = ""; body.textContent = "";
-    [["all", "كل الأخبار"], ["hi", "القوية بس 🔥"], ["us", "🇺🇸 أمريكا بس"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(only === t[0]), onclick: () => { only = t[0]; try { localStorage.setItem("gr-cal", only); } catch (_) {} paint(); } }, t[1])));
-    const rows = list.filter(e => only === "hi" ? e.importance === 1 : only === "us" ? e.country === "US" : true).sort((a, b) => new Date(a.date) - new Date(b.date));
+    [["imp", "المهمة 🟠🔴"], ["hi", "القوية بس 🔥"], ["us", "🇺🇸 أمريكا"], ["all", "كل الأخبار"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(only === t[0]), onclick: () => { only = t[0]; try { localStorage.setItem("gr-cal2", only); } catch (_) {} paint(); } }, t[1])));
+    const rows = list.filter(e => only === "hi" ? e.importance === 1 : only === "imp" ? e.importance >= 0 : only === "us" ? e.country === "US" && e.importance >= 0 : true).sort((a, b) => new Date(a.date) - new Date(b.date));
     if (!rows.length) { body.append(h("div", { class: "empty" }, "ما فيه أخبار بهالفلتر.")); return; }
     const today = kw(new Date(), { weekday: "long", day: "numeric", month: "long" });
     let day = null, firstUpcoming = null;
