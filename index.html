@@ -133,6 +133,11 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .tv.price{max-height:84px}
 .btn.wa{background:#25D366;color:#fff;border-color:#25D366}
 .btn.tg{background:#2AABEE;color:#fff;border-color:#2AABEE}
+.renew{display:grid;gap:8px;border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,var(--bg2))}
+.sess.on{border-color:var(--up)}
+.sess .bar{height:6px;border-radius:999px;background:var(--bg);overflow:hidden}.sess .bar i{display:block;height:100%;background:var(--up)}
+.lesson summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none}.lesson summary::-webkit-details-marker{display:none}
+.lesson p{margin:8px 0 0;line-height:1.8}
 .views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
@@ -305,6 +310,8 @@ async function loadUser() {
       sb.rpc("is_member")
     ]);
     S.profile = p.data; S.admin = !!(p.data && p.data.role === "admin"); S.member = !!m.data;
+    S.subEnd = null;
+    if (S.member) { const q = await sb.from("subscriptions").select("ends_at, plans(kind)").eq("user_id", uid).eq("status", "active").order("ends_at", { ascending: false }).limit(5); const r = (q.data || []).find(x => x.plans && x.plans.kind === "signals"); S.subEnd = r ? r.ends_at : null; }
   }
   if (!S.plans.length) { const { data: pl } = await sb.from("plans").select("*").eq("active", true).order("sort"); S.plans = pl || []; }
   renderChrome();
@@ -430,6 +437,7 @@ async function Home() {
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
+  add(root, renewCard());
   add(root, await nextNewsCard().catch(() => null));
 
   const open = teaser.data || [];
@@ -526,6 +534,107 @@ async function getCal() {
   if (calCache.list && Date.now() - calCache.at < 5 * 60000) return calCache.list;
   const l = await fnGet(""); if (l) calCache = { at: Date.now(), list: l }; return l;
 }
+/* ================== تذكير التجديد ================== */
+function renewCard() {
+  if (!S.member || !S.subEnd || S.admin) return null;
+  const left = (new Date(S.subEnd) - Date.now()) / 864e5;
+  if (left > 3) return null;
+  const d = Math.max(0, Math.ceil(left));
+  return h("div", { class: "card renew" },
+    h("b", null, d <= 0 ? "⏳ اشتراكك ينتهي اليوم" : "⏳ اشتراكك ينتهي بعد " + (d === 1 ? "يوم" : d === 2 ? "يومين" : d + " أيام")),
+    h("p", { class: "muted" }, "جدّد الحين عشان ما تفوتك أي توصية. الأيام الجديدة تنضاف بعد نهاية اشتراكك الحالي."),
+    h("a", { class: "btn primary", href: "#sub" }, "جدّد اشتراكي"));
+}
+
+/* ================== حاسبة اللوت ================== */
+function LotCalc() {
+  let st = { bal: "", risk: "1", entry: "", sl: "", cs: "100" };
+  try { st = Object.assign(st, JSON.parse(localStorage.getItem("gr-calc") || "{}")); } catch (_) {}
+  const inp = (id, v, ph) => h("input", { id, dir: "ltr", inputmode: "decimal", value: v, placeholder: ph || "" });
+  const bal = inp("lc-bal", st.bal, "1000"), risk = inp("lc-risk", st.risk, "1"), entry = inp("lc-entry", st.entry, "4000"), sl = inp("lc-sl", st.sl, "3990"), cs = inp("lc-cs", st.cs, "100");
+  const out = h("div", { class: "screen" });
+  const calc = () => {
+    const B = +bal.value, R = +risk.value, E = +entry.value, L = +sl.value, C = +cs.value || 100;
+    try { localStorage.setItem("gr-calc", JSON.stringify({ bal: bal.value, risk: risk.value, entry: entry.value, sl: sl.value, cs: cs.value })); } catch (_) {}
+    out.textContent = "";
+    if (!(B > 0 && R > 0 && E > 0 && L > 0) || E === L) { out.append(h("div", { class: "empty" }, "عبّي الرصيد ونسبة المخاطرة وسعر الدخول والوقف.")); return; }
+    const riskUsd = B * R / 100, dist = Math.abs(E - L), lot = riskUsd / (dist * C);
+    const lotR = Math.floor(lot * 100) / 100;
+    const real = lotR * dist * C;
+    out.append(
+      h("div", { class: "card gold", style: "text-align:center" }, h("small", { class: "muted" }, "حجم اللوت المناسب"), h("b", { class: "num", style: "font-size:2.4rem;color:var(--gold)" }, lotR > 0 ? lotR.toFixed(2) : "0.00"), h("small", { class: "muted" }, lotR < 0.01 ? "المخاطرة أصغر من أقل لوت (0.01). كبّر الرصيد أو قرّب الوقف." : "لوت")),
+      h("div", { class: "grid2" },
+        h("div", { class: "card soft" }, h("small", { class: "muted" }, "المبلغ المعرّض للخسارة"), h("b", { class: "num neg", style: "font-size:1.3rem" }, "$" + (lotR > 0 ? real : riskUsd).toFixed(2))),
+        h("div", { class: "card soft" }, h("small", { class: "muted" }, "مسافة الوقف"), h("b", { class: "num", style: "font-size:1.3rem" }, "$" + dist.toFixed(2)))),
+      h("div", { class: "card soft" }, h("small", { class: "muted" }, "كل حركة 1$ في سعر الذهب = "), h("b", { class: "num" }, "$" + (lotR * C).toFixed(2), " على هاللوت")));
+  };
+  [bal, risk, entry, sl, cs].forEach(x => x.addEventListener("input", calc));
+  const f = (lab, id, el) => h("div", { class: "field" }, h("label", { for: id }, lab), el);
+  setTimeout(calc, 0);
+  return h("div", { class: "screen" },
+    h("p", { class: "muted", style: "font-size:.88rem" }, "اكتب رصيدك وكم تبي تخاطر، والحاسبة تقولك حجم اللوت المناسب للذهب."),
+    h("div", { class: "card" },
+      h("div", { class: "grid2" }, f("الرصيد ($)", "lc-bal", bal), f("المخاطرة (%)", "lc-risk", risk)),
+      h("div", { class: "row", style: "gap:6px" }, ...[0.5, 1, 2, 3].map(v => h("button", { class: "btn ghost sm", type: "button", onclick: () => { risk.value = v; calc(); } }, v + "%"))),
+      h("div", { class: "grid2" }, f("سعر الدخول", "lc-entry", entry), f("وقف الخسارة", "lc-sl", sl)),
+      h("details", null, h("summary", { class: "muted", style: "font-size:.85rem" }, "إعداد متقدم"), f("حجم العقد (أونصة لكل لوت)", "lc-cs", cs), h("small", { class: "muted" }, "أغلب الوسطاء 100. تأكد من مواصفات الذهب عند وسيطك."))),
+    out);
+}
+
+/* ================== أوقات الجلسات ================== */
+function tzOffsetMin(tz, d) { const a = new Date(d.toLocaleString("en-US", { timeZone: tz })); const b = new Date(d.toLocaleString("en-US", { timeZone: "UTC" })); return (a - b) / 60000; }
+function sessionRange(tz, h1, h2, ref) {
+  const off = tzOffsetMin(tz, ref);
+  const local = new Date(ref.getTime() + off * 60000);
+  const y = local.getUTCFullYear(), mo = local.getUTCMonth(), da = local.getUTCDate();
+  let s = Date.UTC(y, mo, da, h1) - off * 60000, e = Date.UTC(y, mo, da, h2) - off * 60000;
+  if (e <= s) e += 864e5;
+  if (ref.getTime() >= e) { s += 864e5; e += 864e5; }
+  return [s, e];
+}
+function Sessions() {
+  const now = new Date();
+  const S4 = [["سيدني 🇦🇺", "Australia/Sydney", 7, 16], ["طوكيو 🇯🇵", "Asia/Tokyo", 9, 18], ["لندن 🇬🇧", "Europe/London", 8, 17], ["نيويورك 🇺🇸", "America/New_York", 8, 17]];
+  const t = d => kw(d, { hour: "2-digit", minute: "2-digit" });
+  const wk = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" })); const wd = wk.getDay(), hr = wk.getHours();
+  const weekend = wd === 6 || (wd === 0 && hr < 17) || (wd === 5 && hr >= 17);
+  const box = h("div", { class: "screen" });
+  box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "أوقات جلسات السوق بتوقيت الكويت. الذهب يتحرك أقوى وقت لندن ونيويورك، وأقوى شي لمّا يفتحون مع بعض."));
+  if (weekend) box.append(h("div", { class: "card soft" }, h("b", null, "🔒 السوق مسكّر (عطلة نهاية الأسبوع)"), h("p", { class: "muted" }, "يفتح ليلة الاثنين تقريباً الساعة 1 الفجر بتوقيت الكويت.")));
+  let ln = null, ny = null;
+  S4.forEach(([name, tz, a, b]) => {
+    const [s, e] = sessionRange(tz, a, b, now);
+    if (tz === "Europe/London") ln = [s, e]; if (tz === "America/New_York") ny = [s, e];
+    const open = !weekend && now >= s && now < e;
+    const pct = open ? Math.round((now - s) / (e - s) * 100) : 0;
+    box.append(h("div", { class: "card sess" + (open ? " on" : "") },
+      h("div", { class: "between" }, h("b", null, name), h("span", { class: "pill " + (open ? "on" : "gray") }, open ? "مفتوحة الحين" : "مسكّرة")),
+      h("div", { class: "between num muted" }, h("span", null, "تفتح " + t(s)), h("span", null, "تسكّر " + t(e))),
+      open ? h("div", { class: "bar" }, h("i", { style: "width:" + pct + "%" })) : h("small", { class: "muted" }, weekend ? "" : "تفتح " + until(s))));
+  });
+  if (ln && ny) {
+    const s = Math.max(ln[0], ny[0]), e = Math.min(ln[1], ny[1]);
+    if (e > s) box.append(h("div", { class: "card gold" }, h("b", null, "🔥 وقت الذروة (لندن + نيويورك)"), h("p", { class: "num" }, t(s) + " – " + t(e) + " بتوقيت الكويت"), h("small", { class: "muted" }, "أعلى سيولة وحركة على الذهب، وأغلب الأخبار الأمريكية تنزل فيه.")));
+  }
+  return box;
+}
+
+/* ================== تعلّم ================== */
+const LESSONS = [
+  ["شلون تقرا التوصية؟", "منطقة الدخول: السعر اللي تدخل منه، وإذا فيه رقمين ادخل بينهم.\nوقف الخسارة: إذا وصل له السعر تطلع بخسارة صغيرة محسوبة. لا تتداول بدون وقف.\nالأهداف: تجني الأرباح عليها بالتدريج. الهدف السريع للي يبي ربح سريع.\nالقوة: من 1 إلى 10، كل ما زادت كانت الفرصة أوضح."],
+  ["إدارة رأس المال", "لا تخاطر بأكثر من 1% إلى 2% من رصيدك في الصفقة الوحدة.\nاستخدم حاسبة اللوت عشان تعرف الحجم المناسب.\nلا تضاعف اللوت عشان تعوّض خسارة. الخسارة جزء طبيعي من التداول."],
+  ["جني الأرباح ونقل الوقف", "لمّا يتحقق الهدف الأول، اجني جزء من الأرباح (مثلاً النص).\nوانقل الوقف لسعر الدخول، عشان الصفقة تصير بدون مخاطرة.\nكمّل باللي باقي للأهداف الثانية."],
+  ["الأخبار والذهب", "الأخبار القوية (🔴) تسوي حركة كبيرة وسريعة.\nقبل الخبر بـ15 دقيقة تجنّب تدخل صفقة جديدة، وتأكد إن صفقاتك عليها وقف.\nأخبار أمريكا الإيجابية تقوّي الدولار، والذهب غالباً ينزل. والسلبية بالعكس."],
+  ["شنو يعني لوت ونقطة؟", "اللوت هو حجم الصفقة. اللوت الكامل في الذهب = 100 أونصة عند أغلب الوسطاء.\nكل حركة 1$ في سعر الذهب = 100$ على اللوت الكامل، و1$ على 0.01 لوت.\nابدأ بلوتات صغيرة لين تتعود."],
+  ["أخطاء لازم تتجنبها", "الدخول بدون وقف خسارة.\nإنك تشيل الوقف أو تبعّده لمّا الصفقة تخسر.\nالتداول وأنت معصّب أو تبي تعوّض.\nإنك تفتح صفقات كثيرة مع بعض على نفس الاتجاه."]
+];
+function Learn() {
+  const box = h("div", { class: "screen" }, h("p", { class: "muted", style: "font-size:.88rem" }, "دروس قصيرة تساعدك تستفيد من التوصيات وتحمي رأس مالك."));
+  LESSONS.forEach(([t, b], i) => box.append(h("details", { class: "card lesson" }, h("summary", null, h("span", { class: "pill wait num" }, i + 1), h("b", null, t)), ...b.split("\n").map(x => h("p", null, x)))));
+  box.append(h("p", { class: "muted", style: "font-size:.78rem" }, "التداول فيه مخاطرة، وممكن تخسر جزء من رأس مالك أو كله. لا تتداول بفلوس ما تقدر تتحمل خسارتها."));
+  return box;
+}
+
 async function nextNewsCard() {
   let list = null; try { list = await getCal(); } catch (_) {}
   if (!list) return null;
@@ -663,10 +772,13 @@ async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
   const seg = h("div", { class: "seg" });
-  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة الاقتصادية"], ["chart", "📈 الشارت"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
+  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["chart", "📈 الشارت"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"], ["learn", "📚 تعلّم"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
   root.append(seg);
   if (sub === "cal") {
     root.append(await Calendar());
+  } else if (sub === "calc") { root.append(LotCalc());
+  } else if (sub === "sess") { root.append(Sessions());
+  } else if (sub === "learn") { root.append(Learn());
   } else if (sub === "chart") {
     root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, fillH(460, 330)));
   } else {
