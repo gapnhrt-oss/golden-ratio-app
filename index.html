@@ -677,13 +677,13 @@ function brokerCard() {
   const step = (n, t) => h("div", { class: "row", style: "gap:10px;align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "pill wait num" }, n), h("span", null, t));
   return h("div", { class: "card" },
     h("b", null, "📈 افتح حساب تداول"),
-    h("p", { class: "muted", style: "font-size:.9rem" }, "عشان تطبّق التوصيات أو تنسخ صفقاتنا، تحتاج حساب عند الوسيط حقنا."),
+    h("p", { class: "muted", style: "font-size:.9rem" }, "عشان تطبّق التوصيات أو تنسخ صفقاتنا، تحتاج حساب عند الوسيط."),
     step("1", "سجّل من الرابط تحت وعبّي بياناتك."),
     step("2", "وثّق حسابك وأودع المبلغ اللي يناسبك."),
     step("3", "أرسل لنا رقم الحساب عشان نساعدك في الربط."),
     h("div", { class: "row" },
       h("a", { class: "btn primary", href: PAY.broker, target: "_blank", rel: "noopener" }, "افتح حسابك الحين"),
-      h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابي")));
+      h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابك")));
 }
 
 function notifyHint() {
