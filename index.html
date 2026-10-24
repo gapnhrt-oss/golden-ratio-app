@@ -454,8 +454,8 @@ async function Market() {
   [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة الاقتصادية"], ["chart", "📈 الشارت"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
   root.append(seg);
   if (sub === "cal") {
-    root.append(h("p", { class: "muted", style: "font-size:.88rem" }, "مواعيد الأخبار القوية اللي تحرّك الذهب. انتبه قبل الأخبار الحمراء."),
-      tvWidget("events", { locale: "ar_AE", importanceFilter: "0,1", countryFilter: "us,eu,gb,cn,jp" }, fillH(520, 360)));
+    root.append(h("p", { class: "muted", style: "font-size:.88rem" }, "كل أخبار الأسبوع وتأثيرها. اسحب لتحت عشان تشوف الأيام الجاية، واضغط أيقونة الأعمدة فوق عشان تخلي الأخبار القوية بس."),
+      tvWidget("events", { locale: "ar_AE", importanceFilter: "-1,0,1", countryFilter: "us,eu,gb,cn,jp,ch,ca,au" }, fillH(520, 360)));
   } else if (sub === "chart") {
     root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, fillH(460, 330)));
   } else {
