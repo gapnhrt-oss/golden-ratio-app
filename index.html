@@ -428,6 +428,7 @@ async function Home() {
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
+  add(root, await nextNewsCard().catch(() => null));
 
   const open = teaser.data || [];
   if (open.length) {
@@ -447,7 +448,6 @@ async function Home() {
   if (!S.session) root.append(h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
     h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))));
 
-  add(root, await nextNewsCard().catch(() => null));
   root.append(brokerCard());
   add(root, installHint(), notifyHint());
 
