@@ -131,6 +131,8 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
 .news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
 .tv.price{max-height:84px}
+.btn.wa{background:#25D366;color:#fff;border-color:#25D366}
+.btn.tg{background:#2AABEE;color:#fff;border-color:#2AABEE}
 .views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
@@ -463,8 +465,8 @@ async function Home() {
   });
 
   root.append(h("div", { class: "row" },
-    h("a", { class: "btn ghost sm", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "القناة المجانية"),
-    h("a", { class: "btn ghost sm", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "واتساب")));
+    h("a", { class: "btn tg sm", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "✈️ القناة المجانية"),
+    h("a", { class: "btn wa sm", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 واتساب")));
   return root;
 }
 
@@ -861,7 +863,7 @@ function copyCard(reqs) {
 /* ================== المحادثة ================== */
 async function Chat() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "تواصل معنا"));
-  if (!S.session) { root.append(h("div", { class: "card" }, h("p", null, "سجّل دخول عشان تكلمنا من داخل التطبيق."), h("button", { class: "btn primary", onclick: () => authSheet("login") }, "دخول")), h("a", { class: "btn ghost", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "أو كلّمنا واتساب")); return root; }
+  if (!S.session) { root.append(h("div", { class: "card" }, h("p", null, "سجّل دخول عشان تكلمنا من داخل التطبيق."), h("button", { class: "btn primary", onclick: () => authSheet("login") }, "دخول")), h("a", { class: "btn wa", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 أو كلّمنا واتساب")); return root; }
   if (S.admin) { root.append(h("div", { class: "card soft" }, h("p", null, "رسائل المشتركين تلقاها بالإدارة ← الرسائل."), h("a", { class: "btn primary", href: "#admin/msgs" }, "افتح الرسائل"))); return root; }
   return chatThread(S.session.user.id, root);
 }
