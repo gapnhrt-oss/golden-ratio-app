@@ -117,6 +117,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .cal-r{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.85rem;padding:6px 10px;border-radius:10px}
 .cal-r.up{background:color-mix(in srgb,var(--up) 13%,transparent)}.cal-r.dn{background:color-mix(in srgb,var(--down) 13%,transparent)}.cal-r.eq{background:color-mix(in srgb,var(--muted) 12%,transparent)}
 .cal-r span{color:var(--fg)}
+.news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
+.news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
+.tv.price{max-height:84px}
 .views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
@@ -492,10 +495,35 @@ function verdict(e) {
   return { cls: good ? "up" : "dn", word: (good ? "إيجابي ✅ أحسن من " : "سلبي ❌ أسوأ من ") + vs, good };
 }
 const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : fmt(v) + (e.unit ? e.unit : "") + (e.scale ? e.scale : "");
+async function fnGet(q) {
+  for (const slug of ["smooth-worker", "super-task", "calendar"]) {
+    try { const r = await fetch(SUPABASE_URL + "/functions/v1/" + slug + q); if (r.ok) { const j = await r.json(); if (Array.isArray(j)) return j; } } catch (_) {}
+  }
+  return null;
+}
+async function News() {
+  const box = h("div", { class: "screen" });
+  const list = await fnGet("?t=news");
+  if (!list || !list.length || !list.some(n => n.title_ar)) {
+    box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "آخر أخبار الذهب من TradingView (بالإنجليزي)، تتحدث لحالها."),
+      tvWidget("timeline", { feedMode: "symbol", symbol: "OANDA:XAUUSD", displayMode: "regular", locale: "en" }, fillH(520, 360)));
+    return box;
+  }
+  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "آخر أخبار الذهب، مترجمة للعربي وتتحدث لحالها. اضغط الخبر عشان تقرا التفاصيل."));
+  list.forEach(n => {
+    const when = n.published ? new Date(Number(n.published) * (String(n.published).length <= 10 ? 1000 : 1)) : null;
+    const c = h(n.link ? "a" : "div", { class: "news", href: n.link || null, target: n.link ? "_blank" : null, rel: "noopener" },
+      h("div", { class: "between" }, h("small", { class: "muted" }, n.source || "TradingView"), when ? h("small", { class: "muted num" }, ago(when)) : null),
+      h("b", null, n.title_ar || n.title),
+      n.title_ar ? h("small", { class: "en", dir: "ltr" }, n.title) : null);
+    box.append(c);
+  });
+  return box;
+}
 async function Calendar() {
   const box = h("div", { class: "screen" });
   let list = null;
-  for (const slug of ["smooth-worker", "super-task", "calendar"]) { try { const r = await fetch(SUPABASE_URL + "/functions/v1/" + slug); if (r.ok) { const j = await r.json(); if (Array.isArray(j)) { list = j; break; } } } catch (_) {} }
+  list = await fnGet("");
   if (!list) { // إذا السيرفر مو جاهز نعرض أجندة TradingView
     box.append(h("p", { class: "muted", style: "font-size:.88rem" }, "اسحب داخل المربع عشان تشوف الأيام الجاية."),
       tvWidget("events", { locale: "ar_AE", importanceFilter: "-1,0,1", countryFilter: "us,eu,gb,cn,jp,ch,ca,au" }, fillH(520, 360)));
@@ -550,8 +578,7 @@ async function Market() {
   } else if (sub === "chart") {
     root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, fillH(460, 330)));
   } else {
-    root.append(h("p", { class: "muted", style: "font-size:.88rem" }, "آخر أخبار الذهب من TradingView (بالإنجليزي)، تتحدث لحالها."),
-      tvWidget("timeline", { feedMode: "symbol", symbol: "OANDA:XAUUSD", displayMode: "regular", locale: "en" }, fillH(520, 360)));
+    root.append(await News());
   }
   return root;
 }
