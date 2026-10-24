@@ -436,10 +436,10 @@ async function Home() {
 
 /* ================== السوق (TradingView) ================== */
 function tvWidget(name, config, height) {
-  const box = h("div", { class: "tv tradingview-widget-container", style: height ? "height:" + height + "px" : null }, h("div", { class: "tradingview-widget-container__widget", style: height ? "height:100%" : null }));
+  const box = h("div", { class: "tv tradingview-widget-container", style: height ? "height:" + (typeof height === "number" ? height + "px" : height) : null }, h("div", { class: "tradingview-widget-container__widget", style: height ? "height:100%" : null }));
   const sc = document.createElement("script");
   sc.src = "https://s3.tradingview.com/external-embedding/embed-widget-" + name + ".js"; sc.async = true;
-  sc.textContent = JSON.stringify(Object.assign({ colorTheme: "dark", isTransparent: true, width: "100%" }, height ? { height: "100%" } : {}, config));
+  sc.textContent = JSON.stringify(Object.assign({ colorTheme: "dark", isTransparent: true }, config.autosize ? {} : Object.assign({ width: "100%" }, height ? { height: "100%" } : {}), config));
   box.append(sc);
   return box;
 }
@@ -454,7 +454,7 @@ async function Market() {
     root.append(h("p", { class: "muted", style: "font-size:.88rem" }, "مواعيد الأخبار القوية اللي تحرّك الذهب. انتبه قبل الأخبار الحمراء."),
       tvWidget("events", { locale: "ar_AE", importanceFilter: "0,1", countryFilter: "us,eu,gb,cn,jp" }, 620));
   } else if (sub === "chart") {
-    root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, 520));
+    root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, autosize: true, backgroundColor: "rgba(0,0,0,0)" }, "max(460px, calc(100dvh - 330px))"));
   } else {
     root.append(h("p", { class: "muted", style: "font-size:.88rem" }, "آخر أخبار الذهب من TradingView (بالإنجليزي)، تتحدث لحالها."),
       tvWidget("timeline", { feedMode: "symbol", symbol: "OANDA:XAUUSD", displayMode: "regular", locale: "en" }, 640));
