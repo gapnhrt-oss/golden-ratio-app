@@ -91,6 +91,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 /* signal card */
 .sig{background:var(--bg2);border:1px solid var(--line);border-radius:18px;overflow:hidden}
 .sig.open{border-color:var(--gold2)}
+.online{display:flex;align-items:center;gap:8px;font-size:.9rem;color:var(--muted)}
+.online i{width:9px;height:9px;border-radius:50%;background:var(--up);box-shadow:0 0 0 4px color-mix(in srgb,var(--up) 22%,transparent)}
+.online b{color:var(--gold);font-family:var(--latin);font-size:1rem}
+.views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
 .sig-b{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
@@ -169,6 +173,8 @@ const PAY = {
   freeChannel: "https://t.me/+O8NG8ZlfWIaIAfAc",
   broker: "http://live.multilp.com/signup/2llXOvrR"
 };
+// عدد المتصلين: المدير يشوفه دايماً، والناس يشوفونه إذا وصل هالرقم أو أكثر
+const ONLINE_PUBLIC_MIN = 5;
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
 /* ================== أدوات ================== */
@@ -218,7 +224,35 @@ const RESULT = { qtp: "ربح جزئي", tp1: "الهدف 1", tp2: "الهدف 2
 const WIN = { qtp: 1, tp1: 1, tp2: 1, tp3: 1, tp4: 1 };
 
 /* ================== الحالة ================== */
-const S = { session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0 };
+const S = { session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0, online: 0, views: {} };
+
+/* ================== المتصلين الحين والمشاهدات ================== */
+let presence = null;
+function presenceKey() {
+  if (S.session) return S.session.user.id;
+  let k = null; try { k = localStorage.getItem("gr-anon"); } catch (_) {}
+  if (!k) { k = "a-" + Math.random().toString(36).slice(2, 12); try { localStorage.setItem("gr-anon", k); } catch (_) {} }
+  return k;
+}
+function joinPresence() {
+  if (presence) sb.removeChannel(presence);
+  presence = sb.channel("online", { config: { presence: { key: presenceKey() } } });
+  presence.on("presence", { event: "sync" }, () => { S.online = Object.keys(presence.presenceState()).length; paintOnline(); })
+    .subscribe(st => { if (st === "SUBSCRIBED") presence.track({ t: Date.now() }).catch(() => {}); });
+}
+function onlineNode() { const n = h("div", { class: "online", id: "online", hidden: true }); setTimeout(paintOnline, 0); return n; }
+function paintOnline() {
+  const el = $("online"); if (!el) return;
+  const show = S.online > 0 && (S.admin || S.online >= ONLINE_PUBLIC_MIN);
+  el.hidden = !show; if (!show) return;
+  el.textContent = ""; add(el, h("i"), h("b", null, S.online), document.createTextNode(S.online === 1 ? " متصل الحين" : " متصلين الحين"), S.admin && S.online < ONLINE_PUBLIC_MIN ? h("small", null, " (يظهر لك بس)") : null);
+}
+async function loadViews(list, markSeen) {
+  const ids = list.map(s => s.id); if (!ids.length) return;
+  if (markSeen && S.session && !S.admin) await sb.rpc("view_signals", { ids });
+  const { data } = await sb.rpc("signal_view_counts", { ids });
+  (data || []).forEach(r => S.views[r.signal_id] = Number(r.n));
+}
 
 async function loadUser() {
   const { data } = await sb.auth.getSession();
@@ -341,7 +375,8 @@ function signalCard(s, updates) {
   return h("article", { class: "sig" + (open ? " open" : "") },
     h("div", { class: "sig-h" },
       h("div", { class: "row" }, h("span", { class: "pair" }, s.pair || "XAUUSD"), s.side ? h("span", { class: "pill " + s.side }, s.side === "buy" ? "شراء" : "بيع") : null, s.is_free ? h("span", { class: "pill wait" }, "مجانية") : null),
-      h("small", { class: "muted" }, open ? ago(s.created_at) : kw(s.created_at, { day: "numeric", month: "short" }))),
+      h("div", { class: "row", style: "gap:10px" }, S.views[s.id] ? h("span", { class: "views", title: "شافها" }, "👁 " + S.views[s.id]) : null,
+        h("small", { class: "muted" }, open ? ago(s.created_at) : kw(s.created_at, { day: "numeric", month: "short" })))),
     body);
 }
 
@@ -354,7 +389,7 @@ async function Home() {
   ]);
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
-  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)));
+  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode());
 
   const open = teaser.data || [];
   if (open.length) {
@@ -374,6 +409,7 @@ async function Home() {
   if (!S.session) root.append(h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
     h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))));
 
+  root.append(brokerCard());
   add(root, installHint(), notifyHint());
 
   const ps = posts.data || [];
@@ -391,6 +427,19 @@ async function Home() {
     h("a", { class: "btn ghost sm", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "القناة المجانية"),
     h("a", { class: "btn ghost sm", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "واتساب")));
   return root;
+}
+
+function brokerCard() {
+  const step = (n, t) => h("div", { class: "row", style: "gap:10px;align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "pill wait num" }, n), h("span", null, t));
+  return h("div", { class: "card" },
+    h("b", null, "📈 افتح حساب تداول"),
+    h("p", { class: "muted", style: "font-size:.9rem" }, "عشان تطبّق التوصيات أو تنسخ صفقاتنا، تحتاج حساب عند الوسيط حقنا."),
+    step("1", "سجّل من الرابط تحت وعبّي بياناتك."),
+    step("2", "وثّق حسابك وأودع المبلغ اللي يناسبك."),
+    step("3", "أرسل لنا رقم الحساب عشان نساعدك في الربط."),
+    h("div", { class: "row" },
+      h("a", { class: "btn primary", href: PAY.broker, target: "_blank", rel: "noopener" }, "افتح حسابك الحين"),
+      h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابي")));
 }
 
 function notifyHint() {
@@ -430,6 +479,7 @@ async function Signals() {
   if (ids.length) { const u = await sb.from("signal_updates").select("*").in("signal_id", ids).order("created_at"); ups = u.data || []; }
   const open = all.filter(s => s.status === "open" || s.status === "idea");
   const closed = all.filter(s => s.status === "closed");
+  try { await loadViews(all, true); } catch (_) {}
 
   if (S.member) {
     if (open.length) { root.append(h("h2", { class: "h2" }, "المفتوحة")); open.forEach(s => root.append(signalCard(s, ups))); }
@@ -636,7 +686,9 @@ async function AdmMembers() {
   const now = Date.now(), wk = now + 5 * 864e5;
   const rows = (data || []);
   const live = rows.filter(r => new Date(r.ends_at) > now), soon = live.filter(r => new Date(r.ends_at) <= wk), gone = rows.filter(r => new Date(r.ends_at) <= now);
-  box.append(h("div", { class: "row" }, h("span", { class: "pill on" }, "فعّال: " + live.length), h("span", { class: "pill wait" }, "ينتهي خلال 5 أيام: " + soon.length), h("span", { class: "pill off" }, "منتهي: " + gone.length)));
+  let users = null; try { const uc = await sb.rpc("users_count"); users = uc.data; } catch (_) {}
+  box.append(onlineNode());
+  box.append(h("div", { class: "row" }, users != null ? h("span", { class: "pill gray" }, "المسجلين: " + users) : null, h("span", { class: "pill on" }, "فعّال: " + live.length), h("span", { class: "pill wait" }, "ينتهي خلال 5 أيام: " + soon.length), h("span", { class: "pill off" }, "منتهي: " + gone.length)));
   if (!rows.length) box.append(h("div", { class: "empty" }, "ما فيه مشتركين بعد."));
   rows.slice().sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at)).forEach(r => {
     const end = new Date(r.ends_at), st = end <= now ? ["منتهي", "off"] : end <= wk ? ["ينتهي قريب", "wait"] : ["فعّال", "on"];
@@ -655,6 +707,7 @@ async function AdmSig() {
   const { data } = await sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false });
   const open = data || [];
   if (!open.length) box.append(h("div", { class: "empty" }, "ما فيه توصيات مفتوحة."));
+  try { await loadViews(open, false); } catch (_) {}
   let ups = []; if (open.length) { const u = await sb.from("signal_updates").select("*").in("signal_id", open.map(s => s.id)).order("created_at"); ups = u.data || []; }
   open.forEach(s => {
     box.append(signalCard(s, ups));
@@ -808,13 +861,14 @@ function subscribeLive() {
 async function boot() {
   await loadUser();
   subscribeLive();
+  joinPresence();
   route();
 }
 let lastUid = undefined;
 sb.auth.onAuthStateChange((ev, session) => {
   const uid = session ? session.user.id : null;
   if (lastUid === undefined) { lastUid = uid; return; }
-  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); route(); }); }
+  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); }); }
 });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 boot();
