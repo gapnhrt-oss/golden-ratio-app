@@ -441,7 +441,7 @@ function tvWidget(name, config, height) {
   box.append(sc);
   return box;
 }
-function goldPrice() { return tvWidget("single-quote", { symbol: "OANDA:XAUUSD", locale: "ar_AE" }); }
+function goldPrice() { return tvWidget("tickers", { symbols: [{ proName: "OANDA:XAUUSD", title: "Gold / XAUUSD" }], showSymbolLogo: true, displayMode: "adaptive", locale: "en" }); }
 async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
