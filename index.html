@@ -98,8 +98,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .tv .tradingview-widget-copyright{display:none}
 .tv iframe{color-scheme:light}
 .tv.price{background:linear-gradient(180deg,#141a4a,#0d1238);border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}
-.cal-day{font-size:.95rem;margin:10px 0 0;color:var(--muted)}
-.cal-day.today{color:var(--gold)}
+.cal-day{position:sticky;top:64px;z-index:3;display:flex;align-items:center;gap:10px;font-size:1rem;margin:18px 0 2px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--gold) 10%,var(--bg));border:1px solid color-mix(in srgb,var(--gold) 30%,var(--line));color:var(--fg);box-shadow:0 6px 14px -8px #000}
+.cal-day::before{content:"📅"}
+.cal-day.today{background:linear-gradient(180deg,var(--gold),var(--gold2));color:var(--ink);border-color:var(--gold)}
+.cal-day.today::before{content:"⭐"}
 .cal{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:10px;border-inline-start:4px solid var(--line)}
 .cal.up{border-inline-start-color:var(--up)}.cal.dn{border-inline-start-color:var(--down)}
 .cal-h{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;align-items:center}
