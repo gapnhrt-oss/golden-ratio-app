@@ -950,7 +950,9 @@ async function AdmMembers() {
 async function AdmSig() {
   const box = h("div", { class: "screen" });
   box.append(h("button", { class: "btn primary", onclick: newSignalSheet }, "+ توصية جديدة"));
-  const { data } = await sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false });
+  await sb.auth.refreshSession().catch(() => {});
+  const { data, error } = await sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false });
+  if (error) throw error;
   const open = data || [];
   if (!open.length) box.append(h("div", { class: "empty" }, "ما فيه توصيات مفتوحة."));
   try { await loadViews(open, false); } catch (_) {}
@@ -1117,6 +1119,8 @@ sb.auth.onAuthStateChange((ev, session) => {
   if (lastUid === undefined) { lastUid = uid; return; }
   if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); }); }
 });
+// لمّا يرجع التطبيق من الخلفية نجدد الجلسة (الآيفون يوقف التجديد التلقائي)
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.session) sb.auth.refreshSession().then(() => loadUser()).then(() => route()).catch(() => {}); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 boot();
 </script>
