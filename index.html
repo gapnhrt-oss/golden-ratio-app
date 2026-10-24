@@ -107,9 +107,9 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .cal-n b{display:block;font-size:.95rem;line-height:1.35}.cal-n small{color:var(--muted);font-size:.72rem}
 .imp{display:inline-flex;align-items:flex-end;gap:2px;font-size:.72rem;font-weight:700;padding:3px 8px;border-radius:999px;white-space:nowrap}
 .imp i{width:4px;border-radius:2px;background:currentColor;opacity:.25}.imp i:nth-child(1){height:6px}.imp i:nth-child(2){height:9px}.imp i:nth-child(3){height:12px;margin-inline-end:4px}
-.imp.hi{color:var(--gold);background:color-mix(in srgb,var(--gold) 15%,transparent)}.imp.hi i{opacity:1}
-.imp.mid{color:#E9A14B;background:color-mix(in srgb,#E9A14B 13%,transparent)}.imp.mid i:nth-child(-n+2){opacity:1}
-.imp.lo{color:var(--muted);background:color-mix(in srgb,var(--muted) 12%,transparent)}.imp.lo i:nth-child(1){opacity:1}
+.imp.hi{color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 16%,transparent)}.imp.hi i{opacity:1}
+.imp.mid{color:#FF9F1C;background:color-mix(in srgb,#FF9F1C 15%,transparent)}.imp.mid i:nth-child(-n+2){opacity:1}
+.imp.lo{color:#F2D21B;background:color-mix(in srgb,#F2D21B 13%,transparent)}.imp.lo i:nth-child(1){opacity:1}
 .cal-v{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
 .cal-v div{background:var(--bg);border-radius:10px;padding:6px 4px}.cal-v small{display:block;color:var(--muted);font-size:.72rem}
 .cal-v b{font-size:1rem}.cal-v b.big{font-size:1.25rem}
@@ -470,7 +470,7 @@ function tvWidget(name, config, height) {
 const fillH = (min, minus) => Math.max(min, Math.round((window.innerHeight || 800) - minus));
 /* ================== الأجندة الاقتصادية (حقتنا) ================== */
 const FLAG = { US: "🇺🇸", EU: "🇪🇺", GB: "🇬🇧", CN: "🇨🇳", JP: "🇯🇵", CH: "🇨🇭", CA: "🇨🇦", AU: "🇦🇺" };
-const IMP = { "1": ["قوي", "hi"], "0": ["متوسط", "mid"], "-1": ["ضعيف", "lo"] };
+const IMP = { "1": ["🔴 قوي", "hi"], "0": ["🟠 متوسط", "mid"], "-1": ["🟡 ضعيف", "lo"] };
 const AR_TITLE = [
   [/non.?farm|nfp/i, "الوظائف غير الزراعية"], [/unemployment rate/i, "معدل البطالة"], [/jobless claims|initial claims/i, "طلبات إعانة البطالة"],
   [/continuing claims/i, "طلبات الإعانة المستمرة"], [/core pce/i, "مؤشر PCE الأساسي (التضخم)"], [/pce/i, "مؤشر PCE (التضخم)"],
@@ -562,7 +562,7 @@ async function Calendar() {
     if (firstUpcoming) setTimeout(() => firstUpcoming.scrollIntoView({ block: "center" }), 60);
   };
   paint();
-  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "🟢 الرقم الأخضر = أحسن من المتوقع (إيجابي للعملة) · 🔴 الأحمر = أسوأ (سلبي). أخبار أمريكا الإيجابية عادةً تنزّل الذهب."), seg, body);
+  box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "قوة الخبر: 🔴 قوي · 🟠 متوسط · 🟡 ضعيف. ولمّا تطلع النتيجة: الرقم الأخضر = إيجابي (أحسن من المتوقع)، والأحمر = سلبي (أسوأ). أخبار أمريكا الإيجابية عادةً تنزّل الذهب."), seg, body);
   return box;
 }
 
