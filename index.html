@@ -98,10 +98,15 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .tv .tradingview-widget-copyright{display:none}
 .tv iframe{color-scheme:light}
 .tv.price{background:linear-gradient(180deg,#141a4a,#0d1238);border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}
-.cal-day{position:sticky;top:64px;z-index:3;display:flex;align-items:center;gap:10px;font-size:1rem;margin:18px 0 2px;padding:10px 14px;border-radius:12px;background:color-mix(in srgb,var(--gold) 10%,var(--bg));border:1px solid color-mix(in srgb,var(--gold) 30%,var(--line));color:var(--fg);box-shadow:0 6px 14px -8px #000}
-.cal-day::before{content:"📅"}
-.cal-day.today{background:linear-gradient(180deg,var(--gold),var(--gold2));color:var(--ink);border-color:var(--gold)}
-.cal-day.today::before{content:"⭐"}
+.cal-day{position:sticky;top:64px;z-index:3;display:flex;align-items:center;gap:10px;font-size:1.15rem;font-weight:800;margin:34px 0 4px;padding:14px 16px;border-radius:14px;background:linear-gradient(180deg,var(--gold),var(--gold2));color:var(--ink);box-shadow:0 10px 20px -10px #000,0 0 0 3px var(--bg)}
+.cal-day:first-child{margin-top:8px}
+.cal-day::before{content:"";position:absolute;inset-inline:0;top:-20px;border-top:2px dashed color-mix(in srgb,var(--gold) 40%,transparent)}
+.cal-day:first-child::before{display:none}
+.cal-day .cnt{margin-inline-start:auto;font-size:.78rem;font-weight:700;background:rgba(0,0,0,.18);padding:3px 10px;border-radius:999px}
+.cal-day.past{background:linear-gradient(180deg,#3A3F72,#2B2F5C);color:var(--fg)}
+.cal-day.past .cnt{background:rgba(255,255,255,.1)}
+.cal-day.today{background:linear-gradient(180deg,#2BD48A,#15A86A);color:#04140C}
+.cal-day .tag{font-size:.75rem;background:rgba(0,0,0,.2);padding:2px 8px;border-radius:999px}
 .cal{background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:10px;border-inline-start:4px solid var(--line)}
 .cal.up{border-inline-start-color:var(--up)}.cal.dn{border-inline-start-color:var(--down)}
 .cal-h{display:grid;grid-template-columns:auto auto 1fr auto;gap:8px;align-items:center}
@@ -622,7 +627,12 @@ async function Calendar() {
     let day = null, firstUpcoming = null;
     rows.forEach(e => {
       const d = kw(e.date, { weekday: "long", day: "numeric", month: "long" });
-      if (d !== day) { day = d; body.append(h("h3", { class: "cal-day" + (d === today ? " today" : "") }, d === today ? "اليوم · " + d : d)); }
+      if (d !== day) {
+        day = d;
+        const n = rows.filter(x => kw(x.date, { weekday: "long", day: "numeric", month: "long" }) === d).length;
+        const isPast = d !== today && new Date(e.date) < Date.now();
+        body.append(h("h3", { class: "cal-day" + (d === today ? " today" : isPast ? " past" : "") }, d === today ? h("span", { class: "tag" }, "اليوم") : null, h("span", null, d), h("span", { class: "cnt" }, n + (n === 1 ? " خبر" : " أخبار"))));
+      }
       const v = verdict(e), imp = IMP[String(e.importance)] || IMP["-1"], ar = arTitle(e.title) || e.title_ar;
       const past = new Date(e.date) < Date.now();
             const row = h("div", { class: "cal " + (v ? v.cls : "") + (past ? "" : " soon") },
