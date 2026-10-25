@@ -192,6 +192,30 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .spinner{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:30px auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+
+/* ===== الرئيسية: الصفقة لايف + النتائج + المنشورات ===== */
+.live .bigpl{font:800 2rem var(--latin);direction:ltr;unicode-bidi:isolate}
+.prog{display:flex;gap:6px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);font-size:.78rem;color:var(--muted)}
+.chip.hit{background:color-mix(in srgb,var(--up) 20%,transparent);border-color:color-mix(in srgb,var(--up) 60%,transparent);color:var(--up);font-weight:600}
+.chip.next{border-color:var(--gold);color:var(--gold)}
+.lvl{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center}
+.lvl div{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 4px}
+.lvl small{display:block;color:var(--muted);font-size:.72rem}
+.strip{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.strip small{display:block}
+.strip b{font:800 1.4rem var(--latin);direction:ltr;unicode-bidi:isolate}
+.dots{display:flex;gap:6px;flex-wrap:wrap;direction:ltr}
+.dots i{width:16px;height:16px;border-radius:50%;display:inline-block}
+.dots .w{background:var(--up)}.dots .b{background:var(--muted)}.dots .l{background:var(--down)}
+.ftabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.ftabs::-webkit-scrollbar{display:none}
+.ftabs button{flex:0 0 auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:.82rem;color:var(--muted);cursor:pointer}
+.ftabs button.on{background:color-mix(in srgb,var(--gold) 16%,transparent);border-color:var(--gold2);color:var(--gold);font-weight:600}
+.clamp{display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.more{background:none;border:0;color:var(--gold);padding:0;font-size:.85rem;cursor:pointer;align-self:flex-start}
+.proof{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.9rem}
+.proof:last-child{border-bottom:0}
 </style>
 </head>
 <body>
@@ -444,54 +468,210 @@ function signalCard(s, updates) {
 }
 
 /* ================== الرئيسية ================== */
+let homeTimer = null;
+const kwStart = unit => { // بداية الأسبوع (الاثنين) أو الشهر بتوقيت الكويت
+  const k = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuwait" }));
+  const d = unit === "month" ? 1 : k.getDate() - ((k.getDay() + 6) % 7);
+  return new Date(Date.UTC(k.getFullYear(), k.getMonth(), d) - 3 * 3600e3);
+};
+const money = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
+const outcome = s => { const m = s.move == null ? null : Number(s.move); if (m == null) return s.result === "sl" ? "l" : s.result === "be" ? "b" : "w"; return m > 0.005 ? "w" : m < -0.005 ? "l" : "b"; };
+async function livePrice() { try { const r = await fetch(SUPABASE_URL + "/functions/v1/gold-price"); const j = await r.json(); return j.price ? Number(j.price) : null; } catch (_) { return null; } }
+
+// 🎯 الصفقة الشغالة لايف (للمشتركين)
+function liveCard(s, ups) {
+  const mine = ups.filter(u => u.signal_id === s.id);
+  const hit = new Set(mine.map(u => u.kind));
+  const buy = s.side === "buy", dir = buy ? 1 : -1;
+  const c = h("div", { class: "card gold live" });
+  c.append(h("div", { class: "between" },
+    h("div", { class: "row", style: "gap:8px" }, h("span", { class: "teaser" }, h("span", { class: "ring" })), h("b", null, s.status === "idea" ? "توصية تنتظر الدخول" : "الصفقة الشغالة"), h("span", { class: "pill " + s.side }, buy ? "شراء 🟢" : "بيع 🔴")),
+    h("small", { class: "muted" }, ago(s.created_at))));
+  if (s.status === "idea") {
+    c.append(h("p", null, "⏳ ننتظر رجوع السعر للمنطقة ", h("b", { class: "num" }, fmt(s.entry_from) + (s.entry_to ? " – " + fmt(s.entry_to) : "")), " ورسالة \"ادخل الآن\""));
+    const pr = h("p", { class: "muted num" }, "…"); c.append(pr);
+    c._tick = p => { pr.textContent = p ? "السعر الحين " + fmt(p) : ""; };
+  } else {
+    let sl = s.sl;
+    if (hit.has("tp4")) sl = s.tp3; else if (hit.has("tp3")) sl = s.tp2; else if (hit.has("tp2")) sl = s.tp1; else if (hit.has("tp1") || hit.has("qtp")) sl = s.entry_from;
+    const safe = dir * (sl - s.entry_from) >= 0;
+    const pl = h("div", { class: "bigpl muted" }, "…");
+    const pr = h("small", { class: "muted num" });
+    c.append(h("div", { class: "between" }, h("div", null, h("small", { class: "muted" }, "الربح الحين (حركة الذهب)"), pl), h("div", { style: "text-align:left" }, h("small", { class: "muted" }, "السعر"), h("div", null, pr))));
+    c.append(h("div", { class: "lvl" },
+      h("div", null, h("small", null, "الدخول"), h("b", { class: "num" }, fmt(s.entry_from))),
+      h("div", null, h("small", null, safe ? "الوقف 🔒 مأمّن" : "الوقف"), h("b", { class: "num " + (safe ? "pos" : "neg") }, fmt(sl))),
+      h("div", null, h("small", null, "القوة"), h("b", { class: "num" }, (s.strength || "—") + "/10"))));
+    const tg = [];
+    if (s.tp_quick) tg.push(["qtp", "⚡ سريع", s.tp_quick]);
+    ["tp1", "tp2", "tp3", "tp4"].forEach((k, i) => { if (s[k] != null) tg.push([k, "🎯 " + (i + 1), s[k]]); });
+    const firstOpen = tg.find(t => !hit.has(t[0]));
+    const prog = h("div", { class: "prog" });
+    tg.forEach(t => prog.append(h("span", { class: "chip" + (hit.has(t[0]) ? " hit" : t === firstOpen ? " next" : "") }, (hit.has(t[0]) ? "✅ " : "") + t[1] + " ", h("span", { class: "num" }, fmt(t[2])))));
+    c.append(prog);
+    const nx = h("small", { class: "muted" }); c.append(nx);
+    c._tick = p => {
+      if (!p) return;
+      const v = dir * (p - Number(s.entry_from));
+      pl.textContent = money(Math.round(v * 100) / 100); pl.className = "bigpl " + (v >= 0 ? "pos" : "neg");
+      pr.textContent = fmt(p);
+      nx.textContent = firstOpen ? "الهدف القادم " + firstOpen[1].replace(/^\S+ /, "") + " عند " + fmt(firstOpen[2]) + " · باقي " + fmt(Math.max(0, dir * (Number(firstOpen[2]) - p))) + "$" : "🏆 كل الأهداف تحققت";
+    };
+  }
+  const last = mine[mine.length - 1];
+  if (last) c.append(h("small", { class: "muted" }, "آخر تحديث: " + (KIND[last.kind] || last.kind) + " · " + ago(last.created_at)));
+  c.append(h("a", { class: "btn primary sm", href: "#signals" }, "التفاصيل والمتابعة"));
+  return c;
+}
+
+// 📊 شريط النتائج (للكل)
+function resultsStrip(closed) {
+  const c = h("div", { class: "card soft" });
+  c.append(h("div", { class: "between" }, h("b", null, "📊 نتائجنا"), h("a", { class: "muted", href: "#signals", style: "font-size:.85rem" }, "الأرشيف ←")));
+  if (!closed.length) { c.append(h("p", { class: "muted" }, "النتائج تبدأ من أول توصية 🚀 وكل توصية بتنحسب هني، ربح أو خسارة.")); return c; }
+  const sum = from => closed.filter(s => new Date(s.closed_at) >= from).reduce((a, s) => a + Number(s.move || 0), 0);
+  const wk = sum(kwStart("week")), mo = sum(kwStart("month"));
+  c.append(h("div", { class: "strip" },
+    h("div", null, h("small", { class: "muted" }, "هالأسبوع"), h("b", { class: wk >= 0 ? "pos" : "neg" }, money(Math.round(wk * 100) / 100))),
+    h("div", null, h("small", { class: "muted" }, "هالشهر"), h("b", { class: mo >= 0 ? "pos" : "neg" }, money(Math.round(mo * 100) / 100)))));
+  const last = closed.slice(0, 10).reverse();
+  const n = { w: 0, b: 0, l: 0 }; last.forEach(s => n[outcome(s)]++);
+  const dots = h("div", { class: "dots", title: "آخر " + last.length + " توصيات" });
+  last.forEach(s => dots.append(h("i", { class: outcome(s), title: (RESULT[s.result] || "") + " " + (s.move != null ? money(Number(s.move)) : "") })));
+  c.append(h("div", null, h("small", { class: "muted" }, "آخر " + last.length + " توصيات: ✅ " + n.w + " · ⚖️ " + n.b + " · ❌ " + n.l), dots));
+  c.append(h("small", { class: "muted" }, "حركة الذهب بالدولار من الدخول للإغلاق · 0.01 لوت = نفس الرقم بالدولار"));
+  return c;
+}
+
+// 🎁 إثبات لغير المشتركين: الأهداف اللي تحققت (بدون التفاصيل)
+function proofCard(list) {
+  if (!list || !list.length) return null;
+  const nm = { qtp: "⚡ الهدف السريع", tp1: "🎯 الهدف 1", tp2: "🎯 الهدف 2", tp3: "🎯 الهدف 3", tp4: "🎯 الهدف 4" };
+  const c = h("div", { class: "card gold" }, h("b", null, "✅ آخر الأهداف اللي حققها المشتركين"));
+  list.forEach(p => c.append(h("div", { class: "proof" }, h("span", null, nm[p.kind] || p.kind, " · ", p.side === "buy" ? "شراء" : "بيع"), h("span", null, h("b", { class: "num pos" }, money(Number(p.profit))), " ", h("small", { class: "muted" }, ago(p.created_at))))));
+  c.append(h("a", { class: "btn primary", href: "#sub" }, "اشترك وخذها من البداية"));
+  return c;
+}
+
+// ☀️ قراءة اليوم (آخر قراءة صبح، مثبّتة فوق)
+function postBody(p, open) {
+  const t = p.body || "";
+  if (!t) return null;
+  const long = t.length > 260 || t.split("\n").length > 5;
+  const el = h("p", { style: "white-space:pre-wrap", class: long && !open ? "clamp" : "" }, t);
+  if (!long || open) return el;
+  const b = h("button", { class: "more", type: "button" }, "اقرأ المزيد ▾");
+  b.onclick = () => { const o = el.classList.toggle("clamp"); b.textContent = o ? "اقرأ المزيد ▾" : "إخفاء ▴"; };
+  return [el, b];
+}
+function todayReading(ps) {
+  const day = Date.now() - 20 * 3600e3;
+  const m = ps.filter(p => p.kind === "morning" && new Date(p.created_at) > day);
+  if (!m.length) return null;
+  const c = h("div", { class: "card" }, h("div", { class: "between" }, h("b", null, "☀️ قراءة اليوم"), h("small", { class: "muted" }, kw(m[0].created_at, { hour: "2-digit", minute: "2-digit" }))));
+  m.slice(0, 2).forEach(p => add(c, p.title && m.length > 1 ? h("b", null, p.title) : null, postBody(p)));
+  return c;
+}
+
+// 🗂️ المنشورات بتبويبات
+const postCat = p => {
+  if (p.kind === "morning") return "read";
+  if (p.kind === "results") return "res";
+  const t = (p.title || "") + " " + (p.body || "").slice(0, 80);
+  if (/توصية #\d|تحقق|الهدف|الوقف|انتهت التوصية|ادخل/.test(t)) return "follow";
+  if (/📰|خبر|أخبار|⏰|تذكير|الفائدة|التضخم|الوظائف/.test(t)) return "news";
+  return "other";
+};
+function postsFeed(ps) {
+  const wrap = h("div", { class: "screen", style: "gap:12px" });
+  const KINDP = { morning: "قراءة الصبح ☀️", free_signal: "توصية مجانية 🎁", results: "النتائج 📊", announcement: "خبر / إعلان 📢" };
+  const CATN = { news: "📰 خبر", follow: "🎯 متابعة", read: "☀️ قراءة", res: "📊 نتائج", other: "📢 تنبيه" };
+  const tabs = [["all", "الكل"], ["news", "📰 الأخبار"], ["follow", "🎯 المتابعة"], ["read", "☀️ القراءة"], ["res", "📊 النتائج"]];
+  let cur = "all"; try { cur = localStorage.getItem("gr_feed") || "all"; } catch (_) {}
+  const bar = h("div", { class: "ftabs", role: "tablist" });
+  const list = h("div", { class: "screen", style: "gap:12px" });
+  const paint = () => {
+    bar.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.k === cur));
+    list.textContent = "";
+    const f = ps.filter(p => cur === "all" || postCat(p) === cur);
+    if (!f.length) { list.append(h("div", { class: "empty" }, ps.length ? "ما فيه منشورات بهالقسم للحين." : "قراءة السوق والأخبار والمتابعة بتنزل هني.")); return; }
+    f.slice(0, 25).forEach(p => {
+      const c = h("div", { class: "card" }, h("div", { class: "between" }, h("div", { class: "row", style: "gap:6px" }, h("span", { class: "pill wait" }, p.kind === "announcement" ? CATN[postCat(p)] : (KINDP[p.kind] || p.kind)), p.audience === "members" ? h("span", { class: "pill on" }, "🔒 للمشتركين") : null), h("small", { class: "muted" }, kw(p.created_at))));
+      add(c, p.title ? h("b", null, p.title) : null, postBody(p));
+      if (p.image_path) { const img = h("img", { class: "chart", style: "width:100%;border-radius:12px", alt: "" }); img.src = SUPABASE_URL + "/storage/v1/object/public/media/" + p.image_path; c.append(img); }
+      list.append(c);
+    });
+  };
+  tabs.forEach(([k, n]) => bar.append(h("button", { type: "button", "data-k": k, role: "tab", onclick: () => { cur = k; try { localStorage.setItem("gr_feed", k); } catch (_) {} paint(); } }, n)));
+  wrap.append(h("h2", { class: "h2" }, "آخر المنشورات"), bar, list);
+  paint();
+  return wrap;
+}
+
 async function Home() {
-  const [teaser, posts, last] = await Promise.all([
+  if (homeTimer) { clearInterval(homeTimer); homeTimer = null; }
+  const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
     sb.rpc("open_signals_teaser"),
-    sb.from("posts").select("*").order("created_at", { ascending: false }).limit(20),
-    sb.from("signals").select("*").eq("status", "closed").order("closed_at", { ascending: false }).limit(1)
+    sb.from("posts").select("*").order("created_at", { ascending: false }).limit(60),
+    sb.from("signals").select("id,side,result,move,closed_at,created_at").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
+    S.member ? sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    S.member ? Promise.resolve({ data: [] }) : sb.rpc("signal_proofs")
   ]);
+  const ps = posts.data || [], closed = closedQ.data || [], openSigs = openQ.data || [];
+  let ups = [];
+  if (openSigs.length) { const u = await sb.from("signal_updates").select("*").in("signal_id", openSigs.map(s => s.id)).order("created_at"); ups = u.data || []; }
+
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
-  add(root, renewCard(), await freeWeekCard().catch(() => null));
-  add(root, await nextNewsCard().catch(() => null), await pollCard().catch(() => null), await leaderCard().catch(() => null));
 
-  const open = teaser.data || [];
-  if (open.length) {
-    const t = open[0];
-    const c = h("div", { class: "card gold" },
-      h("div", { class: "teaser" }, h("span", { class: "ring" }), h("div", null, h("b", null, S.member ? "فيه توصية مفتوحة الحين" : "توصية جديدة انرسلت للمشتركين"), h("p", { class: "muted num" }, kw(t.created_at) + " · " + ago(t.created_at)))));
-    if (S.member) c.append(h("a", { class: "btn primary", href: "#signals" }, "افتح التوصية"));
-    else c.append(h("div", { class: "row blur", "aria-hidden": "true" }, h("span", { class: "pill buy" }, "BUY"), h("span", { class: "num" }, "0000.0 – 0000.0")),
-      h("a", { class: "btn primary", href: "#sub" }, "اشترك عشان توصلك"));
-    root.append(c);
+  // كرت التوصية: لايف للمشترك، تشويقة لغيره
+  const lives = openSigs.map(s => liveCard(s, ups));
+  let sigBox;
+  if (S.member) {
+    if (lives.length) sigBox = lives;
+    else {
+      const l = closed[0];
+      sigBox = h("div", { class: "card soft" }, h("b", null, "ما فيه توصية مفتوحة الحين"),
+        l ? h("p", { class: "muted" }, "آخر توصية: " + (RESULT[l.result] || "") + " ", l.move != null ? h("b", { class: "num " + (Number(l.move) >= 0 ? "pos" : "neg") }, money(Number(l.move))) : null) : h("p", { class: "muted" }, "أول ما تنزل توصية بتشوفها هني لايف."));
+    }
   } else {
-    const l = (last.data || [])[0];
-    root.append(h("div", { class: "card soft" }, h("b", null, "ما فيه توصية مفتوحة الحين"),
-      l ? h("p", { class: "muted" }, "آخر توصية: " + (RESULT[l.result] || "") + " ", l.move != null ? h("b", { class: "num " + (Number(l.move) >= 0 ? "pos" : "neg") }, (Number(l.move) > 0 ? "+" : "") + "$" + fmt(l.move)) : null) : h("p", { class: "muted" }, "أول ما تنزل توصية بتشوفها هني.")));
+    const open = teaser.data || [];
+    if (open.length) {
+      const t = open[0];
+      sigBox = h("div", { class: "card gold" },
+        h("div", { class: "teaser" }, h("span", { class: "ring" }), h("div", null, h("b", null, "توصية جديدة انرسلت للمشتركين"), h("p", { class: "muted num" }, kw(t.created_at) + " · " + ago(t.created_at)))),
+        h("div", { class: "row blur", "aria-hidden": "true" }, h("span", { class: "pill buy" }, "BUY"), h("span", { class: "num" }, "0000.0 – 0000.0")),
+        h("a", { class: "btn primary", href: "#sub" }, "اشترك عشان توصلك"));
+    }
   }
+  const signup = !S.session ? h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
+    h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))) : null;
+  const [freeW, news, poll, lead] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null)]);
 
-  if (!S.session) root.append(h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
-    h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))));
-
-  root.append(brokerCard());
-  add(root, installHint(), notifyHint());
-
-  const ps = posts.data || [];
-  root.append(h("h2", { class: "h2" }, "آخر المنشورات"));
-  if (!ps.length) root.append(h("div", { class: "empty" }, "قراءة السوق والتوصيات المجانية بتنزل هني."));
-  const KINDP = { morning: "قراءة الصبح ☀️", free_signal: "توصية مجانية 🎁", results: "النتائج 📊", announcement: "خبر / إعلان 📢" };
-  ps.forEach(p => {
-    const c = h("div", { class: "card" }, h("div", { class: "between" }, h("div", { class: "row", style: "gap:6px" }, h("span", { class: "pill wait" }, KINDP[p.kind] || p.kind), p.audience === "members" ? h("span", { class: "pill on" }, "🔒 للمشتركين") : null), h("small", { class: "muted" }, kw(p.created_at))),
-      p.title ? h("b", null, p.title) : null, p.body ? h("p", { style: "white-space:pre-wrap" }, p.body) : null);
-    if (p.image_path) { const img = h("img", { class: "chart", style: "width:100%;border-radius:12px", alt: "" }); img.src = SUPABASE_URL + "/storage/v1/object/public/media/" + p.image_path; c.append(img); }
-    root.append(c);
-  });
+  if (S.member) {
+    // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
+    add(root, renewCard(), sigBox, todayReading(ps), news, postsFeed(ps), resultsStrip(closed), poll, lead, brokerCard(), installHint(), notifyHint());
+  } else {
+    // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
+    add(root, resultsStrip(closed), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, brokerCard(), installHint(), notifyHint(), postsFeed(ps));
+  }
 
   root.append(h("div", { class: "row" },
     h("a", { class: "btn tg sm", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "✈️ القناة المجانية"),
     h("button", { class: "btn ghost sm", type: "button", onclick: () => termsSheet() }, "📜 الشروط"),
     h("a", { class: "btn wa sm", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 واتساب")));
+
+  // ⏱️ تحديث السعر والربح كل 15 ثانية
+  const ticks = lives.filter(c => c._tick);
+  if (ticks.length) {
+    const run = async () => {
+      if (S.route !== "home" || !document.body.contains(ticks[0])) { clearInterval(homeTimer); homeTimer = null; return; }
+      if (document.hidden) return;
+      const p = await livePrice(); ticks.forEach(c => c._tick(p));
+    };
+    setTimeout(run, 400); homeTimer = setInterval(run, 15000);
+  }
   return root;
 }
 
@@ -1395,7 +1575,7 @@ function subscribeLive() {
   channel = sb.channel("live")
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "signals" }, p => { notify(S.member ? "توصية جديدة 📈" : "توصية جديدة للمشتركين", "افتح التطبيق", "./#signals"); refreshIf("home", "signals"); })
     .on("postgres_changes", { event: "UPDATE", schema: "public", table: "signals" }, () => refreshIf("home", "signals"))
-    .on("postgres_changes", { event: "INSERT", schema: "public", table: "signal_updates" }, p => { notify("تحديث على التوصية: " + (KIND[p.new.kind] || ""), p.new.body || "", "./#signals"); refreshIf("signals"); })
+    .on("postgres_changes", { event: "INSERT", schema: "public", table: "signal_updates" }, p => { notify("تحديث على التوصية: " + (KIND[p.new.kind] || ""), p.new.body || "", "./#signals"); refreshIf("home", "signals"); })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "posts" }, () => { notify("منشور جديد", "", "./#home"); refreshIf("home"); })
     .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, p => {
       const mine = S.session && p.new.sender === S.session.user.id;
