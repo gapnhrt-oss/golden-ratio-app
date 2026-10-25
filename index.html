@@ -221,7 +221,10 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .ptitle{font-weight:600;line-height:1.5}
 .pmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pmeta small{margin-inline-start:auto}
-.parr{color:var(--gold);font-size:.9rem}
+.pmeta{order:0}
+.pmore{color:var(--gold);font-size:.85rem;font-weight:600}
+.pill.newp{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
+.pcard.fresh{border-color:color-mix(in srgb,var(--up) 55%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--up) 20%,transparent)}
 .pbody{border-top:1px dashed var(--line);padding-top:8px}
 .card.terms{border-color:color-mix(in srgb,var(--gold) 30%,var(--line))}
 .ticon{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--bg2);font-size:.9rem}
@@ -588,18 +591,28 @@ function todayReading(ps) {
 const isWelcome = p => /أهلاً فيكم|أهلا فيكم|هلا فيكم/.test((p.title || "") + " " + (p.body || "").slice(0, 60));
 const KINDP = { morning: "قراءة الصبح ☀️", free_signal: "توصية مجانية 🎁", results: "النتائج 📊", announcement: "خبر / إعلان 📢" };
 const CATN = { news: "📰 خبر", follow: "🎯 متابعة", read: "☀️ قراءة", res: "📊 نتائج", other: "📢 تنبيه" };
+// 🟢 المنشورات الجديدة: اللي ما انفتحت وعمرها أقل من يومين
+const readSet = () => { try { return new Set(JSON.parse(localStorage.getItem("gr_read") || "[]")); } catch (_) { return new Set(); } };
+function markRead(id) { try { const r = [...readSet()]; if (!r.includes(id)) { r.push(id); localStorage.setItem("gr_read", JSON.stringify(r.slice(-300))); } } catch (_) {} }
+const isNew = (p, rs) => !rs.has(p.id) && Date.now() - new Date(p.created_at) < 48 * 3600e3;
 function postCard(p) {
+  const fresh = isNew(p, readSet());
   const tag = p.kind === "announcement" ? CATN[postCat(p)] : (KINDP[p.kind] || p.kind);
   const title = p.title || (p.body || "").split("\n")[0].slice(0, 90) || tag;
   const body = h("div", { class: "pbody", hidden: true });
   if (p.body && p.body !== p.title) body.append(h("p", { style: "white-space:pre-wrap" }, p.body));
   if (p.image_path) { const img = h("img", { class: "chart", style: "width:100%;border-radius:12px", alt: "" }); img.src = SUPABASE_URL + "/storage/v1/object/public/media/" + p.image_path; body.append(img); }
-  const arrow = h("span", { class: "parr" }, "▾");
+  const more = h("span", { class: "pmore" }, "اقرأ المزيد ▾");
+  const badge = fresh ? h("span", { class: "pill newp" }, "🟢 جديد") : null;
   const head = h("button", { class: "phead", type: "button", "aria-expanded": "false" },
-    h("span", { class: "ptitle" }, title),
-    h("span", { class: "pmeta" }, h("span", { class: "pill wait" }, tag), p.audience === "members" ? h("span", { class: "pill on" }, "🔒") : null, h("small", { class: "muted" }, kw(p.created_at)), arrow));
-  head.onclick = () => { const o = body.hidden; body.hidden = !o; head.setAttribute("aria-expanded", o ? "true" : "false"); arrow.textContent = o ? "▴" : "▾"; };
-  return h("div", { class: "card pcard" }, head, body);
+    h("span", { class: "pmeta" }, badge, h("span", { class: "pill wait" }, tag), p.audience === "members" ? h("span", { class: "pill on" }, "🔒") : null, h("small", { class: "muted" }, ago(p.created_at))),
+    h("span", { class: "ptitle" }, title), more);
+  const card = h("div", { class: "card pcard" + (fresh ? " fresh" : "") }, head, body);
+  head.onclick = () => {
+    const o = body.hidden; body.hidden = !o; head.setAttribute("aria-expanded", o ? "true" : "false"); more.textContent = o ? "إخفاء ▴" : "اقرأ المزيد ▾";
+    if (o && fresh) { markRead(p.id); card.classList.remove("fresh"); if (badge) badge.remove(); const n = document.getElementById("newcnt"); if (n) { const v = Number(n.dataset.n) - 1; n.dataset.n = v; if (v > 0) n.textContent = v + " جديد"; else n.remove(); } }
+  };
+  return card;
 }
 
 // 🎉 الترحيب: كرت يطلع مرة وحدة، ويختفي بـ ✕
@@ -628,7 +641,8 @@ function postsFeed(ps, limit) {
   ps = ps.filter(p => !isWelcome(p));
   const wrap = h("div", { class: "screen", style: "gap:10px" });
   if (limit) {
-    wrap.append(h("div", { class: "between" }, h("h2", { class: "h2" }, "آخر المنشورات"), ps.length > limit ? h("a", { class: "muted", href: "#posts", style: "font-size:.85rem" }, "كل المنشورات ←") : null));
+    const rs = readSet(), nNew = ps.filter(p => isNew(p, rs)).length;
+    wrap.append(h("div", { class: "between" }, h("div", { class: "row", style: "gap:8px" }, h("h2", { class: "h2" }, "آخر المنشورات"), nNew ? h("span", { class: "pill newp", id: "newcnt", "data-n": nNew }, nNew + " جديد") : null), ps.length > limit ? h("a", { class: "muted", href: "#posts", style: "font-size:.85rem" }, "كل المنشورات ←") : null));
     if (!ps.length) wrap.append(h("div", { class: "empty" }, "قراءة السوق والأخبار والمتابعة بتنزل هني."));
     ps.slice(0, limit).forEach(p => wrap.append(postCard(p)));
     if (ps.length > limit) wrap.append(h("a", { class: "btn ghost sm block", href: "#posts" }, "كل المنشورات (" + ps.length + ")"));
