@@ -219,6 +219,10 @@ const PAY = {
 };
 // عدد المتصلين: المدير يشوفه دايماً، والناس يشوفونه إذا وصل هالرقم أو أكثر
 const ONLINE_PUBLIC_MIN = 5;
+const VAPID_PUBLIC = "BOy3kR6gXk-t15TiUzR8ACt81E_C8KZDJZ7NdyQQ1Vha3--pkCDvX6yv4ePR83JfV55mf50uQ9tV5Z4GZOGjW8o";
+const APP_URL = "https://gapnhrt-oss.github.io/golden-ratio-app/";
+const FREE_LIMIT = 50;
+try { const r = new URLSearchParams(location.search).get("ref"); if (r) localStorage.setItem("gr-ref", r.toUpperCase().slice(0, 12)); } catch (_) {}
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
 
 /* ================== أدوات ================== */
@@ -341,6 +345,8 @@ function authSheet(mode) {
   const name = h("input", { id: "a-name", autocomplete: "name", placeholder: "اسمك" });
   const phone = h("input", { id: "a-phone", inputmode: "tel", dir: "ltr", placeholder: "+965" });
   const email = h("input", { id: "a-email", type: "email", dir: "ltr", autocomplete: "email", placeholder: "you@email.com" });
+  let refPre = ""; try { refPre = localStorage.getItem("gr-ref") || ""; } catch (_) {}
+  const refIn = h("input", { id: "a-ref", dir: "ltr", placeholder: "اختياري", value: refPre, style: "text-transform:uppercase" });
   const pass = h("input", { id: "a-pass", type: "password", dir: "ltr", autocomplete: mode === "login" ? "current-password" : "new-password", placeholder: "6 أحرف أو أكثر" });
   const go = h("button", { class: "btn primary block", type: "submit" }, mode === "login" ? "دخول" : "سوّ حسابي");
   const form = h("form", { class: "screen", onsubmit: async e => {
@@ -351,7 +357,7 @@ function authSheet(mode) {
         if (error) throw error;
       } else {
         if (!name.value.trim() || !phone.value.trim()) throw new Error("اكتب اسمك ورقم الواتساب");
-        const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value, options: { data: { name: name.value.trim(), phone: phone.value.trim() }, emailRedirectTo: location.origin + location.pathname } });
+        const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value, options: { data: { name: name.value.trim(), phone: phone.value.trim(), ref: refIn.value.trim().toUpperCase() }, emailRedirectTo: location.origin + location.pathname } });
         if (error) throw error;
         if (!data.session) { closeSheet(); openSheet(h("div", { class: "screen" }, h("h2", { class: "h2" }, "تأكد من إيميلك 📩"), h("p", { class: "muted" }, "أرسلنا لك رابط تفعيل على " + email.value.trim() + ". افتحه وارجع سجّل دخول."), h("button", { class: "btn ghost", onclick: closeSheet }, "تمام"))); return; }
       }
@@ -367,6 +373,7 @@ function authSheet(mode) {
     mode === "signup" ? h("div", { class: "field" }, h("label", { for: "a-phone" }, "رقم الواتساب"), phone) : null,
     h("div", { class: "field" }, h("label", { for: "a-email" }, "الإيميل"), email),
     h("div", { class: "field" }, h("label", { for: "a-pass" }, "الباسورد"), pass),
+    mode === "signup" ? h("div", { class: "field" }, h("label", { for: "a-ref" }, "كود الدعوة (إذا عندك)"), refIn) : null,
     err, go,
     h("button", { class: "btn ghost block", type: "button", onclick: () => authSheet(mode === "login" ? "signup" : "login") }, mode === "login" ? "ما عندك حساب؟ سوّ حساب جديد" : "عندك حساب؟ سجّل دخول")
   );
@@ -437,7 +444,7 @@ async function Home() {
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
-  add(root, renewCard());
+  add(root, renewCard(), await freeWeekCard().catch(() => null));
   add(root, await nextNewsCard().catch(() => null));
 
   const open = teaser.data || [];
@@ -534,6 +541,34 @@ async function getCal() {
   if (calCache.list && Date.now() - calCache.at < 5 * 60000) return calCache.list;
   const l = await fnGet(""); if (l) calCache = { at: Date.now(), list: l }; return l;
 }
+/* ================== أسبوع مجاني لأول 50 ================== */
+async function freeWeekCard() {
+  if (S.admin) return null;
+  if (S.profile && S.profile.free_week && !S.profile.free_week_used)
+    return h("div", { class: "card gold" }, h("b", null, "🎁 مبروك! أنت من أول " + FREE_LIMIT + " مسجّل"), h("p", { class: "muted" }, "عندك أسبوع توصيات مجاني يتفعّل لك يوم إطلاق التوصيات. فعّل التنبيهات عشان يوصلك."));
+  if (S.session) return null;
+  const { data } = await sb.rpc("free_spots_left");
+  if (!data || data <= 0) return null;
+  return h("div", { class: "card gold" }, h("b", null, "🎁 أسبوع توصيات مجاني لأول " + FREE_LIMIT + " مسجّل"), h("p", { class: "muted num" }, "باقي " + data + " مكان. سجّل الحين ببلاش، والأسبوع يتفعّل لك يوم الإطلاق."), h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "سجّلني الحين"));
+}
+
+/* ================== ادعُ صديقك ================== */
+async function referralCard() {
+  if (!S.session || S.admin || !S.profile || !S.profile.ref_code) return null;
+  const code = S.profile.ref_code, link = APP_URL + "?ref=" + code;
+  let st = { joined: 0, rewarded: 0 }; try { const r = await sb.rpc("my_referrals"); if (r.data && r.data[0]) st = r.data[0]; } catch (_) {}
+  const msg = "جرّب تطبيق GOLDEN RATIO لتوصيات الذهب 🟡\nسجّل من هالرابط بكودي " + code + ":\n" + link;
+  return h("div", { class: "card" },
+    h("b", null, "👥 ادعُ صديقك واكسب أسبوع مجاني"),
+    h("p", { class: "muted", style: "font-size:.88rem" }, "كل صديق يسجّل بكودك ويشترك، تاخذ أسبوع توصيات مجاني ينضاف لاشتراكك."),
+    h("div", { class: "row" }, h("code", { class: "copy num", style: "flex:1;font-size:1.3rem;text-align:center;letter-spacing:3px" }, code), copyBtn(code)),
+    h("div", { class: "row" },
+      h("a", { class: "btn wa sm", href: "https://wa.me/?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, "💬 شارك بالواتساب"),
+      h("button", { class: "btn ghost sm", type: "button", onclick: async () => { try { if (navigator.share) await navigator.share({ title: "GOLDEN RATIO", text: msg }); else { await navigator.clipboard.writeText(msg); toast("انسخ الرابط ✅"); } } catch (_) {} } }, "مشاركة")),
+    h("div", { class: "kv" }, h("span", null, "سجّلوا بكودك"), h("b", { class: "num" }, String(st.joined))),
+    h("div", { class: "kv" }, h("span", null, "اشتركوا (أسابيع ربحتها)"), h("b", { class: "num" }, String(st.rewarded))));
+}
+
 /* ================== تذكير التجديد ================== */
 function renewCard() {
   if (!S.member || !S.subEnd || S.admin) return null;
@@ -800,13 +835,25 @@ function brokerCard() {
       h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابك")));
 }
 
+function b64u(s) { const p = "=".repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); }
+async function ensurePush() {
+  try {
+    if (!S.session || !("serviceWorker" in navigator) || !("PushManager" in window) || Notification.permission !== "granted") return;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(VAPID_PUBLIC) });
+    const j = sub.toJSON();
+    S.pushOn = true;
+    await sb.from("push_subs").upsert({ endpoint: j.endpoint, user_id: S.session.user.id, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" });
+  } catch (_) {}
+}
 function notifyHint() {
   if (!S.session || !("Notification" in window) || Notification.permission !== "default") return null;
   const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   if (ios && !standalone) return null;
   const c = h("div", { class: "card soft" }, h("b", null, "🔔 فعّل التنبيهات"), h("p", { class: "muted", style: "font-size:.88rem" }, "عشان يوصلك تنبيه أول ما تنزل توصية أو تحديث."));
-  c.append(h("button", { class: "btn primary sm", onclick: async () => { try { const r = await Notification.requestPermission(); toast(r === "granted" ? "تفعّلت التنبيهات ✅" : "ما تفعّلت التنبيهات", r !== "granted"); } catch (_) {} c.remove(); } }, "تفعيل"));
+  c.append(h("button", { class: "btn primary sm", onclick: async () => { try { const r = await Notification.requestPermission(); if (r === "granted") await ensurePush(); toast(r === "granted" ? "تفعّلت التنبيهات ✅" : "ما تفعّلت التنبيهات", r !== "granted"); } catch (_) {} c.remove(); } }, "تفعيل"));
   return c;
 }
 
@@ -890,11 +937,14 @@ async function Sub() {
   list.filter(s => s.status === "rejected").slice(0, 1).forEach(p => root.append(h("div", { class: "card" }, h("div", { class: "between" }, h("b", null, "طلب ما انقبل"), h("span", { class: "pill off" }, "مرفوض")), p.note ? h("p", null, p.note) : null, h("a", { class: "btn ghost sm", href: "#chat" }, "كلّمنا"))));
 
   root.append(plansCard(active));
+  add(root, await referralCard());
   root.append(copyCard(copies.data || []));
   root.append(h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, (S.profile && S.profile.name) || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, (S.profile && S.profile.phone) || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))));
   return root;
 }
 
+function priceMain(p) { return p.price_kwd ? fmt(p.price_kwd) + " د.ك" : "$" + fmt(p.price_usd); }
+function priceAlt(p) { return p.price_kwd && p.price_usd ? "$" + fmt(p.price_usd) : ""; }
 function plansCard(active) {
   const sigPlans = S.plans.filter(p => p.kind === "signals");
   let chosen = sigPlans[2] || sigPlans[0];
@@ -904,7 +954,7 @@ function plansCard(active) {
   function paint() {
     seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === chosen.id)));
     price.textContent = "";
-    price.append(h("span", { class: "muted" }, chosen.days + " يوم"), h("b", { class: "num", style: "font-size:1.6rem" }, chosen.price_kwd ? fmt(chosen.price_kwd) + " KWD" : "$" + fmt(chosen.price_usd)));
+    price.append(h("span", { class: "muted" }, chosen.days + " يوم"), h("div", { style: "text-align:end" }, h("b", { class: "num", style: "font-size:1.6rem" }, priceMain(chosen)), priceAlt(chosen) ? h("small", { class: "muted num", style: "display:block" }, priceAlt(chosen)) : null));
   }
   sigPlans.forEach(p => seg.append(h("button", { type: "button", "data-id": p.id, onclick: () => { chosen = p; paint(); } }, p.name_ar.replace("توصيات - ", ""))));
   paint();
@@ -940,13 +990,13 @@ function paySheet(plan) {
         const up = await sb.storage.from("receipts").upload(path, f, { contentType: f.type || "image/jpeg" });
         if (up.error) throw up.error;
       }
-      const { error } = await sb.from("subscriptions").insert({ user_id: uid, plan_id: plan.id, pay_method: method.value, amount: plan.price_kwd ? plan.price_kwd + " KWD" : "$" + plan.price_usd, receipt_path: path, ref: ref.value.trim() || null });
+      const { error } = await sb.from("subscriptions").insert({ user_id: uid, plan_id: plan.id, pay_method: method.value, amount: "$" + plan.price_usd + (plan.price_kwd ? " / " + fmt(plan.price_kwd) + " KWD" : ""), receipt_path: path, ref: ref.value.trim() || null });
       if (error) throw error;
       closeSheet(); toast("وصل طلبك ✅ بيتفعّل بعد التأكد من الدفع"); route();
     } catch (ex) { toast(errText(ex), true); go.disabled = false; go.textContent = "أرسل الطلب"; }
   } },
     h("div", { class: "between" }, h("h2", { class: "h1" }, plan.name_ar), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
-    h("div", { class: "kv" }, h("span", null, "المبلغ"), h("b", { class: "num" }, plan.price_kwd ? fmt(plan.price_kwd) + " KWD" : "$" + fmt(plan.price_usd))),
+    h("div", { class: "kv" }, h("span", null, "المبلغ"), h("b", { class: "num" }, priceMain(plan) + (priceAlt(plan) ? " · " + priceAlt(plan) : ""))),
     h("div", { class: "field" }, h("label", { for: "p-method" }, "طريقة الدفع"), method), info,
     h("div", { class: "field" }, h("label", { for: "p-file" }, "صورة الإيصال"), file),
     h("div", { class: "field" }, h("label", { for: "p-ref" }, "مين دعاك؟ / كود خصم"), ref),
@@ -1045,6 +1095,8 @@ async function AdmMembers() {
   const rows = (data || []);
   const live = rows.filter(r => new Date(r.ends_at) > now), soon = live.filter(r => new Date(r.ends_at) <= wk), gone = rows.filter(r => new Date(r.ends_at) <= now);
   let users = null; try { const uc = await sb.rpc("users_count"); users = uc.data; } catch (_) {}
+  const fw = h("button", { class: "btn primary sm", onclick: async ev => { if (!confirmInline(ev)) return; fw.disabled = true; const { data: n, error: e } = await sb.rpc("activate_free_weeks"); fw.disabled = false; if (e) { toast(errText(e), true); return; } toast("تفعّل الأسبوع المجاني لـ " + (n || 0) + " شخص ✅"); route(); } }, "🎁 فعّل الأسبوع المجاني لأول " + FREE_LIMIT);
+  box.append(h("div", { class: "card soft" }, h("b", null, "يوم الإطلاق"), h("p", { class: "muted", style: "font-size:.85rem" }, "اضغطه مرة وحدة يوم ما تبدأ التوصيات: يعطي أول " + FREE_LIMIT + " مسجّل أسبوع مجاني من نفس اللحظة."), fw));
   box.append(onlineNode());
   box.append(h("div", { class: "row" }, users != null ? h("span", { class: "pill gray" }, "المسجلين: " + users) : null, h("span", { class: "pill on" }, "فعّال: " + live.length), h("span", { class: "pill wait" }, "ينتهي خلال 5 أيام: " + soon.length), h("span", { class: "pill off" }, "منتهي: " + gone.length)));
   if (!rows.length) box.append(h("div", { class: "empty" }, "ما فيه مشتركين بعد."));
@@ -1195,7 +1247,7 @@ async function AdmCopy() {
 let channel = null;
 function notify(title, body, url) {
   toast(title);
-  if (!("Notification" in window) || Notification.permission !== "granted" || !document.hidden) return;
+  if (S.pushOn || !("Notification" in window) || Notification.permission !== "granted" || !document.hidden) return;
   navigator.serviceWorker && navigator.serviceWorker.ready.then(r => r.showNotification(title, { body, icon: "icon-512.png", badge: "icon-512.png", data: { url } })).catch(() => {});
 }
 function subscribeLive() {
@@ -1224,12 +1276,13 @@ async function boot() {
   subscribeLive();
   joinPresence();
   route();
+  ensurePush();
 }
 let lastUid = undefined;
 sb.auth.onAuthStateChange((ev, session) => {
   const uid = session ? session.user.id : null;
   if (lastUid === undefined) { lastUid = uid; return; }
-  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); }); }
+  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); ensurePush(); }); }
 });
 // لمّا يرجع التطبيق من الخلفية نجدد الجلسة (الآيفون يوقف التجديد التلقائي)
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.session) sb.auth.refreshSession().then(() => loadUser()).then(() => route()).catch(() => {}); });

@@ -1,5 +1,5 @@
 // GOLDEN RATIO — service worker: يخلي التطبيق يتركّب على الشاشة ويفتح بسرعة
-const CACHE = 'gr-v5';
+const CACHE = 'gr-v6';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -22,6 +22,14 @@ self.addEventListener('fetch', e => {
       .then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); return res; })
       .catch(() => caches.match(e.request).then(r => r || caches.match('./index.html')))
   );
+});
+
+// إشعار يوصل من السيرفر حتى لو التطبيق مسكّر
+self.addEventListener('push', e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'GOLDEN RATIO', {
+    body: d.body || '', icon: 'icon-512.png', badge: 'icon-512.png', tag: d.tag || undefined, data: { url: d.url || './' }
+  }));
 });
 
 self.addEventListener('notificationclick', e => {
