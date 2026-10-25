@@ -222,6 +222,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .pmeta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .pmeta small{margin-inline-start:auto}
 .pmeta{order:0}
+.pprev{white-space:pre-wrap;color:var(--muted);font-size:.9rem;margin:0}
+.pcard.open .pprev{color:var(--fg)}
+.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pmore{color:var(--gold);font-size:.85rem;font-weight:600}
 .pill.newp{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
 .pcard.fresh{border-color:color-mix(in srgb,var(--up) 55%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--up) 20%,transparent)}
@@ -600,16 +603,19 @@ function postCard(p) {
   const tag = p.kind === "announcement" ? CATN[postCat(p)] : (KINDP[p.kind] || p.kind);
   const title = p.title || (p.body || "").split("\n")[0].slice(0, 90) || tag;
   const body = h("div", { class: "pbody", hidden: true });
-  if (p.body && p.body !== p.title) body.append(h("p", { style: "white-space:pre-wrap" }, p.body));
+  const txt = p.body && p.body !== p.title ? p.body : "";
+  const prev = txt ? h("p", { class: "pprev clamp2" }, txt) : null;
   if (p.image_path) { const img = h("img", { class: "chart", style: "width:100%;border-radius:12px", alt: "" }); img.src = SUPABASE_URL + "/storage/v1/object/public/media/" + p.image_path; body.append(img); }
   const more = h("span", { class: "pmore" }, "اقرأ المزيد ▾");
   const badge = fresh ? h("span", { class: "pill newp" }, "🟢 جديد") : null;
   const head = h("button", { class: "phead", type: "button", "aria-expanded": "false" },
     h("span", { class: "pmeta" }, badge, h("span", { class: "pill wait" }, tag), p.audience === "members" ? h("span", { class: "pill on" }, "🔒") : null, h("small", { class: "muted" }, ago(p.created_at))),
-    h("span", { class: "ptitle" }, title), more);
+    h("span", { class: "ptitle" }, title), prev, more);
+  const short = txt.split("\n").length <= 2 && txt.length < 110;
+  if (short && !p.image_path) { more.remove(); if (prev) prev.classList.remove("clamp2"); }
   const card = h("div", { class: "card pcard" + (fresh ? " fresh" : "") }, head, body);
   head.onclick = () => {
-    const o = body.hidden; body.hidden = !o; head.setAttribute("aria-expanded", o ? "true" : "false"); more.textContent = o ? "إخفاء ▴" : "اقرأ المزيد ▾";
+    const o = !card.classList.contains("open"); card.classList.toggle("open", o); body.hidden = !o || !body.childNodes.length; if (prev) prev.classList.toggle("clamp2", !o); head.setAttribute("aria-expanded", o ? "true" : "false"); more.textContent = o ? "إخفاء ▴" : "اقرأ المزيد ▾";
     if (o && fresh) { markRead(p.id); card.classList.remove("fresh"); if (badge) badge.remove(); const n = document.getElementById("newcnt"); if (n) { const v = Number(n.dataset.n) - 1; n.dataset.n = v; if (v > 0) n.textContent = v + " جديد"; else n.remove(); } }
   };
   return card;
