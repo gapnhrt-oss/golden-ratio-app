@@ -138,6 +138,10 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .sess .bar{height:6px;border-radius:999px;background:var(--bg);overflow:hidden}.sess .bar i{display:block;height:100%;background:var(--up)}
 .lesson summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none}.lesson summary::-webkit-details-marker{display:none}
 .lesson p{margin:8px 0 0;line-height:1.8}
+.pollbar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--bg)}.pollbar .up{background:var(--up)}.pollbar .dn{background:var(--down)}
+.poll{display:grid;gap:10px}
+.lead summary{cursor:pointer;list-style:none}.lead summary::-webkit-details-marker{display:none}.lead .kv.me{color:var(--gold)}
+.stars button{background:none;border:0;font-size:1.5rem;color:var(--line);cursor:pointer;padding:0 2px}.stars button.on{color:var(--gold)}
 .views{font-size:.78rem;color:var(--muted);font-family:var(--latin)}
 .sig-h{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
 .sig-h .pair{font-family:var(--latin);font-weight:800;direction:ltr}
@@ -273,7 +277,7 @@ const RESULT = { qtp: "ربح جزئي", tp1: "الهدف 1", tp2: "الهدف 2
 const WIN = { qtp: 1, tp1: 1, tp2: 1, tp3: 1, tp4: 1 };
 
 /* ================== الحالة ================== */
-const S = { session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0, online: 0, views: {} };
+const S = { session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0, online: 0, views: {}, ratings: {}, myRatings: {} };
 
 /* ================== المتصلين الحين والمشاهدات ================== */
 let presence = null;
@@ -347,6 +351,7 @@ function authSheet(mode) {
   const email = h("input", { id: "a-email", type: "email", dir: "ltr", autocomplete: "email", placeholder: "you@email.com" });
   let refPre = ""; try { refPre = localStorage.getItem("gr-ref") || ""; } catch (_) {}
   const refIn = h("input", { id: "a-ref", dir: "ltr", placeholder: "اختياري", value: refPre, style: "text-transform:uppercase" });
+  const terms = h("input", { type: "checkbox", id: "a-terms", style: "width:auto;margin-top:4px" });
   const pass = h("input", { id: "a-pass", type: "password", dir: "ltr", autocomplete: mode === "login" ? "current-password" : "new-password", placeholder: "6 أحرف أو أكثر" });
   const go = h("button", { class: "btn primary block", type: "submit" }, mode === "login" ? "دخول" : "سوّ حسابي");
   const form = h("form", { class: "screen", onsubmit: async e => {
@@ -357,7 +362,8 @@ function authSheet(mode) {
         if (error) throw error;
       } else {
         if (!name.value.trim() || !phone.value.trim()) throw new Error("اكتب اسمك ورقم الواتساب");
-        const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value, options: { data: { name: name.value.trim(), phone: phone.value.trim(), ref: refIn.value.trim().toUpperCase() }, emailRedirectTo: location.origin + location.pathname } });
+        if (!terms.checked) throw new Error("لازم توافق على الشروط وإخلاء المسؤولية");
+        const { data, error } = await sb.auth.signUp({ email: email.value.trim(), password: pass.value, options: { data: { name: name.value.trim(), phone: phone.value.trim(), ref: refIn.value.trim().toUpperCase(), terms: "true" }, emailRedirectTo: location.origin + location.pathname } });
         if (error) throw error;
         if (!data.session) { closeSheet(); openSheet(h("div", { class: "screen" }, h("h2", { class: "h2" }, "تأكد من إيميلك 📩"), h("p", { class: "muted" }, "أرسلنا لك رابط تفعيل على " + email.value.trim() + ". افتحه وارجع سجّل دخول."), h("button", { class: "btn ghost", onclick: closeSheet }, "تمام"))); return; }
       }
@@ -375,6 +381,7 @@ function authSheet(mode) {
     h("div", { class: "field" }, h("label", { for: "a-pass" }, "الباسورد"), pass),
     mode === "signup" ? h("div", { class: "field" }, h("label", { for: "a-ref" }, "كود الدعوة (إذا عندك)"), refIn) : null,
     err, go,
+    mode === "signup" ? h("label", { class: "row", style: "gap:8px;align-items:flex-start;flex-wrap:nowrap;font-size:.88rem" }, terms, h("span", null, "قريت ", h("a", { href: "#", onclick: ev => { ev.preventDefault(); termsSheet(() => authSheet("signup")); } }, "الشروط وإخلاء المسؤولية"), " وأوافق عليها، وأعرف إن التداول فيه مخاطرة.")) : null,
     h("button", { class: "btn ghost block", type: "button", onclick: () => authSheet(mode === "login" ? "signup" : "login") }, mode === "login" ? "ما عندك حساب؟ سوّ حساب جديد" : "عندك حساب؟ سجّل دخول")
   );
   openSheet(form);
@@ -419,6 +426,8 @@ function signalCard(s, updates) {
     const win = WIN[s.result];
     body.append(h("div", { class: "row" }, h("span", { class: "pill " + (win ? "on" : s.result === "sl" ? "off" : "gray") }, RESULT[s.result] || s.result),
       s.move != null ? h("b", { class: "num " + (Number(s.move) >= 0 ? "pos" : "neg") }, (Number(s.move) > 0 ? "+" : "") + "$" + fmt(s.move)) : null));
+    if (s.status === "closed") body.append(starsRow(s));
+    if (S.admin && s.status === "closed") body.append(h("button", { class: "btn primary sm", type: "button", onclick: () => shareSignalImage(s) }, "📸 صورة للنشر"));
   }
   const ups = (updates || []).filter(u => u.signal_id === s.id);
   if (ups.length) {
@@ -445,7 +454,7 @@ async function Home() {
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
   add(root, renewCard(), await freeWeekCard().catch(() => null));
-  add(root, await nextNewsCard().catch(() => null));
+  add(root, await nextNewsCard().catch(() => null), await pollCard().catch(() => null), await leaderCard().catch(() => null));
 
   const open = teaser.data || [];
   if (open.length) {
@@ -481,6 +490,7 @@ async function Home() {
 
   root.append(h("div", { class: "row" },
     h("a", { class: "btn tg sm", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "✈️ القناة المجانية"),
+    h("button", { class: "btn ghost sm", type: "button", onclick: () => termsSheet() }, "📜 الشروط"),
     h("a", { class: "btn wa sm", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 واتساب")));
   return root;
 }
@@ -541,6 +551,127 @@ async function getCal() {
   if (calCache.list && Date.now() - calCache.at < 5 * 60000) return calCache.list;
   const l = await fnGet(""); if (l) calCache = { at: Date.now(), list: l }; return l;
 }
+
+/* ================== الشروط وإخلاء المسؤولية ================== */
+const TERMS = [
+  ["⚠️ إخلاء المسؤولية", "التداول في الذهب والعملات فيه مخاطرة عالية، وممكن تخسر جزء من رأس مالك أو كله. التوصيات والقراءات والمحتوى في التطبيق آراء تحليلية للتعليم والمعلومة، وليست نصيحة مالية أو استثمارية شخصية، ولا تضمن أي ربح."],
+  ["📉 النتائج السابقة", "النتائج والأرقام المعروضة نتائج سابقة، وما تضمن نتائج مستقبلية. حركة السوق ممكن تختلف بسبب الأخبار والسيولة وفروقات الأسعار بين الوسطاء."],
+  ["🧠 قرارك مسؤوليتك", "أنت المسؤول الوحيد عن قراراتك وصفقاتك وحجم اللوت وإدارة رأس مالك. استخدم وقف الخسارة دايماً، ولا تتداول بفلوس ما تقدر تتحمل خسارتها. GOLDEN RATIO والقائمين عليه غير مسؤولين عن أي خسارة."],
+  ["💳 الاشتراكات", "الاشتراك شخصي ولا يجوز مشاركته أو إعادة نشر التوصيات. الاشتراك يتفعّل بعد التأكد من الدفع، والمبالغ المدفوعة ما تسترجع بعد التفعيل. ممكن نوقف أي حساب يخالف هالشروط."],
+  ["🔁 نسخ الصفقات", "نسخ الصفقات خدمة اختيارية على حسابك عند الوسيط، والأرباح والخسائر تكون على حسابك. نسبة الأرباح المتفق عليها تنحسب من الأرباح الصافية."],
+  ["🔒 الخصوصية", "نحفظ اسمك ورقمك وإيميلك وإيصالات الدفع عشان نقدّم لك الخدمة بس، وما نبيعها أو نشاركها مع أي طرف."]
+];
+function termsSheet(back) {
+  const box = h("div", { class: "screen" }, h("div", { class: "between" }, h("h2", { class: "h1" }, "الشروط وإخلاء المسؤولية"), h("button", { class: "btn ghost sm", type: "button", onclick: () => back ? back() : closeSheet() }, back ? "رجوع" : "إغلاق")));
+  TERMS.forEach(([t, b]) => box.append(h("div", { class: "card soft" }, h("b", null, t), h("p", { style: "line-height:1.8" }, b))));
+  box.append(h("button", { class: "btn primary block", type: "button", onclick: () => back ? back() : closeSheet() }, back ? "فهمت، رجوع للتسجيل" : "فهمت"));
+  openSheet(box);
+}
+
+/* ================== التصويت اليومي ================== */
+async function pollCard() {
+  const { data: polls } = await sb.from("polls").select("*").order("day", { ascending: false }).limit(1);
+  const p = (polls || [])[0]; if (!p) return null;
+  const age = Date.now() - new Date(p.day + "T00:00:00+03:00");
+  if (age > 2 * 864e5) return null;
+  const [cnt, mine] = await Promise.all([sb.rpc("poll_counts", { d: p.day }), S.session ? sb.from("poll_votes").select("choice").eq("day", p.day).eq("user_id", S.session.user.id).maybeSingle() : Promise.resolve({ data: null })]);
+  const up = Number(cnt.data && cnt.data[0] ? cnt.data[0].up : 0), dn = Number(cnt.data && cnt.data[0] ? cnt.data[0].down : 0), tot = up + dn;
+  const my = mine.data && mine.data.choice;
+  const open = !p.result && new Date(p.closes_at) > Date.now();
+  const bar = () => h("div", { class: "pollbar" }, h("i", { class: "up", style: "width:" + (tot ? Math.round(up / tot * 100) : 50) + "%" }), h("i", { class: "dn", style: "width:" + (tot ? Math.round(dn / tot * 100) : 50) + "%" }));
+  const c = h("div", { class: "card poll" });
+  c.append(h("div", { class: "between" }, h("b", null, "🗳️ تصويت اليوم: الذهب بيطلع ولا ينزل؟"), h("small", { class: "muted num" }, tot + " صوت")));
+  if (p.open_price) c.append(h("small", { class: "muted num" }, "سعر البداية " + fmt(p.open_price) + (p.close_price ? " · سعر النهاية " + fmt(p.close_price) : "")));
+  if (open && !my) {
+    const vote = async ch => {
+      if (!S.session) { authSheet("signup"); return; }
+      const { error } = await sb.from("poll_votes").insert({ day: p.day, user_id: S.session.user.id, choice: ch });
+      if (error) { toast(errText(error), true); return; } toast("انحسب صوتك ✅"); route();
+    };
+    c.append(h("div", { class: "grid2" }, h("button", { class: "btn green", type: "button", onclick: () => vote("up") }, "🟢 بيطلع"), h("button", { class: "btn red", type: "button", onclick: () => vote("down") }, "🔴 بينزل")),
+      h("small", { class: "muted" }, "التصويت يسكّر الساعة 12 الظهر، والنتيجة الساعة 11:30 بالليل. كل توقع صح = نقطة بلوحة المتصدرين."));
+  } else {
+    c.append(bar(), h("div", { class: "between num" }, h("span", { class: "pos" }, "🟢 يطلع " + (tot ? Math.round(up / tot * 100) : 0) + "%"), h("span", { class: "neg" }, "🔴 ينزل " + (tot ? Math.round(dn / tot * 100) : 0) + "%")));
+    if (p.result) {
+      const w = p.result === "up" ? "طلع 🟢" : p.result === "down" ? "نزل 🔴" : "ظل ثابت ⚪";
+      c.append(h("div", { class: "cal-r " + (p.result === "up" ? "up" : p.result === "down" ? "dn" : "eq") }, h("b", null, "النتيجة: الذهب " + w), my ? h("span", null, my === p.result ? "توقعك صح ✅ +1 نقطة" : "توقعك ما ضبط هالمرة") : null));
+    } else c.append(h("small", { class: "muted" }, my ? "صوّتت: " + (my === "up" ? "🟢 بيطلع" : "🔴 بينزل") + " · النتيجة الساعة 11:30 بالليل" : "التصويت سكّر، النتيجة الساعة 11:30 بالليل"));
+  }
+  return c;
+}
+async function leaderCard() {
+  const { data } = await sb.rpc("leaderboard");
+  const rows = data || [];
+  const c = h("details", { class: "card lead" }, h("summary", null, h("b", null, "🏆 متصدرين الشهر"), h("small", { class: "muted" }, " (التصويت + الدعوات)")));
+  if (!rows.length) { c.append(h("p", { class: "muted", style: "font-size:.88rem" }, "للحين ما أحد جمع نقاط هالشهر. صوّت كل يوم وادعُ أصدقاءك عشان تتصدر 🔥")); return c; }
+  const medal = ["🥇", "🥈", "🥉"];
+  rows.forEach((r, i) => c.append(h("div", { class: "kv" + (r.me ? " me" : "") }, h("span", null, (medal[i] || (i + 1) + ".") + " " + r.name + (r.me ? " (أنت)" : "")), h("b", { class: "num" }, r.total + " نقطة"))));
+  c.append(h("small", { class: "muted" }, "توقع صح = نقطة · صديق اشترك بكودك = 5 نقاط. الأول آخر الشهر ياخذ أسبوع مجاني 🎁"));
+  return c;
+}
+
+/* ================== تقييم التوصية ================== */
+function starsRow(s) {
+  const st = S.ratings[s.id] || {}; const mine = S.myRatings[s.id];
+  const box = h("div", { class: "row rate", style: "gap:6px" });
+  box.append(h("span", { class: "muted", style: "font-size:.85rem" }, st.n ? "⭐ " + st.avg + " (" + st.n + ")" : "⭐ ما فيه تقييم"));
+  if (S.member && !S.admin) {
+    const wrap = h("span", { class: "stars" });
+    for (let i = 1; i <= 5; i++) wrap.append(h("button", { type: "button", class: i <= (mine || 0) ? "on" : "", "aria-label": i + " نجوم", onclick: async () => {
+      const { error } = await sb.from("signal_ratings").upsert({ signal_id: s.id, user_id: S.session.user.id, stars: i }, { onConflict: "signal_id,user_id" });
+      if (error) { toast(errText(error), true); return; } S.myRatings[s.id] = i; toast("شكراً على تقييمك ⭐"); route();
+    } }, "★"));
+    box.append(wrap);
+  }
+  return box;
+}
+
+/* ================== صور التسويق ================== */
+function canvasBase(w, hgt) {
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = hgt; const x = cv.getContext("2d"); x.direction = "rtl";
+  const g = x.createLinearGradient(0, 0, 0, hgt); g.addColorStop(0, "#141a4a"); g.addColorStop(1, "#0B0C28"); x.fillStyle = g; x.fillRect(0, 0, w, hgt);
+  x.strokeStyle = "rgba(242,183,5,.55)"; x.lineWidth = 6; x.strokeRect(30, 30, w - 60, hgt - 60);
+  const logo = document.querySelector(".brand img"); if (logo && logo.complete) x.drawImage(logo, w / 2 - 70, 70, 140, 140);
+  x.textAlign = "center"; x.fillStyle = "#F2B705"; x.font = "800 64px 'Readex Pro', Arial"; x.fillText("GOLDEN RATIO", w / 2, 280);
+  return [cv, x];
+}
+function finishCanvas(cv, x, w, hgt, name) {
+  x.fillStyle = "rgba(238,240,255,.7)"; x.font = "500 30px 'Readex Pro', Arial"; x.fillText("توصيات الذهب · " + APP_URL.replace("https://", ""), w / 2, hgt - 70);
+  cv.toBlob(async b => {
+    const file = new File([b], name, { type: "image/png" });
+    try { if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: "GOLDEN RATIO" }); return; } } catch (_) { return; }
+    const url = URL.createObjectURL(b);
+    openSheet(h("div", { class: "screen" }, h("h2", { class: "h2" }, "الصورة جاهزة 📸"), h("img", { src: url, style: "width:100%;border-radius:12px" }), h("a", { class: "btn primary block", href: url, download: name }, "حفظ الصورة"), h("button", { class: "btn ghost block", type: "button", onclick: closeSheet }, "إغلاق")));
+  }, "image/png");
+}
+function shareSignalImage(s) {
+  const w = 1080, hgt = 1350, [cv, x] = canvasBase(w, hgt);
+  const win = WIN[s.result];
+  x.fillStyle = "#EEF0FF"; x.font = "700 52px 'Readex Pro', Arial"; x.fillText("XAUUSD · " + (s.side === "buy" ? "شراء" : "بيع"), w / 2, 400);
+  x.fillStyle = win ? "#2BD48A" : "#FF4D5E"; x.font = "800 150px 'Readex Pro', Arial";
+  x.direction = "ltr"; x.fillText((Number(s.move) > 0 ? "+" : "") + "$" + fmt(s.move), w / 2, 600); x.direction = "rtl";
+  x.font = "800 64px 'Readex Pro', Arial"; x.fillText((win ? "✅ " : "") + (RESULT[s.result] || ""), w / 2, 710);
+  x.fillStyle = "#9EA3D6"; x.font = "500 40px 'Readex Pro', Arial";
+  const lines = ["الدخول: " + (s.entry_to ? fmt(s.entry_from) + " – " + fmt(s.entry_to) : fmt(s.entry_from)), s.sl != null ? "الوقف: " + fmt(s.sl) : "", [s.tp1, s.tp2, s.tp3, s.tp4].filter(v => v != null).length ? "الأهداف: " + [s.tp1, s.tp2, s.tp3, s.tp4].filter(v => v != null).map(fmt).join(" · ") : "", kw(s.closed_at || s.created_at, { day: "numeric", month: "long", year: "numeric" })].filter(Boolean);
+  lines.forEach((l, i) => x.fillText(l, w / 2, 830 + i * 64));
+  x.fillStyle = "#F2B705"; x.font = "700 44px 'Readex Pro', Arial"; x.fillText("اشترك وخلك أول من يوصله التوصية 🔔", w / 2, hgt - 160);
+  finishCanvas(cv, x, w, hgt, "golden-ratio-" + (s.id || "").slice(0, 6) + ".png");
+}
+function shareMonthImage(closed) {
+  const now = new Date(), key = kw(now, { year: "numeric", month: "2-digit" });
+  const mon = closed.filter(s => kw(s.closed_at || s.created_at, { year: "numeric", month: "2-digit" }) === key);
+  if (!mon.length) { toast("ما فيه توصيات مقفلة هالشهر", true); return; }
+  const wins = mon.filter(s => WIN[s.result]).length, tot = mon.reduce((a, s) => a + Number(s.move || 0), 0);
+  const w = 1080, hgt = 1350, [cv, x] = canvasBase(w, hgt);
+  x.fillStyle = "#EEF0FF"; x.font = "700 58px 'Readex Pro', Arial"; x.fillText("نتائج " + kw(now, { month: "long", year: "numeric" }), w / 2, 410);
+  const box = (lab, val, col, y) => { x.fillStyle = "rgba(255,255,255,.06)"; x.fillRect(140, y, 800, 170); x.fillStyle = "#9EA3D6"; x.font = "500 36px 'Readex Pro', Arial"; x.fillText(lab, w / 2, y + 55); x.fillStyle = col; x.font = "800 80px 'Readex Pro', Arial"; x.direction = /^[+\-$\d]/.test(val) ? "ltr" : "rtl"; x.fillText(val, w / 2, y + 140); x.direction = "rtl"; };
+  box("مجموع حركة الذهب", (tot > 0 ? "+" : "") + "$" + fmt(tot), tot >= 0 ? "#2BD48A" : "#FF4D5E", 470);
+  box("نسبة النجاح", Math.round(wins / mon.length * 100) + "%", "#F2B705", 670);
+  box("التوصيات الرابحة", wins + " من " + mon.length, "#EEF0FF", 870);
+  x.fillStyle = "#F2B705"; x.font = "700 44px 'Readex Pro', Arial"; x.fillText("نتائج حقيقية · كل التوصيات بدون حذف", w / 2, hgt - 160);
+  finishCanvas(cv, x, w, hgt, "golden-ratio-month.png");
+}
+
 /* ================== أسبوع مجاني لأول 50 ================== */
 async function freeWeekCard() {
   if (S.admin) return null;
@@ -885,6 +1016,14 @@ async function Signals() {
   const open = all.filter(s => s.status === "open" || s.status === "idea");
   const closed = all.filter(s => s.status === "closed");
   try { await loadViews(all, true); } catch (_) {}
+  try {
+    const cids = closed.map(s => s.id);
+    if (cids.length) {
+      const [rs, mr] = await Promise.all([sb.rpc("rating_stats", { ids: cids }), S.session ? sb.from("signal_ratings").select("signal_id, stars").in("signal_id", cids) : Promise.resolve({ data: [] })]);
+      (rs.data || []).forEach(r => S.ratings[r.signal_id] = { avg: r.avg, n: r.n });
+      (mr.data || []).forEach(r => S.myRatings[r.signal_id] = r.stars);
+    }
+  } catch (_) {}
 
   if (S.member) {
     if (open.length) { root.append(h("h2", { class: "h2" }, "المفتوحة")); open.forEach(s => root.append(signalCard(s, ups))); }
@@ -905,6 +1044,7 @@ async function Signals() {
     root.append(h("div", { class: "grid2" },
       h("div", { class: "card soft" }, h("small", { class: "muted" }, "نسبة النجاح"), h("b", { class: "num", style: "font-size:1.6rem" }, Math.round(w / closed.length * 100) + "%")),
       h("div", { class: "card soft" }, h("small", { class: "muted" }, "مجموع حركة الذهب"), h("b", { class: "num " + (tot >= 0 ? "pos" : "neg"), style: "font-size:1.6rem" }, (tot > 0 ? "+" : tot < 0 ? "-" : "") + "$" + Math.abs(Math.round(tot * 100) / 100)))));
+    if (S.admin) root.append(h("button", { class: "btn primary", type: "button", onclick: () => shareMonthImage(closed) }, "📸 صورة نتائج الشهر للنشر"));
     root.append(h("h2", { class: "h2" }, "الأرشيف (" + closed.length + ")"));
     closed.forEach(s => root.append(signalCard(s, ups)));
   } else root.append(h("div", { class: "empty" }, "التوصيات المقفلة ونتايجها بتظهر هني."));
