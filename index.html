@@ -655,10 +655,10 @@ async function Home() {
 
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), sigBox, todayReading(ps), news, postsFeed(ps), resultsStrip(closed), poll, lead, termsCard(), brokerCard(), installHint(), notifyHint());
+    add(root, renewCard(), sigBox, todayReading(ps), news, postsFeed(ps), resultsStrip(closed), poll, lead, brokerCard(), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, resultsStrip(closed), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, postsFeed(ps), termsCard(), brokerCard(), installHint(), notifyHint());
+    add(root, resultsStrip(closed), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, postsFeed(ps), brokerCard(), installHint(), notifyHint());
   }
 
   root.append(contactCard());
@@ -1134,17 +1134,6 @@ async function Market() {
   return root;
 }
 
-// 🛡️ الشروط (قبل فتح الحساب)
-function termsCard() {
-  const li = (ic, t) => h("div", { class: "row", style: "gap:10px;align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "ticon" }, ic), h("span", { style: "font-size:.9rem" }, t));
-  return h("div", { class: "card terms" },
-    h("div", { class: "between" }, h("b", null, "🛡️ قبل ما تبدأ"), h("span", { class: "pill gray" }, "مهم")),
-    li("⚠️", "التداول فيه مخاطرة عالية، وممكن تخسر جزء من رأس مالك."),
-    li("📚", "التوصيات آراء تحليلية للتعليم، وليست نصيحة استثمارية."),
-    li("🧠", "قرارك مسؤوليتك: التزم بالوقف واللوت المناسب لحسابك."),
-    h("button", { class: "btn ghost sm block", type: "button", onclick: () => termsSheet() }, "📜 اقرأ الشروط وإخلاء المسؤولية كاملة"));
-}
-
 // 💬 تواصل معنا (آخر الصفحة)
 function contactCard() {
   return h("div", { class: "card soft contact" },
@@ -1156,17 +1145,28 @@ function contactCard() {
 }
 
 function brokerCard() {
-  const step = (n, t) => h("div", { class: "row", style: "gap:10px;align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "pill wait num" }, n), h("span", null, t));
   return h("div", { class: "card" },
     h("b", null, "📈 افتح حساب تداول"),
     h("p", { class: "muted", style: "font-size:.9rem" }, "عشان تطبّق التوصيات أو تنسخ صفقاتنا، تحتاج حساب عند الوسيط."),
-    step("1", "سجّل من الرابط تحت وعبّي بياناتك."),
+    h("div", { class: "grid2" },
+      h("button", { class: "btn primary", type: "button", onclick: () => brokerSheet() }, "افتح حسابك"),
+      h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابك")));
+}
+
+// 📜 قبل فتح الحساب: الشروط ← فهمت ← رابط الوسيط
+function brokerSheet() {
+  const step = (n, t) => h("div", { class: "row", style: "gap:10px;align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "pill wait num" }, n), h("span", null, t));
+  const box = h("div", { class: "screen" },
+    h("div", { class: "between" }, h("h2", { class: "h1" }, "🛡️ قبل ما تفتح حسابك"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    h("p", { class: "muted" }, "اقرأ الشروط وإخلاء المسؤولية، وبعدها افتح حسابك."));
+  TERMS.forEach(([t, b]) => box.append(h("div", { class: "card soft" }, h("b", null, t), h("p", { style: "line-height:1.8" }, b))));
+  box.append(h("div", { class: "card" }, h("b", null, "📈 خطوات فتح الحساب"),
+    step("1", "سجّل من الرابط وعبّي بياناتك."),
     step("2", "وثّق حسابك وأودع المبلغ اللي يناسبك."),
-    step("3", "أرسل لنا رقم الحساب عشان نساعدك في الربط."),
-    h("div", { class: "row" },
-      h("a", { class: "btn primary", href: PAY.broker, target: "_blank", rel: "noopener" }, "افتح حسابك الحين"),
-      h("a", { class: "btn ghost", href: S.session ? "#chat" : "https://wa.me/" + PAY.whatsapp + "?text=" + encodeURIComponent("هلا، فتحت حساب تداول وأبي أربطه"), target: S.session ? null : "_blank", rel: "noopener" }, "أرسل رقم حسابك")),
-    h("small", { class: "muted" }, "بفتح الحساب أنت موافق على ", h("button", { class: "linkbtn", type: "button", onclick: () => termsSheet() }, "الشروط وإخلاء المسؤولية"), "."));
+    step("3", "أرسل لنا رقم الحساب عشان نساعدك في الربط.")));
+  box.append(h("button", { class: "btn primary block", type: "button", onclick: () => { window.open(PAY.broker, "_blank", "noopener"); closeSheet(); } }, "✅ فهمت، افتح حسابي"),
+    h("button", { class: "btn ghost block", type: "button", onclick: closeSheet }, "مو الحين"));
+  openSheet(box);
 }
 
 function b64u(s) { const p = "=".repeat((4 - s.length % 4) % 4); const r = atob((s + p).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from([...r].map(c => c.charCodeAt(0))); }
