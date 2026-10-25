@@ -1449,9 +1449,16 @@ async function AdmMembers() {
       c.append(h("div", { class: "kv" }, h("span", null, "🗓️ سجّل"), h("b", null, kwDate(u.created_at))));
       if (u.ends_at) c.append(h("div", { class: "kv" }, h("span", null, "💳 " + (u.plan || "الاشتراك")), h("b", null, (u.sub_status === "expired" ? "انتهى " : "ينتهي ") + kwDate(u.ends_at))));
       if (u.last_seen) c.append(h("small", { class: "muted" }, "آخر دخول: " + ago(u.last_seen)));
-      if (ph) c.append(h("div", { class: "row" },
-        h("a", { class: "btn wa sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, u.sub_status === "none" ? "💬 رسالة ترحيب" : u.sub_status === "active" ? "💬 واتساب" : "💬 رسالة تجديد"),
-        h("a", { class: "btn ghost sm", href: "tel:" + ph }, "📞 اتصال")));
+      const live = u.sub_status === "active" || u.sub_status === "soon";
+      c.append(h("div", { class: "row" },
+        ph ? h("a", { class: "btn wa sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, u.sub_status === "none" ? "💬 رسالة ترحيب" : u.sub_status === "active" ? "💬 واتساب" : "💬 رسالة تجديد") : null,
+        ph ? h("a", { class: "btn ghost sm", href: "tel:" + ph }, "📞 اتصال") : null,
+        h("button", { class: "btn green sm", type: "button", onclick: () => grantSheet(u) }, live ? "➕ تمديد" : "➕ إضافة اشتراك"),
+        live ? h("button", { class: "btn red sm", type: "button", onclick: async ev => {
+          if (!confirmInline(ev)) return;
+          const { error: e } = await sb.from("subscriptions").update({ status: "expired", ends_at: new Date().toISOString(), note: "انلغى من الإدارة" }).eq("user_id", u.id).eq("status", "active");
+          if (e) { toast(errText(e), true); return; } toast("انلغى اشتراك " + (u.name || "") + " ✅"); route();
+        } }, "✖️ إلغاء الاشتراك") : null));
       list.append(c);
     });
   };
@@ -1460,6 +1467,35 @@ async function AdmMembers() {
   box.append(bar, search, list);
   paint();
   return box;
+}
+
+// ➕ إضافة/تمديد اشتراك يدوي من الإدارة
+function grantSheet(u) {
+  const plans = (S.plans || []).filter(p => p.kind === "signals" && p.active !== false);
+  if (!plans.length) { toast("ما فيه باقات توصيات", true); return; }
+  const sel = h("select", { id: "g-plan", style: "width:100%;padding:10px;border-radius:12px;background:var(--bg2);border:1px solid var(--line)" });
+  plans.forEach(p => sel.append(h("option", { value: p.id }, p.name_ar + " · " + p.days + " يوم")));
+  const days = numInput("g-days", "اختياري: عدد أيام غير الباقة");
+  const note = h("input", { id: "g-note", placeholder: "ملاحظة (مثلاً: دفع كاش / هدية)", style: "width:100%;padding:10px;border-radius:12px;background:var(--bg2);border:1px solid var(--line)" });
+  const live = u.ends_at && new Date(u.ends_at) > Date.now();
+  const form = h("form", { class: "screen", onsubmit: async ev => {
+    ev.preventDefault();
+    const p = plans.find(x => x.id === sel.value);
+    const d = Number(days.value) > 0 ? Number(days.value) : p.days;
+    const start = live ? new Date(u.ends_at) : new Date();
+    const end = new Date(start.getTime() + d * 864e5);
+    const { error } = await sb.from("subscriptions").insert({ user_id: u.id, plan_id: p.id, status: "active", pay_method: "manual", amount: null, starts_at: start.toISOString(), ends_at: end.toISOString(), note: note.value.trim() || "إضافة من الإدارة", reviewed_at: new Date().toISOString() });
+    if (error) { toast(errText(error), true); return; }
+    closeSheet(); toast("✅ " + (live ? "تمدد" : "تفعّل") + " اشتراك " + (u.name || "") + " لين " + kwDate(end)); route();
+  } },
+    h("h2", { class: "h1" }, (live ? "تمديد اشتراك " : "إضافة اشتراك ") + (u.name || "")),
+    live ? h("p", { class: "muted" }, "الاشتراك الحالي ينتهي " + kwDate(u.ends_at) + "، والمدة الجديدة تنضاف بعده.") : h("p", { class: "muted" }, "يبدأ من الحين."),
+    h("div", { class: "field" }, h("label", { for: "g-plan" }, "الباقة"), sel),
+    h("div", { class: "field" }, h("label", { for: "g-days" }, "عدد الأيام"), days),
+    h("div", { class: "field" }, h("label", { for: "g-note" }, "ملاحظة"), note),
+    h("button", { class: "btn primary block" }, live ? "مدّد الاشتراك" : "فعّل الاشتراك"),
+    h("button", { class: "btn ghost block", type: "button", onclick: closeSheet }, "إلغاء"));
+  openSheet(form);
 }
 
 async function AdmSig() {
