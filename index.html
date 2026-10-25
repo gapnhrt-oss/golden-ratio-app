@@ -1409,25 +1409,56 @@ async function AdmReq() {
 
 async function AdmMembers() {
   const box = h("div", { class: "screen" });
-  const { data, error } = await sb.from("subscriptions").select("*, profiles(name,phone), plans(name_ar)").eq("status", "active").order("ends_at");
+  const { data, error } = await sb.rpc("admin_users");
   if (error) throw error;
-  const now = Date.now(), wk = now + 5 * 864e5;
-  const rows = (data || []);
-  const live = rows.filter(r => new Date(r.ends_at) > now), soon = live.filter(r => new Date(r.ends_at) <= wk), gone = rows.filter(r => new Date(r.ends_at) <= now);
-  let users = null; try { const uc = await sb.rpc("users_count"); users = uc.data; } catch (_) {}
+  const all = (data || []).filter(u => !u.is_admin);
   const fw = h("button", { class: "btn primary sm", onclick: async ev => { if (!confirmInline(ev)) return; fw.disabled = true; const { data: n, error: e } = await sb.rpc("activate_free_weeks"); fw.disabled = false; if (e) { toast(errText(e), true); return; } toast("تفعّل الأسبوع المجاني لـ " + (n || 0) + " شخص ✅"); route(); } }, "🎁 فعّل الأسبوع المجاني لأول " + FREE_LIMIT);
   box.append(h("div", { class: "card soft" }, h("b", null, "يوم الإطلاق"), h("p", { class: "muted", style: "font-size:.85rem" }, "اضغطه مرة وحدة يوم ما تبدأ التوصيات: يعطي أول " + FREE_LIMIT + " مسجّل أسبوع مجاني من نفس اللحظة."), fw));
   box.append(onlineNode());
-  box.append(h("div", { class: "row" }, users != null ? h("span", { class: "pill gray" }, "المسجلين: " + users) : null, h("span", { class: "pill on" }, "فعّال: " + live.length), h("span", { class: "pill wait" }, "ينتهي خلال 5 أيام: " + soon.length), h("span", { class: "pill off" }, "منتهي: " + gone.length)));
-  if (!rows.length) box.append(h("div", { class: "empty" }, "ما فيه مشتركين بعد."));
-  rows.slice().sort((a, b) => new Date(a.ends_at) - new Date(b.ends_at)).forEach(r => {
-    const end = new Date(r.ends_at), st = end <= now ? ["منتهي", "off"] : end <= wk ? ["ينتهي قريب", "wait"] : ["فعّال", "on"];
-    const ph = r.profiles && r.profiles.phone ? String(r.profiles.phone).replace(/\D/g, "") : "";
-    const msg = "هلا " + ((r.profiles && r.profiles.name) || "") + " 👋\nاشتراكك في GOLDEN RATIO " + (st[1] === "off" ? "انتهى" : "ينتهي") + " بتاريخ " + kwDate(r.ends_at) + ".\nتقدر تجدد من التطبيق ← اشتراكي.";
-    box.append(h("div", { class: "card soft" }, h("div", { class: "between" }, h("b", null, (r.profiles && r.profiles.name) || "—"), h("span", { class: "pill " + st[1] }, st[0])),
-      h("div", { class: "kv" }, h("span", null, r.plans ? r.plans.name_ar : r.plan_id), h("b", null, kwDate(r.ends_at))),
-      ph && st[1] !== "on" ? h("a", { class: "btn ghost sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, "رسالة تجديد") : null));
-  });
+
+  const ST = { active: ["فعّال", "on"], soon: ["ينتهي قريب", "wait"], expired: ["منتهي", "off"], none: ["مو مشترك", "gray"] };
+  const groups = [
+    ["all", "المسجلين", all],
+    ["active", "فعّال", all.filter(u => u.sub_status === "active" || u.sub_status === "soon")],
+    ["soon", "ينتهي خلال 5 أيام", all.filter(u => u.sub_status === "soon")],
+    ["expired", "منتهي", all.filter(u => u.sub_status === "expired")],
+    ["none", "ما اشترك", all.filter(u => u.sub_status === "none")]
+  ];
+  let cur = "all", q = "";
+  try { cur = sessionStorage.getItem("gr_adm_mem") || "all"; } catch (_) {}
+  const bar = h("div", { class: "ftabs" });
+  const search = h("input", { type: "search", placeholder: "🔍 دوّر بالاسم أو الرقم أو الإيميل", style: "width:100%;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--bg2)" });
+  const list = h("div", { class: "screen", style: "gap:10px" });
+  const paint = () => {
+    bar.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.k === cur));
+    list.textContent = "";
+    const g = groups.find(x => x[0] === cur) || groups[0];
+    const qq = q.trim().toLowerCase();
+    const rows = g[2].filter(u => !qq || [u.name, u.phone, u.email].some(v => String(v || "").toLowerCase().includes(qq)));
+    if (!rows.length) { list.append(h("div", { class: "empty" }, qq ? "ما لقيت أحد بهالبحث." : "ما فيه أحد بهالقسم.")); return; }
+    rows.forEach(u => {
+      const st = ST[u.sub_status] || ST.none;
+      const ph = u.phone ? String(u.phone).replace(/\D/g, "") : "";
+      const msg = u.sub_status === "none"
+        ? "هلا " + (u.name || "") + " 👋\nشكراً لتسجيلك في GOLDEN RATIO 🥇\nتقدر تشترك بالتوصيات من التطبيق ← اشتراكي."
+        : "هلا " + (u.name || "") + " 👋\nاشتراكك في GOLDEN RATIO " + (u.sub_status === "expired" ? "انتهى" : "ينتهي") + " بتاريخ " + kwDate(u.ends_at) + ".\nتقدر تجدد من التطبيق ← اشتراكي.";
+      const c = h("div", { class: "card soft" },
+        h("div", { class: "between" }, h("b", null, u.name || "بدون اسم"), h("span", { class: "pill " + st[1] }, st[0])));
+      if (u.phone) c.append(h("div", { class: "kv" }, h("span", null, "📱 الرقم"), h("b", { class: "num" }, u.phone)));
+      if (u.email) c.append(h("div", { class: "kv" }, h("span", null, "✉️ الإيميل"), h("b", { class: "num", style: "font-size:.85rem;word-break:break-all" }, u.email)));
+      c.append(h("div", { class: "kv" }, h("span", null, "🗓️ سجّل"), h("b", null, kwDate(u.created_at))));
+      if (u.ends_at) c.append(h("div", { class: "kv" }, h("span", null, "💳 " + (u.plan || "الاشتراك")), h("b", null, (u.sub_status === "expired" ? "انتهى " : "ينتهي ") + kwDate(u.ends_at))));
+      if (u.last_seen) c.append(h("small", { class: "muted" }, "آخر دخول: " + ago(u.last_seen)));
+      if (ph) c.append(h("div", { class: "row" },
+        h("a", { class: "btn wa sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, u.sub_status === "none" ? "💬 رسالة ترحيب" : u.sub_status === "active" ? "💬 واتساب" : "💬 رسالة تجديد"),
+        h("a", { class: "btn ghost sm", href: "tel:" + ph }, "📞 اتصال")));
+      list.append(c);
+    });
+  };
+  groups.forEach(([k, n, arr]) => bar.append(h("button", { type: "button", "data-k": k, onclick: () => { cur = k; try { sessionStorage.setItem("gr_adm_mem", k); } catch (_) {} paint(); } }, n + ": " + arr.length)));
+  search.addEventListener("input", () => { q = search.value; paint(); });
+  box.append(bar, search, list);
+  paint();
   return box;
 }
 
