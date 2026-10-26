@@ -878,7 +878,7 @@ async function pollCard() {
   } else {
     c.append(bar(), h("div", { class: "between num" }, h("span", { class: "pos" }, "🟢 صعود " + (tot ? Math.round(up / tot * 100) : 0) + "%"), h("span", { class: "neg" }, "🔴 نزول " + (tot ? Math.round(dn / tot * 100) : 0) + "%")));
     if (p.result) {
-      const w = p.result === "up" ? "طلع 🟢" : p.result === "down" ? "نزل 🔴" : "ظل ثابت ⚪";
+      const w = p.result === "up" ? "صعد 🟢" : p.result === "down" ? "نزل 🔴" : "ظل ثابت ⚪";
       c.append(h("div", { class: "cal-r " + (p.result === "up" ? "up" : p.result === "down" ? "dn" : "eq") }, h("b", null, "النتيجة: الذهب " + w), my ? h("span", null, my === p.result ? "توقعك صح ✅ +1 نقطة" : "توقعك ما ضبط هالمرة") : null));
     } else c.append(h("small", { class: "muted" }, my ? "صوّتت: " + (my === "up" ? "🟢 صعود" : "🔴 نزول") + " · النتيجة الساعة 11:30 بالليل" : "التصويت سكّر، النتيجة الساعة 11:30 بالليل"));
   }
