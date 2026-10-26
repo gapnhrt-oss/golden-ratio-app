@@ -613,12 +613,24 @@ function postBody(p, open) {
   b.onclick = () => { const o = el.classList.toggle("clamp"); b.textContent = o ? "اقرأ المزيد ▾" : "إخفاء ▴"; };
   return [el, b];
 }
+const todayMorning = ps => { const day = Date.now() - 20 * 3600e3; return ps.filter(p => p.kind === "morning" && !isWelcome(p) && new Date(p.created_at) > day); };
+// ☀️ قراءة اليوم مطوية: الاتجاه + أقرب مقاومة ودعم، والخريطة كاملة تفتح بالضغط
 function todayReading(ps) {
-  const day = Date.now() - 20 * 3600e3;
-  const m = ps.filter(p => p.kind === "morning" && !isWelcome(p) && new Date(p.created_at) > day);
+  const m = todayMorning(ps);
   if (!m.length) return null;
   const c = h("div", { class: "card" }, h("div", { class: "between" }, h("b", null, "☀️ قراءة اليوم"), h("small", { class: "muted" }, kw(m[0].created_at, { hour: "2-digit", minute: "2-digit" }))));
-  m.slice(0, 2).forEach(p => add(c, p.title && m.length > 1 ? h("b", null, p.title) : null, postBody(p)));
+  m.slice(0, 2).forEach((p, idx) => {
+    const lines = (p.body || "").split("\n");
+    let sum = lines.filter(l => /الاتجاه العام|أقرب مقاومة|أقرب دعم|الأفضلية|السوق محتار/.test(l)).map(l => l.replace(/^\s*[🔴🟢]\s*([\d.]+)\s*—\s*(.*?)\s*←\s*(أقرب مقاومة|أقرب دعم)\s*$/u, (x, n, nm, w) => (w === "أقرب مقاومة" ? "🔴 " : "🟢 ") + w + ": " + n + " (" + nm + ")"));
+    if (!sum.length) sum = lines.filter(l => l.trim()).slice(0, 3);
+    if (m.length > 1 && p.title) c.append(h("b", { style: "font-size:.92rem" }, p.title));
+    c.append(h("p", { style: "white-space:pre-wrap;line-height:1.8" }, sum.join("\n")));
+    const full = h("div", { hidden: true }, h("p", { style: "white-space:pre-wrap;line-height:1.8;border-top:1px dashed var(--line);padding-top:8px" }, p.body || ""));
+    const hasMap = /خريطة الأسعار/.test(p.body || "");
+    const btn = h("button", { class: "btn ghost sm", type: "button" }, hasMap ? "📊 افتح خريطة الأسعار" : "اقرأ المزيد ▾");
+    btn.onclick = () => { const o = full.hidden; full.hidden = !o; btn.textContent = o ? "إخفاء ▴" : (hasMap ? "📊 افتح خريطة الأسعار" : "اقرأ المزيد ▾"); };
+    c.append(btn, full);
+  });
   return c;
 }
 
@@ -751,12 +763,13 @@ async function Home() {
     h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))) : null;
   const [freeW, news, poll, lead] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null)]);
 
+  const tm = todayMorning(ps).map(p => p.id), feedPs = ps.filter(p => !tm.includes(p.id));   // قراءة اليوم لها كرت، فما تتكرر بالمنشورات
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, welcomeCard(ps), renewCard(), sigBox, news, todayReading(ps), postsFeed(ps, 3), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), renewCard(), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, news, signup, freeW, renewCard(), todayReading(ps), poll, lead, postsFeed(ps, 3), brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), signup, freeW, renewCard(), poll, lead, brokerCard(), installHint(), notifyHint());
   }
 
   root.append(contactCard());
