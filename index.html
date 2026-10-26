@@ -571,14 +571,7 @@ function resultsStrip(closed, partial) {
   const td = sum(kwStart("day")), pt = Number(partial || 0);
   const nToday = closed.filter(s => new Date(s.closed_at) >= kwStart("day")).length;
   const howBtn = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
-  howBtn.onclick = () => openSheet(h("div", { class: "screen" },
-    h("div", { class: "between" }, h("h2", { class: "h1" }, "❓ شلون نحسب الأرباح؟"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
-    h("div", { class: "card soft" }, h("b", null, "💰 أرباح اليوم"), h("p", { style: "line-height:1.8" }, "حركة الذهب بالدولار من سعر الدخول لين سعر إغلاق التوصية. يعني لو خلّيت الصفقة كاملة لين النهاية.")),
-    h("div", { class: "card soft" }, h("b", null, "⚡ الربح الجزئي"), h("p", { style: "line-height:1.8" }, "مجموع الربح عند كل هدف تحقق (الهدف السريع والهدف 1 و2...). يعني لو جنيت جزء من الأرباح عند كل هدف مثل ما نوصي بالرسايل.")),
-    h("div", { class: "card soft" }, h("b", null, "📏 مثال"), h("p", { style: "line-height:1.8" }, "بيع من 4002 والهدف السريع 3992 (+10$) والهدف 1 عند 3987 (+15$)، وبعدين سكّر الباقي على الهدف 1:\n• أرباح الإغلاق = +15$\n• الربح الجزئي = 10 + 15 = +25$")),
-    h("div", { class: "card soft" }, h("b", null, "💼 باللوت"), h("p", { style: "line-height:1.8" }, "كل 1$ حركة × 0.01 لوت = 1$ ربح. يعني +25$ حركة باللوت 0.10 = +250$.")),
-    h("p", { class: "muted", style: "font-size:.85rem" }, "⚠️ الرقمين طريقتين حساب لنفس الصفقات، فما ينجمعون على بعض. والنتائج السابقة ما تضمن نتائج مستقبلية."),
-    h("button", { class: "btn primary block", type: "button", onclick: closeSheet }, "فهمت")));
+  howBtn.onclick = () => howSheet();
   if (nToday) c.append(h("div", { class: "strip today" },
     h("div", null, h("small", { class: "muted" }, "💰 أرباح اليوم"), h("b", { class: td >= 0 ? "pos" : "neg" }, money(Math.round(td * 100) / 100)), h("small", { class: "muted" }, "عند إغلاق " + nToday + (nToday === 1 ? " توصية" : " توصيات"))),
     h("div", null, h("small", { class: "muted" }, "⚡ الربح الجزئي اليوم"), h("b", { class: "pos" }, money(Math.round(pt * 100) / 100)), h("small", { class: "muted" }, "مجموع كل هدف تحقق"))), howBtn);
@@ -1314,6 +1307,59 @@ function installHint() {
 }
 
 /* ================== التوصيات ================== */
+function howSheet() {
+  openSheet(h("div", { class: "screen" },
+    h("div", { class: "between" }, h("h2", { class: "h1" }, "❓ شلون نحسب الأرباح؟"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    h("div", { class: "card soft" }, h("b", null, "💰 أرباح الإغلاق"), h("p", { style: "line-height:1.8" }, "حركة الذهب بالدولار من سعر الدخول لين سعر إغلاق التوصية. يعني لو خلّيت الصفقة كاملة لين النهاية.")),
+    h("div", { class: "card soft" }, h("b", null, "⚡ الربح الجزئي"), h("p", { style: "line-height:1.8" }, "مجموع الربح عند كل هدف تحقق (الهدف السريع والهدف 1 و2...). يعني لو جنيت جزء من الأرباح عند كل هدف مثل ما نوصي بالرسايل.")),
+    h("div", { class: "card soft" }, h("b", null, "📏 مثال"), h("p", { style: "line-height:1.8" }, "بيع من 4002 والهدف السريع 3992 (+10$) والهدف 1 عند 3987 (+15$)، وبعدين سكّر الباقي على الهدف 1:\n• أرباح الإغلاق = +15$\n• الربح الجزئي = 10 + 15 = +25$")),
+    h("div", { class: "card soft" }, h("b", null, "💼 باللوت"), h("p", { style: "line-height:1.8" }, "كل 1$ حركة × 0.01 لوت = 1$ ربح. يعني +25$ حركة باللوت 0.10 = +250$.")),
+    h("p", { class: "muted", style: "font-size:.85rem" }, "⚠️ الرقمين طريقتين حساب لنفس الصفقات، فما ينجمعون على بعض. والنتائج السابقة ما تضمن نتائج مستقبلية."),
+    h("button", { class: "btn primary block", type: "button", onclick: closeSheet }, "فهمت")));
+}
+
+// 📊 ملخص النتائج حسب الفترة: أرباح الإغلاق · الربح الجزئي · حققت أهداف · النتيجة
+function statsPanel(closed, ups) {
+  const box = h("div", { class: "screen", style: "gap:10px" });
+  const P = [["day", "اليوم"], ["week", "الأسبوع"], ["month", "الشهر"], ["all", "الكل"]];
+  const hasToday = closed.some(s => new Date(s.closed_at) >= kwStart("day"));
+  let cur = hasToday ? "day" : "all";
+  try { cur = sessionStorage.getItem("gr_stp") || cur; } catch (_) {}
+  const bar = h("div", { class: "ftabs" });
+  const body = h("div", { class: "screen", style: "gap:10px" });
+  const sgn = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(Math.round(v * 100) / 100));
+  const cell = (lbl, val, cls, sub, fs) => h("div", { class: "card soft", style: "gap:4px" }, h("small", { class: "muted" }, lbl), h("b", { class: "num " + (cls || ""), style: "font-size:" + (fs || "1.5rem") + ";white-space:nowrap" }, val), sub ? h("small", { class: "muted" }, sub) : null);
+  const paint = () => {
+    bar.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.k === cur));
+    body.textContent = "";
+    const from = cur === "all" ? new Date(0) : kwStart(cur);
+    const L = closed.filter(s => new Date(s.closed_at) >= from);
+    if (!L.length) { body.append(h("div", { class: "empty" }, "ما فيه توصيات مسكّرة بهالفترة.")); return; }
+    let close = 0, part = 0, hit = 0; const n = { w: 0, b: 0, l: 0 };
+    L.forEach(s => {
+      close += Number(s.move || 0); n[outcome(s)]++;
+      const dir = s.side === "buy" ? 1 : -1;
+      const hs = ups.filter(u => u.signal_id === s.id && /^(qtp|tp[1-4])$/.test(u.kind) && u.price != null);
+      if (hs.length || WIN[s.result]) hit++;
+      hs.forEach(u => part += dir * (Number(u.price) - Number(s.entry_from)));
+    });
+    body.append(
+      h("div", { class: "grid2" },
+        cell("💰 أرباح الإغلاق", sgn(close), close >= 0 ? "pos" : "neg", "حركة الذهب لين الإغلاق"),
+        cell("⚡ الربح الجزئي", sgn(part), part >= 0 ? "pos" : "neg", "مجموع كل هدف تحقق")),
+      h("div", { class: "grid2" },
+        cell("🎯 حققت أهداف", Math.round(hit / L.length * 100) + "%", "", hit + " من " + L.length + " وصلت هدف"),
+        cell("📊 النتيجة عند الإغلاق", "✅" + n.w + " ⚖️" + n.b + " ❌" + n.l, "", "ربح · تعادل · خسارة", "1.1rem")));
+    const how = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
+    how.onclick = () => howSheet();
+    body.append(how);
+  };
+  P.forEach(([k, nm]) => bar.append(h("button", { type: "button", "data-k": k, onclick: () => { cur = k; try { sessionStorage.setItem("gr_stp", k); } catch (_) {} paint(); } }, nm)));
+  box.append(h("h2", { class: "h2" }, "📊 النتائج"), bar, body);
+  paint();
+  return box;
+}
+
 async function Signals() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"));
   const [sig, teaser] = await Promise.all([
@@ -1349,12 +1395,9 @@ async function Signals() {
     open.filter(s => s.is_free).forEach(s => root.append(signalCard(s, ups)));
   }
 
-  // ملخص النتائج
+  // ملخص النتائج: تبويبات الفترة + 4 خانات
   if (closed.length) {
-    let w = 0, tot = 0; closed.forEach(s => { if (WIN[s.result]) w++; tot += Number(s.move || 0); });
-    root.append(h("div", { class: "grid2" },
-      h("div", { class: "card soft" }, h("small", { class: "muted" }, "نسبة النجاح"), h("b", { class: "num", style: "font-size:1.6rem" }, Math.round(w / closed.length * 100) + "%")),
-      h("div", { class: "card soft" }, h("small", { class: "muted" }, "مجموع حركة الذهب"), h("b", { class: "num " + (tot >= 0 ? "pos" : "neg"), style: "font-size:1.6rem" }, (tot > 0 ? "+" : tot < 0 ? "-" : "") + "$" + Math.abs(Math.round(tot * 100) / 100)))));
+    root.append(statsPanel(closed, ups));
     if (S.admin) root.append(h("button", { class: "btn primary", type: "button", onclick: () => shareMonthImage(closed) }, "📸 صورة نتائج الشهر للنشر"));
     root.append(h("h2", { class: "h2" }, "الأرشيف (" + closed.length + ")"));
     closed.forEach(s => root.append(signalCard(s, ups)));
