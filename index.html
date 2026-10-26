@@ -753,10 +753,10 @@ async function Home() {
 
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, welcomeCard(ps), renewCard(), sigBox, todayReading(ps), news, postsFeed(ps, 3), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), renewCard(), sigBox, news, todayReading(ps), postsFeed(ps, 3), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, postsFeed(ps, 3), brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, news, signup, freeW, renewCard(), todayReading(ps), poll, lead, postsFeed(ps, 3), brokerCard(), installHint(), notifyHint());
   }
 
   root.append(contactCard());
