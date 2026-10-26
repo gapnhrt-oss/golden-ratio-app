@@ -474,8 +474,18 @@ function signalCard(s, updates) {
   if (s.chart_path) { const img = h("img", { class: "chart", alt: "الشارت", loading: "lazy" }); signed("charts", s.chart_path).then(u => { if (u) img.src = u; else img.remove(); }); body.append(img); }
   if (!open && s.result) {
     const win = WIN[s.result];
-    body.append(h("div", { class: "row" }, h("span", { class: "pill " + (win ? "on" : s.result === "sl" ? "off" : "gray") }, RESULT[s.result] || s.result),
-      s.move != null ? h("b", { class: "num " + (Number(s.move) >= 0 ? "pos" : "neg") }, (Number(s.move) > 0 ? "+" : "") + "$" + fmt(s.move)) : null));
+    // أعلى ربح انجنى عند الأهداف (الهدف السريع / 1 / 2 ...)
+    const dir = s.side === "buy" ? 1 : -1;
+    const hits = (updates || []).filter(u => u.signal_id === s.id && /^(qtp|tp[1-4])$/.test(u.kind) && u.price != null);
+    const best = hits.reduce((m, u) => Math.max(m, dir * (Number(u.price) - Number(s.entry_from))), 0);
+    const mv = s.move != null ? Number(s.move) : null;
+    const sgn = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
+    let label = RESULT[s.result] || s.result, main = mv, sub = null;
+    if (s.result === "qtp") { label = "⚡ ربح جزئي"; main = best || mv; sub = mv != null && Math.abs(mv) < 0.01 ? "الباقي سكّر تعادل" : "الباقي سكّر عند " + sgn(mv); }
+    else if (win && best > (mv || 0) + 0.01) { label = "🎯 " + label; main = best; sub = "جنينا لين " + sgn(best) + " · الباقي سكّر عند " + sgn(mv); }
+    body.append(h("div", { class: "row" }, h("span", { class: "pill " + (win ? "on" : s.result === "sl" ? "off" : "gray") }, label),
+      main != null ? h("b", { class: "num " + (main >= 0 ? "pos" : "neg") }, sgn(main)) : null));
+    if (sub) body.append(h("small", { class: "muted" }, sub));
     if (s.status === "closed") body.append(starsRow(s));
     if (S.admin && s.status === "closed") body.append(h("button", { class: "btn primary sm", type: "button", onclick: () => shareSignalImage(s) }, "📸 صورة للنشر"));
   }
