@@ -865,7 +865,7 @@ async function pollCard() {
   const open = !p.result && new Date(p.closes_at) > Date.now();
   const bar = () => h("div", { class: "pollbar" }, h("i", { class: "up", style: "width:" + (tot ? Math.round(up / tot * 100) : 50) + "%" }), h("i", { class: "dn", style: "width:" + (tot ? Math.round(dn / tot * 100) : 50) + "%" }));
   const c = h("div", { class: "card poll" });
-  c.append(h("div", { class: "between" }, h("b", null, "🗳️ تصويت اليوم: الذهب بيطلع ولا ينزل؟"), h("small", { class: "muted num" }, tot + " صوت")));
+  c.append(h("div", { class: "between" }, h("b", null, "🗳️ تصويت اليوم: الذهب صعود ولا نزول؟"), h("small", { class: "muted num" }, tot + " صوت")));
   if (p.open_price) c.append(h("small", { class: "muted num" }, "سعر البداية " + fmt(p.open_price) + (p.close_price ? " · سعر النهاية " + fmt(p.close_price) : "")));
   if (open && !my) {
     const vote = async ch => {
@@ -873,14 +873,14 @@ async function pollCard() {
       const { error } = await sb.from("poll_votes").insert({ day: p.day, user_id: S.session.user.id, choice: ch });
       if (error) { toast(errText(error), true); return; } toast("انحسب صوتك ✅"); route();
     };
-    c.append(h("div", { class: "grid2" }, h("button", { class: "btn green", type: "button", onclick: () => vote("up") }, "🟢 بيطلع"), h("button", { class: "btn red", type: "button", onclick: () => vote("down") }, "🔴 بينزل")),
+    c.append(h("div", { class: "grid2" }, h("button", { class: "btn green", type: "button", onclick: () => vote("up") }, "🟢 صعود"), h("button", { class: "btn red", type: "button", onclick: () => vote("down") }, "🔴 نزول")),
       h("small", { class: "muted" }, "التصويت يسكّر الساعة 12 الظهر، والنتيجة الساعة 11:30 بالليل. كل توقع صح = نقطة بلوحة المتصدرين."));
   } else {
-    c.append(bar(), h("div", { class: "between num" }, h("span", { class: "pos" }, "🟢 يطلع " + (tot ? Math.round(up / tot * 100) : 0) + "%"), h("span", { class: "neg" }, "🔴 ينزل " + (tot ? Math.round(dn / tot * 100) : 0) + "%")));
+    c.append(bar(), h("div", { class: "between num" }, h("span", { class: "pos" }, "🟢 صعود " + (tot ? Math.round(up / tot * 100) : 0) + "%"), h("span", { class: "neg" }, "🔴 نزول " + (tot ? Math.round(dn / tot * 100) : 0) + "%")));
     if (p.result) {
       const w = p.result === "up" ? "طلع 🟢" : p.result === "down" ? "نزل 🔴" : "ظل ثابت ⚪";
       c.append(h("div", { class: "cal-r " + (p.result === "up" ? "up" : p.result === "down" ? "dn" : "eq") }, h("b", null, "النتيجة: الذهب " + w), my ? h("span", null, my === p.result ? "توقعك صح ✅ +1 نقطة" : "توقعك ما ضبط هالمرة") : null));
-    } else c.append(h("small", { class: "muted" }, my ? "صوّتت: " + (my === "up" ? "🟢 بيطلع" : "🔴 بينزل") + " · النتيجة الساعة 11:30 بالليل" : "التصويت سكّر، النتيجة الساعة 11:30 بالليل"));
+    } else c.append(h("small", { class: "muted" }, my ? "صوّتت: " + (my === "up" ? "🟢 صعود" : "🔴 نزول") + " · النتيجة الساعة 11:30 بالليل" : "التصويت سكّر، النتيجة الساعة 11:30 بالليل"));
   }
   return c;
 }
