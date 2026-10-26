@@ -220,6 +220,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .more{background:none;border:0;color:var(--gold);padding:0;font-size:.85rem;cursor:pointer;align-self:flex-start}
 .proof{display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:.9rem}
 .proof:last-child{border-bottom:0}
+.nofc{display:block;font-size:.72rem;line-height:1.4;color:var(--muted);padding-top:4px}
 .backbtn{background:none;border:0;color:var(--gold);font-weight:600;font-size:.95rem;padding:4px 0 10px;cursor:pointer}
 .pcard{padding:12px 14px;gap:8px}
 .phead{all:unset;cursor:pointer;display:flex;flex-direction:column;gap:6px;width:100%}
@@ -823,6 +824,7 @@ function verdict(e) {
     word: gold ? "🟢 إيجابي للذهب 🔺" : "🔴 سلبي للذهب 🔻",
     sub: (better ? "أحسن من " : "أسوأ من ") + vs + (us ? (better ? " · الدولار يقوى" : " · الدولار يضعف") : " · تأثيره خفيف") };
 }
+const noFc = v => v === null || v === undefined || v === "";
 const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : fmt(v) + (e.unit ? e.unit : "") + (e.scale ? e.scale : "");
 function until(d) {
   const m = Math.round((new Date(d) - Date.now()) / 60000);
@@ -1100,7 +1102,7 @@ async function nextNewsCard() {
       h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[done.country] || ""), h("b", null, arTitle(done.title) || done.title)),
       h("div", { class: "cal-v" },
         h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big " + v.cls }, calVal(done.actual, done))),
-        h("div", null, h("small", null, "المتوقع"), h("b", { class: "num" }, calVal(done.forecast, done))),
+        h("div", null, h("small", null, "المتوقع"), noFc(done.forecast) ? h("span", { class: "nofc" }, "ما له توقع", h("br"), "نقارن بالسابق") : h("b", { class: "num" }, calVal(done.forecast, done))),
         h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(done.previous, done)))),
       h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub))));
   }
@@ -1205,7 +1207,7 @@ async function Calendar() {
           h("span", { class: "imp " + imp[1] }, h("i"), h("i"), h("i"), imp[0])),
         h("div", { class: "cal-v" },
           h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big " + (v ? v.cls : "") }, calVal(e.actual, e))),
-          h("div", null, h("small", null, "المتوقع"), h("b", { class: "num" }, calVal(e.forecast, e))),
+          h("div", null, h("small", null, "المتوقع"), noFc(e.forecast) ? h("span", { class: "nofc" }, "ما له توقع", h("br"), "نقارن بالسابق") : h("b", { class: "num" }, calVal(e.forecast, e))),
           h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(e.previous, e)))),
         v ? h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub)) : (!past && e.importance === 1 ? h("div", { class: "cal-r soon" }, h("b", null, "⏰ " + until(e.date)), h("span", null, e.country === "US" ? "خبر قوي على الذهب، انتبه وقت نزوله" : "خبر قوي")) : null));
       if (!past && !firstUpcoming) firstUpcoming = row;
