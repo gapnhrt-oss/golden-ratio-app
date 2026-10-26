@@ -204,6 +204,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .lvl small{display:block;color:var(--muted);font-size:.72rem}
 .strip{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .strip small{display:block}
+.wbl{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;direction:rtl;text-align:center}
+.wbl div{display:flex;flex-direction:column;align-items:center;gap:0}
+.wbl b{font-size:1.4rem;line-height:1.2}
 .strip.today{padding-bottom:10px;border-bottom:1px dashed var(--line)}
 .strip b{font:800 1.4rem var(--latin);direction:ltr;unicode-bidi:isolate}
 .dots{display:flex;gap:6px;flex-wrap:wrap;direction:ltr}
@@ -1349,7 +1352,11 @@ function statsPanel(closed, ups) {
         cell("⚡ الربح الجزئي", sgn(part), part >= 0 ? "pos" : "neg", "مجموع كل هدف تحقق")),
       h("div", { class: "grid2" },
         cell("🎯 حققت أهداف", Math.round(hit / L.length * 100) + "%", "", hit + " من " + L.length + " وصلت هدف"),
-        cell("📊 النتيجة عند الإغلاق", "✅" + n.w + " ⚖️" + n.b + " ❌" + n.l, "", "ربح · تعادل · خسارة", "1.1rem")));
+        h("div", { class: "card soft", style: "gap:6px" }, h("small", { class: "muted" }, "📊 النتيجة عند الإغلاق"),
+          h("div", { class: "wbl" },
+            h("div", null, h("span", null, "✅"), h("b", { class: "num pos" }, n.w), h("small", { class: "muted" }, "ربح")),
+            h("div", null, h("span", null, "⚖️"), h("b", { class: "num" }, n.b), h("small", { class: "muted" }, "تعادل")),
+            h("div", null, h("span", null, "❌"), h("b", { class: "num neg" }, n.l), h("small", { class: "muted" }, "خسارة"))))));
     const how = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
     how.onclick = () => howSheet();
     body.append(how);
