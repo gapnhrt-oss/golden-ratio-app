@@ -204,6 +204,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .lvl small{display:block;color:var(--muted);font-size:.72rem}
 .strip{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .strip small{display:block}
+.strip.today{padding-bottom:10px;border-bottom:1px dashed var(--line)}
 .strip b{font:800 1.4rem var(--latin);direction:ltr;unicode-bidi:isolate}
 .dots{display:flex;gap:6px;flex-wrap:wrap;direction:ltr}
 .dots i{width:16px;height:16px;border-radius:50%;display:inline-block}
@@ -507,7 +508,7 @@ function signalCard(s, updates) {
 let homeTimer = null;
 const kwStart = unit => { // بداية الأسبوع (الاثنين) أو الشهر بتوقيت الكويت
   const k = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuwait" }));
-  const d = unit === "month" ? 1 : k.getDate() - ((k.getDay() + 6) % 7);
+  const d = unit === "month" ? 1 : unit === "day" ? k.getDate() : k.getDate() - ((k.getDay() + 6) % 7);
   return new Date(Date.UTC(k.getFullYear(), k.getMonth(), d) - 3 * 3600e3);
 };
 const money = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
@@ -561,11 +562,17 @@ function liveCard(s, ups) {
 }
 
 // 📊 شريط النتائج (للكل)
-function resultsStrip(closed) {
+function resultsStrip(closed, partial) {
   const c = h("div", { class: "card soft" });
   c.append(h("div", { class: "between" }, h("b", null, "📊 نتائجنا"), h("a", { class: "muted", href: "#signals", style: "font-size:.85rem" }, "الأرشيف ←")));
   if (!closed.length) { c.append(h("p", { class: "muted" }, "النتائج تبدأ من أول توصية 🚀 وكل توصية بتنحسب هني، ربح أو خسارة.")); return c; }
   const sum = from => closed.filter(s => new Date(s.closed_at) >= from).reduce((a, s) => a + Number(s.move || 0), 0);
+  // 📅 اليوم: أرباح الإغلاق + الأرباح الجزئية (كل هدف تحقق)
+  const td = sum(kwStart("day")), pt = Number(partial || 0);
+  const nToday = closed.filter(s => new Date(s.closed_at) >= kwStart("day")).length;
+  if (nToday) c.append(h("div", { class: "strip today" },
+    h("div", null, h("small", { class: "muted" }, "💰 أرباح اليوم"), h("b", { class: td >= 0 ? "pos" : "neg" }, money(Math.round(td * 100) / 100)), h("small", { class: "muted" }, "عند إغلاق " + nToday + (nToday === 1 ? " توصية" : " توصيات"))),
+    h("div", null, h("small", { class: "muted" }, "⚡ الربح الجزئي اليوم"), h("b", { class: "pos" }, money(Math.round(pt * 100) / 100)), h("small", { class: "muted" }, "مجموع كل هدف تحقق"))));
   const wk = sum(kwStart("week")), mo = sum(kwStart("month"));
   c.append(h("div", { class: "strip" },
     h("div", null, h("small", { class: "muted" }, "هالأسبوع"), h("b", { class: wk >= 0 ? "pos" : "neg" }, money(Math.round(wk * 100) / 100))),
@@ -695,13 +702,20 @@ async function Home() {
   const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
     sb.rpc("open_signals_teaser"),
     sb.from("posts").select("*").order("created_at", { ascending: false }).limit(60),
-    sb.from("signals").select("id,side,result,move,closed_at,created_at").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
+    sb.from("signals").select("id,side,result,move,closed_at,created_at,entry_from").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
     S.member ? sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     S.member ? Promise.resolve({ data: [] }) : sb.rpc("signal_proofs")
   ]);
   const ps = posts.data || [], closed = closedQ.data || [], openSigs = openQ.data || [];
   let ups = [];
   if (openSigs.length) { const u = await sb.from("signal_updates").select("*").in("signal_id", openSigs.map(s => s.id)).order("created_at"); ups = u.data || []; }
+  //--- ⚡ الربح الجزئي لتوصيات اليوم المقفلة: مجموع كل هدف تحقق (سريع / 1 / 2 ...)
+  let partialToday = 0;
+  const todays = closed.filter(s => new Date(s.closed_at) >= kwStart("day"));
+  if (todays.length) {
+    const u = await sb.from("signal_updates").select("signal_id,kind,price").in("signal_id", todays.map(s => s.id)).in("kind", ["qtp", "tp1", "tp2", "tp3", "tp4"]);
+    (u.data || []).forEach(x => { const s0 = todays.find(s => s.id === x.signal_id); if (s0 && x.price != null && s0.entry_from != null) partialToday += (s0.side === "buy" ? 1 : -1) * (Number(x.price) - Number(s0.entry_from)); });
+  }
 
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
@@ -733,10 +747,10 @@ async function Home() {
 
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, welcomeCard(ps), renewCard(), sigBox, todayReading(ps), news, postsFeed(ps, 3), closed.length ? resultsStrip(closed) : null, poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), renewCard(), sigBox, todayReading(ps), news, postsFeed(ps, 3), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, welcomeCard(ps), resultsStrip(closed), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, postsFeed(ps, 3), brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, signup, freeW, renewCard(), todayReading(ps), news, poll, lead, postsFeed(ps, 3), brokerCard(), installHint(), notifyHint());
   }
 
   root.append(contactCard());
