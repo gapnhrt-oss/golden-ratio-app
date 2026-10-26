@@ -570,9 +570,18 @@ function resultsStrip(closed, partial) {
   // 📅 اليوم: أرباح الإغلاق + الأرباح الجزئية (كل هدف تحقق)
   const td = sum(kwStart("day")), pt = Number(partial || 0);
   const nToday = closed.filter(s => new Date(s.closed_at) >= kwStart("day")).length;
+  const howBtn = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
+  howBtn.onclick = () => openSheet(h("div", { class: "screen" },
+    h("div", { class: "between" }, h("h2", { class: "h1" }, "❓ شلون نحسب الأرباح؟"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    h("div", { class: "card soft" }, h("b", null, "💰 أرباح اليوم"), h("p", { style: "line-height:1.8" }, "حركة الذهب بالدولار من سعر الدخول لين سعر إغلاق التوصية. يعني لو خلّيت الصفقة كاملة لين النهاية.")),
+    h("div", { class: "card soft" }, h("b", null, "⚡ الربح الجزئي"), h("p", { style: "line-height:1.8" }, "مجموع الربح عند كل هدف تحقق (الهدف السريع والهدف 1 و2...). يعني لو جنيت جزء من الأرباح عند كل هدف مثل ما نوصي بالرسايل.")),
+    h("div", { class: "card soft" }, h("b", null, "📏 مثال"), h("p", { style: "line-height:1.8" }, "بيع من 4002 والهدف السريع 3992 (+10$) والهدف 1 عند 3987 (+15$)، وبعدين سكّر الباقي على الهدف 1:\n• أرباح الإغلاق = +15$\n• الربح الجزئي = 10 + 15 = +25$")),
+    h("div", { class: "card soft" }, h("b", null, "💼 باللوت"), h("p", { style: "line-height:1.8" }, "كل 1$ حركة × 0.01 لوت = 1$ ربح. يعني +25$ حركة باللوت 0.10 = +250$.")),
+    h("p", { class: "muted", style: "font-size:.85rem" }, "⚠️ الرقمين طريقتين حساب لنفس الصفقات، فما ينجمعون على بعض. والنتائج السابقة ما تضمن نتائج مستقبلية."),
+    h("button", { class: "btn primary block", type: "button", onclick: closeSheet }, "فهمت")));
   if (nToday) c.append(h("div", { class: "strip today" },
     h("div", null, h("small", { class: "muted" }, "💰 أرباح اليوم"), h("b", { class: td >= 0 ? "pos" : "neg" }, money(Math.round(td * 100) / 100)), h("small", { class: "muted" }, "عند إغلاق " + nToday + (nToday === 1 ? " توصية" : " توصيات"))),
-    h("div", null, h("small", { class: "muted" }, "⚡ الربح الجزئي اليوم"), h("b", { class: "pos" }, money(Math.round(pt * 100) / 100)), h("small", { class: "muted" }, "مجموع كل هدف تحقق"))));
+    h("div", null, h("small", { class: "muted" }, "⚡ الربح الجزئي اليوم"), h("b", { class: "pos" }, money(Math.round(pt * 100) / 100)), h("small", { class: "muted" }, "مجموع كل هدف تحقق"))), howBtn);
   const wk = sum(kwStart("week")), mo = sum(kwStart("month"));
   c.append(h("div", { class: "strip" },
     h("div", null, h("small", { class: "muted" }, "هالأسبوع"), h("b", { class: wk >= 0 ? "pos" : "neg" }, money(Math.round(wk * 100) / 100))),
