@@ -801,7 +801,7 @@ const AR_TITLE = [
   [/manufacturing pmi/i, "مؤشر PMI الصناعي"], [/services pmi/i, "مؤشر PMI الخدمي"], [/adp/i, "وظائف ADP"], [/jolts|job openings/i, "الوظائف الشاغرة JOLTS"],
   [/consumer confidence/i, "ثقة المستهلك"], [/michigan.*sentiment|consumer sentiment/i, "ثقة المستهلك (ميشيغان)"], [/durable goods/i, "السلع المعمّرة"],
   [/average hourly earnings/i, "متوسط الأجور بالساعة"], [/trade balance/i, "الميزان التجاري"], [/crude oil inventories/i, "مخزون النفط"], [/new home sales/i, "مبيعات المنازل الجديدة"],
-  [/existing home sales/i, "مبيعات المنازل المستعملة"], [/building permits/i, "تصاريح البناء"], [/housing starts/i, "بدء الإنشاءات"], [/industrial production/i, "الإنتاج الصناعي"]
+  [/existing home sales/i, "مبيعات المنازل المستعملة"], [/case.?shiller|house price index|home price/i, "أسعار المنازل"], [/pending home sales/i, "مبيعات المنازل المعلّقة"], [/chicago/i, "مؤشر شيكاغو للأعمال"], [/crude oil|eia/i, "مخزون النفط"], [/building permits/i, "تصاريح البناء"], [/housing starts/i, "بدء الإنشاءات"], [/industrial production/i, "الإنتاج الصناعي"]
 ];
 const INVERSE = /unemployment|jobless|claims/i; // الرقم الأعلى = سلبي للعملة
 const arTitle = t => { for (const [re, ar] of AR_TITLE) if (re.test(t || "")) return ar; return null; };
@@ -826,7 +826,7 @@ function until(d) {
   if (m <= 0) return "الحين";
   if (m < 60) return "بعد " + m + " دقيقة";
   const hh = Math.floor(m / 60); if (hh < 24) return "بعد " + hh + " ساعة" + (m % 60 ? " و" + (m % 60) + " دقيقة" : "");
-  const dd = Math.round(hh / 24); return dd === 1 ? "بكرة" : "بعد " + dd + " أيام";
+  const dd = Math.round(hh / 24); return dd === 1 ? "غداً" : "بعد " + dd + " أيام";
 }
 let calCache = { at: 0, list: null };
 async function getCal() {
