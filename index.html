@@ -1180,8 +1180,9 @@ async function nextNewsCard() {
   // 2) كل الأخبار القوية لليوم (أو أقرب يوم فيه أخبار قوية) — كل خبر بسطر
   const dayOf = d => kw(d, { year: "numeric", month: "numeric", day: "numeric" });
   const soon = dedupeCal(list.filter(e => big(e) && new Date(e.date) > now && new Date(e.date) - now < 8 * 864e5).sort((a, b) => new Date(a.date) - new Date(b.date)));
-  // أخبار اليوم تبقى ظاهرة (اللي نزلت مع نتيجتها) لين نص الليل، وبعدها تطلع أخبار اليوم الجاي
-  const todayKey = dayOf(new Date()), hasToday = list.some(e => big(e) && dayOf(e.date) === todayKey);
+  // أخبار اليوم تبقى ظاهرة (اللي نزلت مع نتيجتها) لين 11:45 بالليل، وبعدها تطلع أخبار اليوم الجاي
+  const kwHM = kw(new Date(), { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).replace(/[^\d:]/g, "");
+  const todayKey = dayOf(new Date()), hasToday = kwHM < "23:45" && list.some(e => big(e) && dayOf(e.date) === todayKey);   // 11:45 بالليل تختفي
   if (hasToday || soon.length) {
     const n = soon.find(e => !hasToday || dayOf(e.date) === todayKey) || null;
     const dkey = hasToday ? todayKey : dayOf(soon[0].date), isToday = dkey === todayKey;
