@@ -128,6 +128,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .newsalert{display:grid;gap:8px;text-decoration:none;color:var(--fg);border-color:color-mix(in srgb,#FF4D5E 35%,var(--line))}
 .newsalert.res{border-color:var(--line)}.newsalert.res.up{border-color:var(--up)}.newsalert.res.dn{border-color:var(--down)}
 .newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
+.nt.nxt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px}.nt{font-weight:700;color:#FF6B78}
 .dn-sep{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .nrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nrow .nt{min-width:46px;font-weight:700;color:#FF6B78}.nrow .nn{display:grid;gap:2px}.nrow.past{opacity:.6}.nrow.next .nt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px;align-self:flex-start}.nrow .soon-t{color:#FF6B78;font-weight:700}.nrow small.up{color:var(--up)}.nrow small.dn{color:var(--down)}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
@@ -1177,13 +1178,16 @@ async function nextNewsCard() {
     const near = new Date(n.date) - now < 3600e3;
     const card = h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
       h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + (isToday ? "الأخبار القوية الجاية اليوم" : "الأخبار القوية القادمة · " + kw(n.date, { weekday: "long" }))), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), rows.length + (rows.length === 1 ? " خبر" : " أخبار"))));
-    rows.forEach(e => {
-      card.append(h("div", { class: "nrow" + (e === n ? " next" : "") },
-        h("span", { class: "nt num", dir: "ltr" }, kw(e.date, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })),
-        h("div", { class: "nn" },
-          h("b", null, (FLAG[e.country] || "") + " " + (arTitle(e.title) || e.title)),
-          h("small", { class: "soon-t" }, "⏰ " + until(e.date)),
-          nums(e))));
+    rows.forEach((e, i) => {
+      // نفس مربعات الأخبار اللي نزلت: الفعلي (ينتظر) · المتوقع · السابق
+      card.append(h("div", { class: i ? "dn-sep" : "" },
+        h("div", { class: "between" },
+          h("div", { class: "row", style: "gap:8px" }, h("span", { class: "nt num" + (e === n ? " nxt" : ""), dir: "ltr" }, kw(e.date, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })), h("span", { style: "font-size:1.1rem" }, FLAG[e.country] || ""), h("b", null, arTitle(e.title) || e.title)),
+          h("small", { class: "soon-t" }, "⏰ " + until(e.date))),
+        h("div", { class: "cal-v" },
+          h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big muted" }, "⏳")),
+          h("div", null, h("small", null, "المتوقع"), noFc(e.forecast) ? h("span", { class: "nofc" }, "ما له توقع", h("br"), "نقارن بالسابق") : h("b", { class: "num" }, calVal(e.forecast, e))),
+          h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(e.previous, e))))));
     });
     card.append(h("small", { class: "muted" }, "💡 قبل الخبر القوي بـ15 دقيقة لا تدخل صفقة جديدة"));
     box.append(card);
