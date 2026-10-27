@@ -232,6 +232,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .pmeta{order:0}
 .pprev{white-space:pre-wrap;color:var(--muted);font-size:.9rem;margin:0}
 .pcard.open .pprev{color:var(--fg)}
+.mapt{line-height:1.8;white-space:pre-wrap}.mapt .zone{cursor:pointer}.mapt .mx{font-size:.8rem;color:var(--muted);padding:0 18px 4px 0}.clamp6{max-height:11.5em;overflow:hidden}
 .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .pmore{color:var(--gold);font-size:.85rem;font-weight:600}
 .pill.newp{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
@@ -631,14 +632,31 @@ function proofCard(list) {
 }
 
 // ☀️ قراءة اليوم (آخر قراءة صبح، مثبّتة فوق)
+// 📊 نص فيه خريطة أسعار: الشرح (↳) مخفي، ويفتح بزر "📖 شرح المناطق" أو بالضغط على المنطقة
+const hasExpl = t => /^\s*↳/m.test(t || "");
+function mapText(t, style) {
+  const box = h("div", { class: "mapt", style: style || "" });
+  const lines = (t || "").split("\n"); let last = null; const ex = [];
+  lines.forEach(l => {
+    if (/^\s*↳/.test(l)) { const e = h("div", { class: "mx", hidden: true }, l.trim()); ex.push(e); if (last) { last.classList.add("zone"); const ee = e; last.onclick = () => { ee.hidden = !ee.hidden; }; } box.append(e); last = null; return; }
+    last = h("div", { class: /^\s*[🔴🟢]/u.test(l) ? "ml" : "" }, l || "\u00a0"); box.append(last);
+  });
+  if (ex.length) {
+    const b = h("button", { class: "btn ghost sm", type: "button", style: "margin-top:6px" }, "📖 شرح المناطق ▾");
+    b.onclick = () => { const open = ex.some(e => e.hidden); ex.forEach(e => e.hidden = !open); b.textContent = open ? "📖 إخفاء الشرح ▴" : "📖 شرح المناطق ▾"; };
+    box.append(b);
+  }
+  return box;
+}
 function postBody(p, open) {
   const t = p.body || "";
   if (!t) return null;
   const long = t.length > 260 || t.split("\n").length > 5;
-  const el = h("p", { style: "white-space:pre-wrap", class: long && !open ? "clamp" : "" }, t);
+  const el = hasExpl(t) ? mapText(t) : h("p", { style: "white-space:pre-wrap", class: long && !open ? "clamp" : "" }, t);
+  if (hasExpl(t) && long && !open) el.classList.add("clamp6");
   if (!long || open) return el;
   const b = h("button", { class: "more", type: "button" }, "اقرأ المزيد ▾");
-  b.onclick = () => { const o = el.classList.toggle("clamp"); b.textContent = o ? "اقرأ المزيد ▾" : "إخفاء ▴"; };
+  b.onclick = () => { const o = el.classList.toggle(hasExpl(t) ? "clamp6" : "clamp"); b.textContent = o ? "اقرأ المزيد ▾" : "إخفاء ▴"; };
   return [el, b];
 }
 const todayMorning = ps => { const day = Date.now() - 20 * 3600e3; return ps.filter(p => p.kind === "morning" && !isWelcome(p) && new Date(p.created_at) > day); };
@@ -649,11 +667,13 @@ function todayReading(ps) {
   const c = h("div", { class: "card" }, h("div", { class: "between" }, h("b", null, "☀️ قراءة اليوم"), h("small", { class: "muted" }, kw(m[0].created_at, { hour: "2-digit", minute: "2-digit" }))));
   m.slice(0, 2).forEach((p, idx) => {
     const lines = (p.body || "").split("\n");
-    let sum = lines.filter(l => /الاتجاه العام|أقرب مقاومة|أقرب دعم|الأفضلية|السوق محتار/.test(l)).map(l => l.replace(/^\s*[🔴🟢]\s*([\d.]+)\s*—\s*(.*?)\s*←\s*(أقرب مقاومة|أقرب دعم)\s*$/u, (x, n, nm, w) => (w === "أقرب مقاومة" ? "🔴 " : "🟢 ") + w + ": " + n + " (" + nm + ")"));
+    let sum = lines.filter(l => /الاتجاه العام|أقرب مقاومة|أقرب دعم|الأفضلية|السوق محتار/.test(l)).map(l => l
+      .replace(/^\s*[🔴🟢]\s*([\d.]+)\s*—\s*(.*?)\s*←\s*(أقرب مقاومة|أقرب دعم)\s*$/u, (x, n, nm, w) => (w === "أقرب مقاومة" ? "🔴 " : "🟢 ") + w + ": " + n + " (" + nm + ")")
+      .replace(/^\s*[🔴🟢]\s*([\d.]+(?:\s*–\s*[\d.]+)?)\s*(⭐+)\s*(🔥)?\s*←\s*(أقرب مقاومة|أقرب دعم)\s*$/u, (x, n, st, f, w) => (w === "أقرب مقاومة" ? "🔴 " : "🟢 ") + w + ": " + n + " " + st + (f ? " 🔥" : "")));
     if (!sum.length) sum = lines.filter(l => l.trim()).slice(0, 3);
     if (m.length > 1 && p.title) c.append(h("b", { style: "font-size:.92rem" }, p.title));
     c.append(h("p", { style: "white-space:pre-wrap;line-height:1.8" }, sum.join("\n")));
-    const full = h("div", { hidden: true }, h("p", { style: "white-space:pre-wrap;line-height:1.8;border-top:1px dashed var(--line);padding-top:8px" }, p.body || ""));
+    const full = h("div", { hidden: true }, hasExpl(p.body) ? mapText(p.body, "border-top:1px dashed var(--line);padding-top:8px") : h("p", { style: "white-space:pre-wrap;line-height:1.8;border-top:1px dashed var(--line);padding-top:8px" }, p.body || ""));
     const hasMap = /خريطة الأسعار/.test(p.body || "");
     const btn = h("button", { class: "btn ghost sm", type: "button" }, hasMap ? "📊 افتح خريطة الأسعار" : "اقرأ المزيد ▾");
     btn.onclick = () => { const o = full.hidden; full.hidden = !o; btn.textContent = o ? "إخفاء ▴" : (hasMap ? "📊 افتح خريطة الأسعار" : "اقرأ المزيد ▾"); };
