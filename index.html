@@ -1404,18 +1404,21 @@ function goldPrice() {
       if (H > L) dot.style.left = Math.max(0, Math.min(100, (v - L) / (H - L) * 100)) + "%";
       lo.textContent = "أدنى اليوم " + f2(L); hi.textContent = "أعلى اليوم " + f2(H);
     }
-    st.textContent = closed ? "السوق مسكّر" : "الذهب · مباشر"; led.classList.toggle("off", closed);
+    st.textContent = closed ? "السوق مسكّر" : (Date.now() - lastTick < 5000 ? "الذهب · مباشر ⚡" : "الذهب · مباشر"); led.classList.toggle("off", closed);
   };
   const ask = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  // أفضل سعر بيع/شراء (bookTicker) يتحدث مع كل تغيير بالأوامر = أسرع بواجد من الصفقات · نجرب أكثر من رابط لو واحد محجوب
+  const WSU = ["wss://data-stream.binance.vision/ws/paxgusdt@bookTicker", "wss://stream.binance.com:9443/ws/paxgusdt@bookTicker", "wss://stream.binance.com:443/ws/paxgusdt@bookTicker"];
+  let wsI = 0, lastTick = 0;
   const openWs = () => {
     if (ws || closed || !("WebSocket" in window)) return;
     try {
-      ws = new WebSocket("wss://stream.binance.com:9443/ws/paxgusdt@trade");
-      ws.onmessage = ev => { try { const t = JSON.parse(ev.data); const v = Number(t.p); if (v > 0) { px = v; if (pa == null) pa = v; ask(); } } catch (_) {} };
+      ws = new WebSocket(WSU[wsI % WSU.length]);
+      ws.onmessage = ev => { try { const t = JSON.parse(ev.data); const b = Number(t.b), a = Number(t.a); const v = (b > 0 && a > 0) ? (a + b) / 2 : Number(t.p); if (v > 0) { px = v; if (pa == null) pa = v; lastTick = Date.now(); ask(); } } catch (_) {} };
       ws.onopen = () => { wsTry = 0; };
-      ws.onclose = () => { ws = null; if (alive() && !closed) setTimeout(openWs, Math.min(30000, 2000 * (++wsTry))); };
+      ws.onclose = () => { ws = null; if (!lastTick || Date.now() - lastTick > 15000) wsI++; if (alive() && !closed) setTimeout(openWs, Math.min(30000, 1500 * (++wsTry))); };
       ws.onerror = () => { try { ws.close(); } catch (_) {} };
-    } catch (_) { ws = null; }
+    } catch (_) { ws = null; wsI++; }
   };
   const alive = () => { if (card.isConnected) seen = true; return card.isConnected || !seen; };
   const stop = () => { clearInterval(poll); if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } };
@@ -1429,7 +1432,9 @@ function goldPrice() {
       oa = j.price; pa = px;                                     // نصحّح على OANDA
       if (j.change != null) prev = j.price - j.change;
       if (j.high) dHi = j.high; if (j.low) dLo = j.low;
-      if (closed) { if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } } else openWs();
+      if (closed) { if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } }
+      else if (ws && ws.readyState === 1 && Date.now() - (lastTick || 0) > 20000) { try { ws.close(); } catch (_) {} }   // البث واقف: نجرب رابط ثاني
+      else openWs();
       ask();
     } catch (_) {}
   };
