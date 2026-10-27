@@ -1299,11 +1299,17 @@ async function Calendar() {
   let only = "imp"; try { only = localStorage.getItem("gr-cal2") || "imp"; } catch (_) {}
   const seg = h("div", { class: "seg" });
   const body = h("div", { class: "screen" });
+  let showOld = false, noScroll = false;                         // الأيام الماضية مخفية، وتنفتح بزر فوق
+  const fromY = new Date(kwStart("day").getTime() - 864e5);      // من أمس
   const paint = () => {
     seg.textContent = ""; body.textContent = "";
     [["imp", "المهمة 🟠🔴"], ["hi", "القوية بس 🔥"], ["us", "🇺🇸 أمريكا"], ["all", "كل الأخبار"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(only === t[0]), onclick: () => { only = t[0]; try { localStorage.setItem("gr-cal2", only); } catch (_) {} paint(); } }, t[1])));
     const rows0 = list.filter(e => only === "hi" ? e.importance === 1 : only === "imp" ? e.importance >= 0 : only === "us" ? e.country === "US" && e.importance >= 0 : true).sort((a, b) => new Date(a.date) - new Date(b.date));
-    const rows = only === "all" ? rows0 : dedupeCal(rows0);
+    const rowsA = only === "all" ? rows0 : dedupeCal(rows0);
+    const nOld = rowsA.filter(e => new Date(e.date) < fromY).length;
+    const rows = showOld ? rowsA : rowsA.filter(e => new Date(e.date) >= fromY);
+    if (nOld) body.append(h("button", { class: "btn ghost block", type: "button", onclick: () => { showOld = !showOld; noScroll = true; paint(); } },
+      showOld ? "⬇️ إخفاء الأيام الماضية" : "⬆️ عرض أخبار الأيام الماضية (" + nOld + " خبر)"));
     if (!rows.length) { body.append(h("div", { class: "empty" }, "ما فيه أخبار بهالفلتر.")); return; }
     const today = kw(new Date(), { weekday: "long", day: "numeric", month: "long" });
     let day = null, firstUpcoming = null;
@@ -1331,7 +1337,8 @@ async function Calendar() {
       if (!past && !firstUpcoming) firstUpcoming = row;
       body.append(row);
     });
-    if (firstUpcoming) setTimeout(() => firstUpcoming.scrollIntoView({ block: "center" }), 60);
+    if (firstUpcoming && !noScroll) setTimeout(() => firstUpcoming.scrollIntoView({ block: "center" }), 60);
+    noScroll = false;
   };
   paint();
   box.append(h("p", { class: "muted", style: "font-size:.85rem" }, "قوة الخبر: 🔴 قوي · 🟠 متوسط · 🟡 ضعيف. ولمّا تنزل النتيجة يتلوّن الرقم حسب تأثيره على الذهب: 🟢 أخضر = إيجابي للذهب (يطلع)، 🔴 أحمر = سلبي للذهب (ينزل)."), seg, body);
