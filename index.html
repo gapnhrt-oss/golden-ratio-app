@@ -812,18 +812,26 @@ const fillH = (min, minus) => Math.max(min, Math.round((window.innerHeight || 80
 const FLAG = { US: "🇺🇸", EU: "🇪🇺", GB: "🇬🇧", CN: "🇨🇳", JP: "🇯🇵", CH: "🇨🇭", CA: "🇨🇦", AU: "🇦🇺" };
 const IMP = { "1": ["🔴 قوي", "hi"], "0": ["🟠 متوسط", "mid"], "-1": ["🟡 ضعيف", "lo"] };
 const AR_TITLE = [
-  [/non.?farm|nfp/i, "الوظائف غير الزراعية"], [/unemployment rate/i, "معدل البطالة"], [/jobless claims|initial claims/i, "طلبات إعانة البطالة"],
-  [/continuing claims/i, "طلبات الإعانة المستمرة"], [/core pce/i, "مؤشر PCE الأساسي (التضخم)"], [/pce/i, "مؤشر PCE (التضخم)"],
-  [/core (cpi|inflation)/i, "التضخم الأساسي CPI"], [/\bcpi\b|inflation rate/i, "التضخم CPI"], [/\bppi\b|producer price/i, "أسعار المنتجين PPI"],
+  [/non.?farm|nfp/i, "الوظائف غير الزراعية"], [/unemployment rate/i, "معدل البطالة"], [/continuing (jobless )?claims/i, "طلبات الإعانة المستمرة"], [/initial jobless|jobless claims|initial claims/i, "طلبات إعانة البطالة"],
+   [/pce/i, "مؤشر PCE (التضخم)"],
+  [/\bcpi\b|inflation rate/i, "التضخم CPI"], [/\bppi\b|producer price/i, "أسعار المنتجين PPI"],
   [/fed funds|interest rate decision|fed interest/i, "قرار الفائدة"], [/fomc minutes/i, "محضر الفيدرالي"], [/fed.*(chair|powell).*speech|powell/i, "خطاب رئيس الفيدرالي"],
-  [/\bgdp\b/i, "الناتج المحلي GDP"], [/retail sales/i, "مبيعات التجزئة"], [/ism manufacturing/i, "مؤشر ISM الصناعي"], [/ism (non.?manufacturing|services)/i, "مؤشر ISM الخدمي"],
-  [/manufacturing pmi/i, "مؤشر PMI الصناعي"], [/services pmi/i, "مؤشر PMI الخدمي"], [/adp/i, "وظائف ADP"], [/jolts|job openings/i, "الوظائف الشاغرة JOLTS"],
-  [/consumer confidence/i, "ثقة المستهلك"], [/michigan.*sentiment|consumer sentiment/i, "ثقة المستهلك (ميشيغان)"], [/durable goods/i, "السلع المعمّرة"],
-  [/average hourly earnings/i, "متوسط الأجور بالساعة"], [/trade balance/i, "الميزان التجاري"], [/crude oil inventories/i, "مخزون النفط"], [/new home sales/i, "مبيعات المنازل الجديدة"],
+  [/gdpnow/i, "توقعات الناتج (أتلانتا)"], [/\bgdp\b/i, "الناتج المحلي GDP"], [/retail sales/i, "مبيعات التجزئة"], [/ism manufacturing/i, "مؤشر ISM الصناعي"], [/ism (non.?manufacturing|services)/i, "مؤشر ISM الخدمي"],
+  [/manufacturing pmi/i, "مؤشر PMI الصناعي"], [/services pmi/i, "مؤشر PMI الخدمي"], [/composite pmi/i, "مؤشر PMI المركّب"], [/adp/i, "وظائف ADP"], [/jolts|job openings/i, "الوظائف الشاغرة JOLTS"],
+  [/consumer confidence/i, "ثقة المستهلك"], [/michigan.*sentiment|consumer sentiment/i, "ثقة المستهلك (ميشيغان)"], [/durable goods/i, "السلع المعمّرة"], [/personal income/i, "الدخل الشخصي"], [/personal spending/i, "الإنفاق الشخصي"], [/employment cost/i, "مؤشر تكلفة التوظيف"], [/factory orders/i, "طلبيات المصانع"], [/philadelphia fed/i, "مؤشر فيلادلفيا"], [/empire state/i, "مؤشر نيويورك الصناعي"], [/lagarde/i, "خطاب لاجارد (المركزي الأوروبي)"], [/fomc statement/i, "بيان الفيدرالي"], [/press conference/i, "المؤتمر الصحفي للفيدرالي"],
+  [/average hourly earnings/i, "متوسط الأجور بالساعة"], [/trade balance|balance of trade/i, "الميزان التجاري"], [/crude oil inventories/i, "مخزون النفط"], [/new home sales/i, "مبيعات المنازل الجديدة"],
   [/existing home sales/i, "مبيعات المنازل المستعملة"], [/case.?shiller|house price index|home price/i, "أسعار المنازل"], [/pending home sales/i, "مبيعات المنازل المعلّقة"], [/chicago/i, "مؤشر شيكاغو للأعمال"], [/crude oil|eia/i, "مخزون النفط"], [/building permits/i, "تصاريح البناء"], [/housing starts/i, "بدء الإنشاءات"], [/industrial production/i, "الإنتاج الصناعي"]
 ];
 const INVERSE = /unemployment|jobless|claims/i; // الرقم الأعلى = سلبي للعملة
-const arTitle = t => { for (const [re, ar] of AR_TITLE) if (re.test(t || "")) return ar; return null; };
+const arBaseT = t => { for (const [re, ar] of AR_TITLE) if (re.test(t || "")) return ar; return null; };
+// الاسم العربي + (شهري/سنوي/الأساسي) عشان ما يتكرر نفس الاسم
+const arTitle = t => { const b = arBaseT(t); if (!b) return null; return b + (/\b(core|ex transp|ex autos|ex food)/i.test(t) && !/الأساسي/.test(b) ? " الأساسي" : "") + (/\bmom\b/i.test(t) ? " (شهري)" : /\byoy\b/i.test(t) ? " (سنوي)" : /\bqoq\b/i.test(t) ? " (ربعي)" : ""); };
+// دمج الأخبار المكررة بنفس الوقت (نفس الخبر بأكثر من رقم) — نخلي الأقوى
+function dedupeCal(rows) {
+  const out = [], seen = {};
+  rows.forEach(e => { const b = arBaseT(e.title); if (!b) { out.push(e); return; } const k = e.date + "|" + e.country + "|" + b; const j = seen[k]; if (j === undefined) { seen[k] = out.length; out.push(e); } else { const o = out[j]; if (e.importance > o.importance || (e.importance === o.importance && noFc(o.forecast) && !noFc(e.forecast))) out[j] = e; } });
+  return out;
+}
 function verdict(e) {
   const a = Number(e.actualRaw ?? e.actual);
   if (e.actual === null || e.actual === undefined || isNaN(a)) return null;
@@ -1122,7 +1130,7 @@ async function nextNewsCard() {
       h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub))));
   }
   // 2) الخبر القوي الجاي خلال يومين، مع عد تنازلي
-  const soon = list.filter(e => big(e) && new Date(e.date) > now && new Date(e.date) - now < 8 * 864e5).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const soon = dedupeCal(list.filter(e => big(e) && new Date(e.date) > now && new Date(e.date) - now < 8 * 864e5).sort((a, b) => new Date(a.date) - new Date(b.date)));
   if (soon.length) {
     const n = soon[0], near = new Date(n.date) - now < 3600e3;
     const more = soon.filter(e => e !== n && new Date(e.date) - new Date(n.date) < 3 * 3600e3).length;
@@ -1200,7 +1208,8 @@ async function Calendar() {
   const paint = () => {
     seg.textContent = ""; body.textContent = "";
     [["imp", "المهمة 🟠🔴"], ["hi", "القوية بس 🔥"], ["us", "🇺🇸 أمريكا"], ["all", "كل الأخبار"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(only === t[0]), onclick: () => { only = t[0]; try { localStorage.setItem("gr-cal2", only); } catch (_) {} paint(); } }, t[1])));
-    const rows = list.filter(e => only === "hi" ? e.importance === 1 : only === "imp" ? e.importance >= 0 : only === "us" ? e.country === "US" && e.importance >= 0 : true).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const rows0 = list.filter(e => only === "hi" ? e.importance === 1 : only === "imp" ? e.importance >= 0 : only === "us" ? e.country === "US" && e.importance >= 0 : true).sort((a, b) => new Date(a.date) - new Date(b.date));
+    const rows = only === "all" ? rows0 : dedupeCal(rows0);
     if (!rows.length) { body.append(h("div", { class: "empty" }, "ما فيه أخبار بهالفلتر.")); return; }
     const today = kw(new Date(), { weekday: "long", day: "numeric", month: "long" });
     let day = null, firstUpcoming = null;
