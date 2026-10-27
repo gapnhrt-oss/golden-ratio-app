@@ -621,7 +621,9 @@ function resultsStrip(closed, partial) {
 // 🎁 إثبات لغير المشتركين: الأهداف اللي تحققت (بدون التفاصيل)
 function proofCard(list) {
   if (!list || !list.length) return null;
-  const nm = k => p => p.tnum ? "🎯 الهدف " + p.tnum : "🎯 هدف تحقق";
+  // رقم الهدف: قبل سلّم الأهداف (27 أكتوبر) كان في هدف سريع قبل الهدف 1، فنزيد واحد
+  const OLD = new Date("2026-10-27T09:00:00Z");
+  const nm = k => p => { if (p.tnum) return "🎯 الهدف " + p.tnum; if (k === "qtp") return "🎯 الهدف 1"; const n = Number(String(k).slice(2)); return n ? "🎯 الهدف " + (n + (new Date(p.created_at) < OLD ? 1 : 0)) : "🎯 هدف تحقق"; };
   const c = h("div", { class: "card gold" }, h("b", null, "✅ آخر الأهداف اللي حققها المشتركين"));
   list.forEach(p => c.append(h("div", { class: "proof" }, h("span", null, nm(p.kind)(p), " · ", p.side === "buy" ? "شراء" : "بيع"), h("span", null, h("b", { class: "num pos" }, money(Number(p.profit))), " ", h("small", { class: "muted" }, ago(p.created_at))))));
   c.append(h("a", { class: "btn primary", href: "#sub" }, "اشترك وخذها من البداية"));
