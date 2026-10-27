@@ -145,7 +145,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .gp-px{margin-left:auto;text-align:right;display:grid;gap:2px}
 .gp-p{font-family:var(--latin);font-weight:800;font-size:1.7rem;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--fg);transition:color .5s;white-space:nowrap}
 .gp-p small{font-size:.72rem;color:var(--muted);font-weight:600;margin-left:5px}
-.gp.flash-up .gp-p{color:var(--up)}.gp.flash-dn .gp-p{color:var(--down)}
+.gp-p.tk-up{color:var(--up)}.gp-p.tk-dn{color:var(--down)}.gp-p{transition:color .35s}.gp-live.off{background:var(--down);animation:none}
 .gp-ch{font-family:var(--latin);font-weight:700;font-size:.92rem;font-variant-numeric:tabular-nums;white-space:pre}
 .gp-ch.up{color:var(--up)}.gp-ch.dn{color:var(--down)}
 .gp-rng{display:grid;gap:6px;position:relative}
@@ -1367,43 +1367,73 @@ async function Calendar() {
   return box;
 }
 
-// 🥇 بطاقة سعر الذهب حقتنا (بشعار GOLDEN RATIO): السعر لايف كل 10 ثواني + التغيّر اليومي + مدى اليوم
+// 🥇 بطاقة سعر الذهب حقتنا (بشعار GOLDEN RATIO)
+// السعر الحقيقي من OANDA كل 10 ثواني، وبينهم الحركة لايف (أجزاء من الثانية) من بث الذهب الرقمي PAXG
 function goldPrice() {
   const logo = (document.querySelector(".brand img") || {}).src || "";
   const p = h("div", { class: "gp-p" }, "—"), ch = h("div", { class: "gp-ch" }, "\u00a0"), dot = h("i", { class: "gp-dot" });
-  const lo = h("span", { dir: "rtl" }, ""), hi = h("span", { dir: "rtl" }, "");
+  const lo = h("span", { dir: "rtl" }, ""), hi = h("span", { dir: "rtl" }, ""), st = h("span", null, "الذهب · مباشر"), led = h("i", { class: "gp-live" });
   const card = h("div", { class: "gp", dir: "ltr" },
     h("div", { class: "gp-top" },
       logo ? h("img", { class: "gp-logo", src: logo, alt: "GOLDEN RATIO" }) : null,
-      h("div", { class: "gp-id" }, h("span", { class: "gp-sym" }, "XAUUSD"), h("span", { class: "gp-sub", dir: "rtl" }, h("i", { class: "gp-live" }), "الذهب · مباشر")),
+      h("div", { class: "gp-id" }, h("span", { class: "gp-sym" }, "XAUUSD"), h("span", { class: "gp-sub", dir: "rtl" }, led, st)),
       h("div", { class: "gp-px" }, p, ch)),
     h("div", { class: "gp-rng" }, h("div", { class: "gp-bar" }, dot), h("div", { class: "gp-lh" }, lo, hi)));
   const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  let last = null, timer = null, seen = false;
+  let oa = null, pa = null, px = null, prev = null, dHi = null, dLo = null, shown = null, same = 0, lastOa = null, closed = false;
+  let ws = null, wsTry = 0, raf = 0, poll = null, seen = false, flashT = 0;
+  // السوق مسكّر: من السبت (بعد نص الليل) لين الاثنين الساعة 1 بالكويت، أو OANDA ما تغيّر 5 مرات ورا بعض
+  const weekend = () => { const k = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuwait" })); const d = k.getDay(), hh = k.getHours(); return d === 6 || d === 0 || (d === 1 && hh < 1); };
+  const paint = () => {
+    raf = 0;
+    if (oa == null) return;
+    const v = (!closed && px != null && pa != null) ? oa + (px - pa) : oa;
+    if (shown !== null && Math.abs(v - shown) >= 0.005) {
+      p.classList.remove("tk-up", "tk-dn"); void p.offsetWidth; p.classList.add(v > shown ? "tk-up" : "tk-dn");
+      clearTimeout(flashT); flashT = setTimeout(() => p.classList.remove("tk-up", "tk-dn"), 450);
+    }
+    shown = v;
+    p.textContent = ""; p.append(f2(v), h("small", null, "USD"));
+    if (prev != null) {
+      const c = v - prev, u = c >= 0;
+      ch.className = "gp-ch " + (u ? "up" : "dn");
+      ch.textContent = (u ? "▲ +" : "▼ -") + f2(Math.abs(c)) + "   " + (u ? "+" : "-") + Math.abs(c / prev * 100).toFixed(2) + "%";
+    }
+    if (dHi != null && dLo != null) {
+      const H = Math.max(dHi, v), L = Math.min(dLo, v);
+      if (H > L) dot.style.left = Math.max(0, Math.min(100, (v - L) / (H - L) * 100)) + "%";
+      lo.textContent = "أدنى اليوم " + f2(L); hi.textContent = "أعلى اليوم " + f2(H);
+    }
+    st.textContent = closed ? "السوق مسكّر" : "الذهب · مباشر"; led.classList.toggle("off", closed);
+  };
+  const ask = () => { if (!raf) raf = requestAnimationFrame(paint); };
+  const openWs = () => {
+    if (ws || closed || !("WebSocket" in window)) return;
+    try {
+      ws = new WebSocket("wss://stream.binance.com:9443/ws/paxgusdt@trade");
+      ws.onmessage = ev => { try { const t = JSON.parse(ev.data); const v = Number(t.p); if (v > 0) { px = v; if (pa == null) pa = v; ask(); } } catch (_) {} };
+      ws.onopen = () => { wsTry = 0; };
+      ws.onclose = () => { ws = null; if (alive() && !closed) setTimeout(openWs, Math.min(30000, 2000 * (++wsTry))); };
+      ws.onerror = () => { try { ws.close(); } catch (_) {} };
+    } catch (_) { ws = null; }
+  };
+  const alive = () => { if (card.isConnected) seen = true; return card.isConnected || !seen; };
+  const stop = () => { clearInterval(poll); if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } };
   const run = async () => {
-    if (card.isConnected) seen = true; else if (seen) { clearInterval(timer); return; }
+    if (!alive()) { stop(); return; }
     try {
       const j = await (await fetch(SUPABASE_URL + "/functions/v1/gold-price")).json();
       if (!j || !j.price) return;
-      p.textContent = ""; p.append(f2(j.price), h("small", null, "USD"));
-      if (last !== null && j.price !== last) {
-        card.classList.remove("flash-up", "flash-dn"); void card.offsetWidth;
-        card.classList.add(j.price > last ? "flash-up" : "flash-dn");
-        setTimeout(() => card.classList.remove("flash-up", "flash-dn"), 1200);
-      }
-      last = j.price;
-      if (j.change != null) {
-        const u = j.change >= 0;
-        ch.className = "gp-ch " + (u ? "up" : "dn");
-        ch.textContent = (u ? "▲ +" : "▼ -") + f2(Math.abs(j.change)) + "   " + (u ? "+" : "-") + Math.abs(j.changePct || 0).toFixed(2) + "%";
-      }
-      if (j.high && j.low && j.high > j.low) {
-        dot.style.left = Math.max(0, Math.min(100, (j.price - j.low) / (j.high - j.low) * 100)) + "%";
-        lo.textContent = "أدنى اليوم " + f2(j.low); hi.textContent = "أعلى اليوم " + f2(j.high);
-      }
+      same = (lastOa !== null && j.price === lastOa) ? same + 1 : 0; lastOa = j.price;
+      closed = weekend() || same >= 5;
+      oa = j.price; pa = px;                                     // نصحّح على OANDA
+      if (j.change != null) prev = j.price - j.change;
+      if (j.high) dHi = j.high; if (j.low) dLo = j.low;
+      if (closed) { if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } } else openWs();
+      ask();
     } catch (_) {}
   };
-  run(); timer = setInterval(run, 10000);
+  run(); poll = setInterval(run, 10000);
   return card;
 }
 async function Market() {
