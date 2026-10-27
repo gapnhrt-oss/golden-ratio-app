@@ -1384,12 +1384,14 @@ function goldPrice() {
   let oa = null, pa = null, px = null, prev = null, dHi = null, dLo = null, shown = null, same = 0, lastOa = null, closed = false;
   let raf = 0, poll = null, seen = false, flashT = 0;
   // السوق مسكّر: من السبت (بعد نص الليل) لين الاثنين الساعة 1 بالكويت، أو OANDA ما تغيّر 5 مرات ورا بعض
-  const weekend = () => { const k = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuwait" })); const d = k.getDay(), hh = k.getHours(); return d === 6 || d === 0 || (d === 1 && hh < 1); };
+  // وقت إغلاق الذهب بتوقيت نيويورك (يمشي مع التوقيت الصيفي): كل يوم 5–6 المسا، ومن الجمعة 5 المسا لين الأحد 6 المسا
+  const weekend = () => { const k = new Date(new Date().toLocaleString("en-US", { timeZone: "America/New_York" })); const d = k.getDay(), hh = k.getHours(); return d === 6 || (d === 5 && hh >= 17) || (d === 0 && hh < 18) || hh === 17; };
   const paint = () => {
     raf = 0;
     if (oa == null) return;
     // متوسط حركة كل المصادر اللايف من آخر تصحيح على OANDA
-    let dsum = 0, dn = 0; for (const k in SRC) { const q = SRC[k]; if (q.px != null && q.pa != null) { dsum += q.px - q.pa; dn++; } }
+    // بس المصادر اللي تحركت بعد آخر تصحيح (الواقفة ما نخليها تضعّف الحركة)
+    let dsum = 0, dn = 0; for (const k in SRC) { const q = SRC[k]; if (q.px != null && q.pa != null && q.t > anchorAt) { dsum += q.px - q.pa; dn++; } }
     const v = (!closed && dn) ? oa + dsum / dn : oa;
     if (shown !== null && Math.abs(v - shown) >= 0.005) {
       p.classList.remove("tk-up", "tk-dn"); void p.offsetWidth; p.classList.add(v > shown ? "tk-up" : "tk-dn");
@@ -1403,7 +1405,7 @@ function goldPrice() {
       ch.textContent = (u ? "▲ +" : "▼ -") + f2(Math.abs(c)) + "   " + (u ? "+" : "-") + Math.abs(c / prev * 100).toFixed(2) + "%";
     }
     if (dHi != null && dLo != null) {
-      const H = Math.max(dHi, v), L = Math.min(dLo, v);
+      const H = dHi, L = dLo;                                     // أعلى وأدنى اليوم من OANDA بس
       if (H > L) dot.style.left = Math.max(0, Math.min(100, (v - L) / (H - L) * 100)) + "%";
       lo.textContent = "أدنى اليوم " + f2(L); hi.textContent = "أعلى اليوم " + f2(H);
     }
@@ -1412,7 +1414,8 @@ function goldPrice() {
   const ask = () => { if (!raf) raf = requestAnimationFrame(paint); };
   // ⚡ بث لايف من أكثر من مصدر ذهب رقمي (كل تغيير بأفضل سعر بيع/شراء) — كل ما زادت المصادر زادت سرعة الحركة
   const SRC = {};
-  const tick = (k, v) => { if (!(v > 0)) return; const q = SRC[k] || (SRC[k] = { px: null, pa: null }); q.px = v; if (q.pa == null) q.pa = v; lastTick = Date.now(); ask(); };
+  let anchorAt = 0;
+  const tick = (k, v) => { if (!(v > 0)) return; const q = SRC[k] || (SRC[k] = { px: null, pa: null, t: 0 }); if (q.px !== null && Math.abs(v - q.px) < 1e-9) return; q.px = v; q.t = Date.now(); if (q.pa == null) q.pa = v; lastTick = Date.now(); ask(); };
   const FEEDS = [
     { urls: ["wss://data-stream.binance.vision/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade", "wss://stream.binance.com:9443/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade"],
       msg: d => { const t = d.data || d, sym = String(t.s || "").toLowerCase(); if (t.b && t.a) tick("bn_" + sym, (Number(t.b) + Number(t.a)) / 2); else if (t.p) tick("bnT_" + sym, Number(t.p)); } },
@@ -1446,7 +1449,7 @@ function goldPrice() {
       if (!j || !j.price) return;
       same = (lastOa !== null && j.price === lastOa) ? same + 1 : 0; lastOa = j.price;
       closed = weekend() || same >= 5;
-      oa = j.price; for (const k in SRC) SRC[k].pa = SRC[k].px;   // نصحّح على OANDA
+      oa = j.price; for (const k in SRC) SRC[k].pa = SRC[k].px; anchorAt = Date.now();   // نصحّح على OANDA
       if (j.change != null) prev = j.price - j.change;
       if (j.high) dHi = j.high; if (j.low) dLo = j.low;
       if (closed) closeWs(); else { ping(); openWs(); }
