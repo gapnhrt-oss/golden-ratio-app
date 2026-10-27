@@ -152,6 +152,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .gp-bar{position:relative;height:6px;border-radius:6px;background:linear-gradient(90deg,rgba(255,107,107,.6),rgba(242,183,5,.6),rgba(61,214,140,.6))}
 .gp-dot{position:absolute;top:50%;left:50%;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--gold);transform:translate(-50%,-50%);transition:left .8s;box-shadow:0 0 10px rgba(242,183,5,.6)}
 .gp-lh{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.mem{gap:8px}.mem-ph{cursor:pointer;font-size:.95rem}.mem-det{display:grid;gap:6px;border-top:1px dashed var(--line);padding-top:8px}
 .dn-sep{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .nrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nrow .nt{min-width:46px;font-weight:700;color:#FF6B78}.nrow .nn{display:grid;gap:2px}.nrow.past{opacity:.6}.nrow.next .nt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px;align-self:flex-start}.nrow .soon-t{color:#FF6B78;font-weight:700}.nrow small.up{color:var(--up)}.nrow small.dn{color:var(--down)}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
@@ -1862,23 +1863,32 @@ async function AdmMembers() {
       const msg = u.sub_status === "none"
         ? "هلا " + (u.name || "") + " 👋\nشكراً لتسجيلك في GOLDEN RATIO 🥇\nتقدر تشترك بالتوصيات من التطبيق ← اشتراكي."
         : "هلا " + (u.name || "") + " 👋\nاشتراكك في GOLDEN RATIO " + (u.sub_status === "expired" ? "انتهى" : "ينتهي") + " بتاريخ " + kwDate(u.ends_at) + ".\nتقدر تجدد من التطبيق ← اشتراكي.";
-      const c = h("div", { class: "card soft" },
-        h("div", { class: "between" }, h("b", null, u.name || "بدون اسم"), h("span", { class: "pill " + st[1] }, st[0])));
-      if (u.phone) c.append(h("div", { class: "kv" }, h("span", null, "📱 الرقم"), h("b", { class: "num" }, u.phone)));
-      if (u.email) c.append(h("div", { class: "kv" }, h("span", null, "✉️ الإيميل"), h("b", { class: "num", style: "font-size:.85rem;word-break:break-all" }, u.email)));
-      c.append(h("div", { class: "kv" }, h("span", null, "🗓️ سجّل"), h("b", null, kwDate(u.created_at))));
-      if (u.ends_at) c.append(h("div", { class: "kv" }, h("span", null, "💳 " + (u.plan || "الاشتراك")), h("b", null, (u.sub_status === "expired" ? "انتهى " : "ينتهي ") + kwDate(u.ends_at))));
-      if (u.last_seen) c.append(h("small", { class: "muted" }, "آخر دخول: " + ago(u.last_seen)));
+      // 👤 كرت مختصر: الاسم والرقم والحالة + واتساب واتصال · والباقي تحت "التفاصيل"
+      const left = u.ends_at ? Math.ceil((new Date(u.ends_at) - Date.now()) / 864e5) : null;
       const live = u.sub_status === "active" || u.sub_status === "soon";
-      c.append(h("div", { class: "row" },
-        ph ? h("a", { class: "btn wa sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, u.sub_status === "none" ? "💬 رسالة ترحيب" : u.sub_status === "active" ? "💬 واتساب" : "💬 رسالة تجديد") : null,
-        ph ? h("a", { class: "btn ghost sm", href: "tel:" + ph }, "📞 اتصال") : null,
+      const pill = live && left !== null && left <= 3 ? ["🟡 باقي " + Math.max(0, left) + (left === 1 ? " يوم" : " أيام"), "wait"] : st;
+      const det = h("div", { class: "mem-det", hidden: true });
+      if (u.email) det.append(h("div", { class: "kv" }, h("span", null, "✉️ الإيميل"), h("b", { class: "num", style: "font-size:.85rem;word-break:break-all" }, u.email)));
+      det.append(h("div", { class: "kv" }, h("span", null, "🗓️ سجّل"), h("b", null, kwDate(u.created_at))));
+      if (u.ends_at) det.append(h("div", { class: "kv" }, h("span", null, "💳 " + (u.plan || "الاشتراك")), h("b", null, (u.sub_status === "expired" ? "انتهى " : "ينتهي ") + kwDate(u.ends_at))));
+      if (u.last_seen) det.append(h("small", { class: "muted" }, "آخر دخول: " + ago(u.last_seen)));
+      det.append(h("div", { class: "row" },
         h("button", { class: "btn green sm", type: "button", onclick: () => grantSheet(u) }, live ? "➕ تمديد" : "➕ إضافة اشتراك"),
         live ? h("button", { class: "btn red sm", type: "button", onclick: async ev => {
           if (!confirmInline(ev)) return;
           const { error: e } = await sb.from("subscriptions").update({ status: "expired", ends_at: new Date().toISOString(), note: "انلغى من الإدارة" }).eq("user_id", u.id).eq("status", "active");
           if (e) { toast(errText(e), true); return; } toast("انلغى اشتراك " + (u.name || "") + " ✅"); route();
         } }, "✖️ إلغاء الاشتراك") : null));
+      const tg = h("button", { class: "linkbtn", type: "button", style: "margin-inline-start:auto;font-size:.85rem" }, "التفاصيل ▾");
+      tg.onclick = () => { det.hidden = !det.hidden; tg.textContent = det.hidden ? "التفاصيل ▾" : "إخفاء ▴"; };
+      const num = u.phone ? h("b", { class: "num mem-ph", title: "اضغط للنسخ", onclick: async () => { try { await navigator.clipboard.writeText(String(u.phone)); toast("انسخ الرقم ✅"); } catch (_) {} } }, u.phone) : h("small", { class: "muted" }, "بدون رقم");
+      const c = h("div", { class: "card soft mem" },
+        h("div", { class: "between" }, h("div", { class: "row", style: "gap:8px;min-width:0" }, h("b", null, u.name || "بدون اسم"), h("span", { class: "muted" }, "·"), num), h("span", { class: "pill " + pill[1] }, pill[0])),
+        h("div", { class: "row", style: "gap:8px" },
+          ph ? h("a", { class: "btn wa sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent(msg), target: "_blank", rel: "noopener" }, u.sub_status === "none" ? "💬 ترحيب" : u.sub_status === "active" ? "💬 واتساب" : "💬 تجديد") : null,
+          ph ? h("a", { class: "btn ghost sm", href: "tel:" + ph }, "📞 اتصال") : null,
+          tg),
+        det);
       list.append(c);
     });
   };
