@@ -1147,7 +1147,7 @@ async function nextNewsCard() {
         h("div", { class: "nn" },
           h("b", null, (FLAG[e.country] || "") + " " + (arTitle(e.title) || e.title)),
           past ? h("small", { class: v ? v.cls : "muted" }, v ? v.word + " · الفعلي " : "✅ نزل الخبر", v ? h("bdi", { class: "num", dir: "ltr" }, calVal(e.actual, e)) : null) : null,
-          !past && nx ? h("small", { class: "soon-t" }, "⏰ " + until(e.date)) : null,
+          !past ? h("small", { class: "soon-t" }, "⏰ " + until(e.date)) : null,
           past ? null : nums)));
     });
     card.append(h("small", { class: "muted" }, "💡 قبل الخبر القوي بـ15 دقيقة لا تدخل صفقة جديدة"));
