@@ -1398,7 +1398,7 @@ function goldPrice() {
       clearTimeout(flashT); flashT = setTimeout(() => p.classList.remove("tk-up", "tk-dn"), 450);
     }
     shown = v;
-    p.textContent = ""; p.append(Number(v).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), h("small", null, "USD"));
+    p.textContent = ""; p.append(f2(v), h("small", null, "USD"));
     if (prev != null) {
       const c = v - prev, u = c >= 0;
       ch.className = "gp-ch " + (u ? "up" : "dn");
@@ -1419,7 +1419,12 @@ function goldPrice() {
   const FEEDS = [
     { urls: ["wss://data-stream.binance.vision/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade", "wss://stream.binance.com:9443/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade"],
       msg: d => { const t = d.data || d, sym = String(t.s || "").toLowerCase(); if (t.b && t.a) tick("bn_" + sym, (Number(t.b) + Number(t.a)) / 2); else if (t.p) tick("bnT_" + sym, Number(t.p)); } },
-    { urls: ["wss://ws.okx.com:8443/ws/v5/public"], sub: { op: "subscribe", args: [{ channel: "tickers", instId: "XAUT-USDT" }, { channel: "tickers", instId: "PAXG-USDT" }] },
+    // عقود الذهب الآجلة الرقمية (أنشط بواجد من السبوت = حركة أسرع)
+    { urls: ["wss://fstream.binance.com/stream?streams=paxgusdt@bookTicker/xauusdt@bookTicker"],
+      msg: d => { const t = d.data || d, sym = String(t.s || "").toLowerCase(); if (t.b && t.a) tick("bnf_" + sym, (Number(t.b) + Number(t.a)) / 2); } },
+    { urls: ["wss://stream.bybit.com/v5/public/linear"], sub: { op: "subscribe", args: ["orderbook.1.PAXGUSDT", "orderbook.1.XAUTUSDT", "orderbook.1.XAUUSDT"] },
+      msg: d => { const t = d.data; if (t && t.b && t.b[0] && t.a && t.a[0]) tick("bbl_" + t.s, (Number(t.b[0][0]) + Number(t.a[0][0])) / 2); } },
+    { urls: ["wss://ws.okx.com:8443/ws/v5/public"], sub: { op: "subscribe", args: [{ channel: "tickers", instId: "XAUT-USDT" }, { channel: "tickers", instId: "PAXG-USDT" }, { channel: "tickers", instId: "XAUT-USDT-SWAP" }, { channel: "tickers", instId: "PAXG-USDT-SWAP" }] },
       msg: d => { (d.data || []).forEach(t => { const b = Number(t.bidPx), a = Number(t.askPx); tick("okx_" + t.instId, b > 0 && a > 0 ? (a + b) / 2 : Number(t.last)); }); } },
     { urls: ["wss://stream.bybit.com/v5/public/spot"], sub: { op: "subscribe", args: ["orderbook.1.XAUTUSDT", "orderbook.1.PAXGUSDT"] },
       msg: d => { const t = d.data; if (t && t.b && t.b[0] && t.a && t.a[0]) tick("bb_" + t.s, (Number(t.b[0][0]) + Number(t.a[0][0])) / 2); } },
@@ -1439,7 +1444,7 @@ function goldPrice() {
   };
   const openWs = () => FEEDS.forEach((_, n) => openFeed(n));
   const closeWs = () => conns.forEach(c => { if (c.ws) { c.ws.onclose = null; try { c.ws.close(); } catch (_) {} c.ws = null; } });
-  const ping = () => conns.forEach((c, n) => { const w = c.ws; if (w && w.readyState === 1) { if (n === 2) try { w.send(JSON.stringify({ op: "ping" })); } catch (_) {} if (n === 1) try { w.send("ping"); } catch (_) {} if (Date.now() - (c.last || 0) > 25000) try { w.close(); } catch (_) {} } });
+  const ping = () => conns.forEach((c, n) => { const w = c.ws, u = FEEDS[n].urls[0]; if (w && w.readyState === 1) { if (u.includes("bybit")) try { w.send(JSON.stringify({ op: "ping" })); } catch (_) {} if (u.includes("okx")) try { w.send("ping"); } catch (_) {} if (Date.now() - (c.last || 0) > 25000) try { w.close(); } catch (_) {} } });
   const alive = () => { if (card.isConnected) seen = true; return card.isConnected || !seen; };
   const stop = () => { clearInterval(poll); closeWs(); };
   const run = async () => {
@@ -1456,7 +1461,7 @@ function goldPrice() {
       ask();
     } catch (_) {}
   };
-  run(); poll = setInterval(run, 10000);
+  run(); poll = setInterval(run, 4000);
   return card;
 }
 async function Market() {
