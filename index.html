@@ -902,9 +902,12 @@ function until(d) {
   const m = Math.round((new Date(d) - Date.now()) / 60000);
   if (m <= 0) return "الحين";
   if (m < 60) return "بعد " + m + " دقيقة";
-  const hh = Math.floor(m / 60); if (hh < 24) return "بعد " + hh + " ساعة" + (m % 60 ? " و" + (m % 60) + " دقيقة" : "");
-  const dd = Math.round(hh / 24); return dd === 1 ? "غداً" : "بعد " + dd + " أيام";
+  const hh = Math.floor(m / 60); if (hh < 48) return "بعد " + hh + " ساعة" + (m % 60 ? " و" + (m % 60) + " دقيقة" : "");
+  const dd = Math.floor(hh / 24), rh = hh % 24; return "بعد " + dd + " أيام" + (rh ? " و" + rh + " ساعة" : "");
 }
+// ⏰ العد التنازلي يتحدث كل 30 ثانية بدون ما نعيد تحميل الصفحة
+const cdSpan = d => { const e = h("small", { class: "soon-t", "data-until": new Date(d).toISOString() }, "⏰ " + until(d)); return e; };
+setInterval(() => { document.querySelectorAll("[data-until]").forEach(e => { e.textContent = "⏰ " + until(e.getAttribute("data-until")); }); }, 30000);
 let calCache = { at: 0, list: null };
 async function getCal() {
   if (calCache.list && Date.now() - calCache.at < 5 * 60000) return calCache.list;
@@ -1183,7 +1186,7 @@ async function nextNewsCard() {
       card.append(h("div", { class: i ? "dn-sep" : "" },
         h("div", { class: "between" },
           h("div", { class: "row", style: "gap:8px" }, h("span", { class: "nt num" + (e === n ? " nxt" : ""), dir: "ltr" }, kw(e.date, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })), h("span", { style: "font-size:1.1rem" }, FLAG[e.country] || ""), h("b", null, arTitle(e.title) || e.title)),
-          h("small", { class: "soon-t" }, "⏰ " + until(e.date))),
+          cdSpan(e.date)),
         h("div", { class: "cal-v" },
           h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big muted" }, "⏳")),
           h("div", null, h("small", null, "المتوقع"), noFc(e.forecast) ? h("span", { class: "nofc" }, "ما له توقع", h("br"), "نقارن بالسابق") : h("b", { class: "num" }, calVal(e.forecast, e))),
