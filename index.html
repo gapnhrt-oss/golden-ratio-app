@@ -535,7 +535,9 @@ function liveCard(s, ups) {
   } else {
     let sl = s.sl;
     if (hit.has("tp4")) sl = s.tp3; else if (hit.has("tp3")) sl = s.tp2; else if (hit.has("tp2")) sl = s.tp1; else if (hit.has("tp1") || hit.has("qtp")) sl = s.entry_from;
-    const safe = dir * (sl - s.entry_from) >= 0;
+    // الوقف الفعلي من آخر تحديث من البوت (إذا مكتوب "🔒 الوقف X")
+    for (let i = mine.length - 1; i >= 0; i--) { const mm = /🔒\s*الوقف(?:\s*على الدخول)?\s*([\d.]+)/.exec(mine[i].body || ""); if (mm) { sl = Number(mm[1]); break; } }
+    const safe = dir * (sl - Number(s.entry_from)) >= 0;
     const pl = h("div", { class: "bigpl muted" }, "…");
     const pr = h("small", { class: "muted num" });
     c.append(h("div", { class: "between" }, h("div", null, h("small", { class: "muted" }, "الربح الحين (حركة الذهب)"), pl), h("div", { style: "text-align:left" }, h("small", { class: "muted" }, "السعر"), h("div", null, pr))));
