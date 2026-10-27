@@ -1381,19 +1381,21 @@ function goldPrice() {
     h("div", { class: "gp-rng" }, h("div", { class: "gp-bar" }, dot), h("div", { class: "gp-lh" }, lo, hi)));
   const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   let oa = null, pa = null, px = null, prev = null, dHi = null, dLo = null, shown = null, same = 0, lastOa = null, closed = false;
-  let ws = null, wsTry = 0, raf = 0, poll = null, seen = false, flashT = 0;
+  let raf = 0, poll = null, seen = false, flashT = 0;
   // السوق مسكّر: من السبت (بعد نص الليل) لين الاثنين الساعة 1 بالكويت، أو OANDA ما تغيّر 5 مرات ورا بعض
   const weekend = () => { const k = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kuwait" })); const d = k.getDay(), hh = k.getHours(); return d === 6 || d === 0 || (d === 1 && hh < 1); };
   const paint = () => {
     raf = 0;
     if (oa == null) return;
-    const v = (!closed && px != null && pa != null) ? oa + (px - pa) : oa;
+    // متوسط حركة كل المصادر اللايف من آخر تصحيح على OANDA
+    let dsum = 0, dn = 0; for (const k in SRC) { const q = SRC[k]; if (q.px != null && q.pa != null) { dsum += q.px - q.pa; dn++; } }
+    const v = (!closed && dn) ? oa + dsum / dn : oa;
     if (shown !== null && Math.abs(v - shown) >= 0.005) {
       p.classList.remove("tk-up", "tk-dn"); void p.offsetWidth; p.classList.add(v > shown ? "tk-up" : "tk-dn");
       clearTimeout(flashT); flashT = setTimeout(() => p.classList.remove("tk-up", "tk-dn"), 450);
     }
     shown = v;
-    p.textContent = ""; p.append(f2(v), h("small", null, "USD"));
+    p.textContent = ""; p.append(Number(v).toLocaleString("en-US", { minimumFractionDigits: 3, maximumFractionDigits: 3 }), h("small", null, "USD"));
     if (prev != null) {
       const c = v - prev, u = c >= 0;
       ch.className = "gp-ch " + (u ? "up" : "dn");
@@ -1407,21 +1409,35 @@ function goldPrice() {
     st.textContent = closed ? "السوق مسكّر" : (Date.now() - lastTick < 5000 ? "الذهب · مباشر ⚡" : "الذهب · مباشر"); led.classList.toggle("off", closed);
   };
   const ask = () => { if (!raf) raf = requestAnimationFrame(paint); };
-  // أفضل سعر بيع/شراء (bookTicker) يتحدث مع كل تغيير بالأوامر = أسرع بواجد من الصفقات · نجرب أكثر من رابط لو واحد محجوب
-  const WSU = ["wss://data-stream.binance.vision/ws/paxgusdt@bookTicker", "wss://stream.binance.com:9443/ws/paxgusdt@bookTicker", "wss://stream.binance.com:443/ws/paxgusdt@bookTicker"];
-  let wsI = 0, lastTick = 0;
-  const openWs = () => {
-    if (ws || closed || !("WebSocket" in window)) return;
+  // ⚡ بث لايف من أكثر من مصدر ذهب رقمي (كل تغيير بأفضل سعر بيع/شراء) — كل ما زادت المصادر زادت سرعة الحركة
+  const SRC = {};
+  const tick = (k, v) => { if (!(v > 0)) return; const q = SRC[k] || (SRC[k] = { px: null, pa: null }); q.px = v; if (q.pa == null) q.pa = v; lastTick = Date.now(); ask(); };
+  const FEEDS = [
+    { urls: ["wss://data-stream.binance.vision/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade", "wss://stream.binance.com:9443/stream?streams=paxgusdt@bookTicker/paxgusdc@bookTicker/paxgusdt@aggTrade"],
+      msg: d => { const t = d.data || d, sym = String(t.s || "").toLowerCase(); if (t.b && t.a) tick("bn_" + sym, (Number(t.b) + Number(t.a)) / 2); else if (t.p) tick("bnT_" + sym, Number(t.p)); } },
+    { urls: ["wss://ws.okx.com:8443/ws/v5/public"], sub: { op: "subscribe", args: [{ channel: "tickers", instId: "XAUT-USDT" }, { channel: "tickers", instId: "PAXG-USDT" }] },
+      msg: d => { (d.data || []).forEach(t => { const b = Number(t.bidPx), a = Number(t.askPx); tick("okx_" + t.instId, b > 0 && a > 0 ? (a + b) / 2 : Number(t.last)); }); } },
+    { urls: ["wss://stream.bybit.com/v5/public/spot"], sub: { op: "subscribe", args: ["orderbook.1.XAUTUSDT", "orderbook.1.PAXGUSDT"] },
+      msg: d => { const t = d.data; if (t && t.b && t.b[0] && t.a && t.a[0]) tick("bb_" + t.s, (Number(t.b[0][0]) + Number(t.a[0][0])) / 2); } },
+  ];
+  let lastTick = 0;
+  const conns = FEEDS.map(() => ({ ws: null, i: 0, tries: 0, last: 0 }));
+  const openFeed = n => {
+    const f = FEEDS[n], c = conns[n];
+    if (c.ws || closed || !("WebSocket" in window)) return;
     try {
-      ws = new WebSocket(WSU[wsI % WSU.length]);
-      ws.onmessage = ev => { try { const t = JSON.parse(ev.data); const b = Number(t.b), a = Number(t.a); const v = (b > 0 && a > 0) ? (a + b) / 2 : Number(t.p); if (v > 0) { px = v; if (pa == null) pa = v; lastTick = Date.now(); ask(); } } catch (_) {} };
-      ws.onopen = () => { wsTry = 0; };
-      ws.onclose = () => { ws = null; if (!lastTick || Date.now() - lastTick > 15000) wsI++; if (alive() && !closed) setTimeout(openWs, Math.min(30000, 1500 * (++wsTry))); };
-      ws.onerror = () => { try { ws.close(); } catch (_) {} };
-    } catch (_) { ws = null; wsI++; }
+      const w = new WebSocket(f.urls[c.i % f.urls.length]); c.ws = w;
+      w.onopen = () => { c.tries = 0; if (f.sub) try { w.send(JSON.stringify(f.sub)); } catch (_) {} };
+      w.onmessage = ev => { try { c.last = Date.now(); f.msg(JSON.parse(ev.data)); } catch (_) {} };
+      w.onclose = () => { c.ws = null; if (!c.last || Date.now() - c.last > 15000) c.i++; if (alive() && !closed) setTimeout(() => openFeed(n), Math.min(30000, 1500 * (++c.tries))); };
+      w.onerror = () => { try { w.close(); } catch (_) {} };
+    } catch (_) { c.ws = null; c.i++; }
   };
+  const openWs = () => FEEDS.forEach((_, n) => openFeed(n));
+  const closeWs = () => conns.forEach(c => { if (c.ws) { c.ws.onclose = null; try { c.ws.close(); } catch (_) {} c.ws = null; } });
+  const ping = () => conns.forEach((c, n) => { const w = c.ws; if (w && w.readyState === 1) { if (n === 2) try { w.send(JSON.stringify({ op: "ping" })); } catch (_) {} if (n === 1) try { w.send("ping"); } catch (_) {} if (Date.now() - (c.last || 0) > 25000) try { w.close(); } catch (_) {} } });
   const alive = () => { if (card.isConnected) seen = true; return card.isConnected || !seen; };
-  const stop = () => { clearInterval(poll); if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } };
+  const stop = () => { clearInterval(poll); closeWs(); };
   const run = async () => {
     if (!alive()) { stop(); return; }
     try {
@@ -1429,12 +1445,10 @@ function goldPrice() {
       if (!j || !j.price) return;
       same = (lastOa !== null && j.price === lastOa) ? same + 1 : 0; lastOa = j.price;
       closed = weekend() || same >= 5;
-      oa = j.price; pa = px;                                     // نصحّح على OANDA
+      oa = j.price; for (const k in SRC) SRC[k].pa = SRC[k].px;   // نصحّح على OANDA
       if (j.change != null) prev = j.price - j.change;
       if (j.high) dHi = j.high; if (j.low) dLo = j.low;
-      if (closed) { if (ws) { ws.onclose = null; try { ws.close(); } catch (_) {} ws = null; } }
-      else if (ws && ws.readyState === 1 && Date.now() - (lastTick || 0) > 20000) { try { ws.close(); } catch (_) {} }   // البث واقف: نجرب رابط ثاني
-      else openWs();
+      if (closed) closeWs(); else { ping(); openWs(); }
       ask();
     } catch (_) {}
   };
