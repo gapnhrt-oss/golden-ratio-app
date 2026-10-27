@@ -212,7 +212,8 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .strip b{font:800 1.4rem var(--latin);direction:ltr;unicode-bidi:isolate}
 .dots{display:flex;gap:6px;flex-wrap:wrap;direction:ltr}
 .dots i{width:16px;height:16px;border-radius:50%;display:inline-block}
-.dots .w{background:var(--up)}.dots .b{background:var(--muted)}.dots .l{background:var(--down)}
+.dots .w{background:var(--up)}.dots .wb{background:linear-gradient(90deg,var(--up) 50%,var(--muted) 50%)}.dots .b{background:var(--muted)}.dots .l{background:var(--down)}
+.wbl.c4{grid-template-columns:repeat(4,1fr)}.legs{display:grid;gap:4px;font-size:.88rem}.legs div{display:flex;justify-content:space-between;gap:8px}
 .ftabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
 .ftabs::-webkit-scrollbar{display:none}
 .ftabs button{flex:0 0 auto;border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:.82rem;color:var(--muted);cursor:pointer}
@@ -486,10 +487,10 @@ function signalCard(s, updates) {
     const best = hits.reduce((m, u) => Math.max(m, dir * (Number(u.price) - Number(s.entry_from))), 0);
     const mv = s.move != null ? Number(s.move) : null;
     const sgn = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
-    let label = RESULT[s.result] || s.result, main = mv, sub = null;
-    if (s.result === "qtp") { label = "⚡ ربح جزئي"; main = best || mv; sub = mv != null && Math.abs(mv) < 0.01 ? "الباقي سكّر تعادل" : "الباقي سكّر عند " + sgn(mv); }
-    else if (win && best > (mv || 0) + 0.01) { label = "🎯 " + label; main = best; sub = "جنينا لين " + sgn(best) + " · الباقي سكّر عند " + sgn(mv); }
-    body.append(h("div", { class: "row" }, h("span", { class: "pill " + (win ? "on" : s.result === "sl" ? "off" : "gray") }, label),
+    const oc = outcome(s), LG = legs(s);
+    let label = OUT_LBL[oc], main = LG.tot, sub = legsText(s) + " · صفقتين 0.01";
+    void best; void mv;
+    body.append(h("div", { class: "row" }, h("span", { class: "pill " + (oc === "l" ? "off" : oc === "b" ? "gray" : "on") }, label),
       main != null ? h("b", { class: "num " + (main >= 0 ? "pos" : "neg") }, sgn(main)) : null));
     if (sub) body.append(h("small", { class: "muted" }, sub));
     if (s.status === "closed") body.append(starsRow(s));
@@ -517,7 +518,25 @@ const kwStart = unit => { // بداية الأسبوع (الاثنين) أو ا�
   return new Date(Date.UTC(k.getFullYear(), k.getMonth(), d) - 3 * 3600e3);
 };
 const money = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
-const outcome = s => { const m = s.move == null ? null : Number(s.move); if (m == null) return s.result === "sl" ? "l" : s.result === "be" ? "b" : "w"; return m > 0.005 ? "w" : m < -0.005 ? "l" : "b"; };
+// 🧮 طريقة الحساب: صفقتين 0.01 + 0.01 على رأس مال 1000$
+// الأولى تتسكّر عند الهدف السريع (أو الهدف 1 إذا ما في سريع)، والثانية تكمّل والوقف يلحق الأهداف لين تتسكّر
+const CAPITAL = 1000;
+const r2 = v => Math.round(v * 100) / 100;
+function legs(s) {
+  const dir = s.side === "buy" ? 1 : -1, e = Number(s.entry_from), mv = s.move == null ? 0 : Number(s.move);
+  const t1 = s.tp_quick != null ? Number(s.tp_quick) : s.tp1 != null ? Number(s.tp1) : null;
+  const hit = !!WIN[s.result] && t1 != null && !isNaN(e);
+  const a = hit ? r2(dir * (t1 - e)) : mv, b = mv;
+  return { a, b, tot: r2(a + b), hit, t1name: s.tp_quick != null ? "الهدف السريع" : "الهدف 1" };
+}
+const outcome = s => { const { a, b, tot } = legs(s); if (a > 0.005 && b > 0.005) return "w"; if (a > 0.005 && Math.abs(b) <= 0.005) return "wb"; return tot > 0.005 ? "w" : tot < -0.005 ? "l" : "b"; };
+const OUT_LBL = { w: "✅ ربح", wb: "✅ ربح + ⚖️ تعادل", b: "⚖️ تعادل", l: "❌ خسارة" };
+const pctCap = v => (v > 0 ? "+" : v < 0 ? "-" : "") + fmt(Math.abs(Math.round(v / CAPITAL * 1000) / 10)) + "%";
+function legsText(s) {
+  const L = legs(s), sg = v => (v > 0 ? "+" : v < 0 ? "-" : "") + "$" + fmt(Math.abs(v));
+  if (!L.hit) return L.tot < 0 ? "الصفقتين ضربت الوقف: " + sg(L.a) + " × 2" : "الصفقتين: " + sg(L.a) + " × 2";
+  return "الصفقة 1: " + sg(L.a) + " (" + L.t1name + ") · الصفقة 2: " + (Math.abs(L.b) <= 0.005 ? "على الدخول $0" : sg(L.b) + (RESULT[s.result] && s.result !== "qtp" ? " (وصلت " + RESULT[s.result] + ")" : ""));
+}
 async function livePrice() { try { const r = await fetch(SUPABASE_URL + "/functions/v1/gold-price"); const j = await r.json(); return j.price ? Number(j.price) : null; } catch (_) { return null; } }
 
 // 🎯 الصفقة الشغالة لايف (للمشتركين)
@@ -573,25 +592,26 @@ function resultsStrip(closed, partial) {
   const c = h("div", { class: "card soft" });
   c.append(h("div", { class: "between" }, h("b", null, "📊 نتائجنا"), h("a", { class: "muted", href: "#signals", style: "font-size:.85rem" }, "الأرشيف ←")));
   if (!closed.length) { c.append(h("p", { class: "muted" }, "النتائج تبدأ من أول توصية 🚀 وكل توصية بتنحسب هني، ربح أو خسارة.")); return c; }
-  const sum = from => closed.filter(s => new Date(s.closed_at) >= from).reduce((a, s) => a + Number(s.move || 0), 0);
+  const sum = from => closed.filter(s => new Date(s.closed_at) >= from).reduce((a, s) => a + legs(s).tot, 0);
   // 📅 اليوم: أرباح الإغلاق + الأرباح الجزئية (كل هدف تحقق)
   const td = sum(kwStart("day")), pt = Number(partial || 0);
   const nToday = closed.filter(s => new Date(s.closed_at) >= kwStart("day")).length;
   const howBtn = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
   howBtn.onclick = () => howSheet();
   if (nToday) c.append(h("div", { class: "strip today" },
-    h("div", null, h("small", { class: "muted" }, "💰 أرباح اليوم"), h("b", { class: td >= 0 ? "pos" : "neg" }, money(Math.round(td * 100) / 100)), h("small", { class: "muted" }, "عند إغلاق " + nToday + (nToday === 1 ? " توصية" : " توصيات"))),
-    h("div", null, h("small", { class: "muted" }, "⚡ الربح الجزئي اليوم"), h("b", { class: "pos" }, money(Math.round(pt * 100) / 100)), h("small", { class: "muted" }, "مجموع كل هدف تحقق"))), howBtn);
+    h("div", null, h("small", { class: "muted" }, "💰 صافي اليوم"), h("b", { class: td >= 0 ? "pos" : "neg" }, money(r2(td))), h("small", { class: "muted" }, nToday + (nToday === 1 ? " توصية" : " توصيات") + " · صفقتين 0.01")),
+    h("div", null, h("small", { class: "muted" }, "📈 من رأس مال " + CAPITAL + "$"), h("b", { class: td >= 0 ? "pos" : "neg" }, pctCap(td)), h("small", { class: "muted" }, "نسبة ربح الحساب"))), howBtn);
+  void pt;
   const wk = sum(kwStart("week")), mo = sum(kwStart("month"));
   c.append(h("div", { class: "strip" },
     h("div", null, h("small", { class: "muted" }, "هالأسبوع"), h("b", { class: wk >= 0 ? "pos" : "neg" }, money(Math.round(wk * 100) / 100))),
     h("div", null, h("small", { class: "muted" }, "هالشهر"), h("b", { class: mo >= 0 ? "pos" : "neg" }, money(Math.round(mo * 100) / 100)))));
   const last = closed.slice(0, 10).reverse();
-  const n = { w: 0, b: 0, l: 0 }; last.forEach(s => n[outcome(s)]++);
+  const n = { w: 0, wb: 0, b: 0, l: 0 }; last.forEach(s => n[outcome(s)]++);
   const dots = h("div", { class: "dots", title: "آخر " + last.length + " توصيات" });
-  last.forEach(s => dots.append(h("i", { class: outcome(s), title: (RESULT[s.result] || "") + " " + (s.move != null ? money(Number(s.move)) : "") })));
-  c.append(h("div", null, h("small", { class: "muted" }, "آخر " + last.length + " توصيات: ✅ " + n.w + " · ⚖️ " + n.b + " · ❌ " + n.l), dots));
-  c.append(h("small", { class: "muted" }, "حركة الذهب بالدولار من الدخول للإغلاق · 0.01 لوت = نفس الرقم بالدولار"));
+  last.forEach(s => dots.append(h("i", { class: outcome(s), title: OUT_LBL[outcome(s)] + " " + money(legs(s).tot) })));
+  c.append(h("div", null, h("small", { class: "muted" }, "آخر " + last.length + " توصيات: ✅ ربح " + n.w + " · ✅⚖️ ربح+تعادل " + n.wb + (n.b ? " · ⚖️ " + n.b : "") + " · ❌ " + n.l), dots));
+  c.append(h("small", { class: "muted" }, "صفقتين 0.01 + 0.01 على رأس مال " + CAPITAL + "$: الأولى تتسكّر عند الهدف السريع، والثانية على الدخول وتلحق الأهداف"));
   return c;
 }
 
@@ -723,7 +743,7 @@ async function Home() {
   const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
     sb.rpc("open_signals_teaser"),
     sb.from("posts").select("*").order("created_at", { ascending: false }).limit(60),
-    sb.from("signals").select("id,side,result,move,closed_at,created_at,entry_from").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
+    sb.from("signals").select("id,side,result,move,closed_at,created_at,entry_from,tp_quick,tp1").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
     S.member ? sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     S.member ? Promise.resolve({ data: [] }) : sb.rpc("signal_proofs")
   ]);
@@ -750,7 +770,7 @@ async function Home() {
     else {
       const l = closed[0];
       sigBox = h("div", { class: "card soft" }, h("b", null, "ما فيه توصية مفتوحة الحين"),
-        l ? h("p", { class: "muted" }, "آخر توصية: " + (RESULT[l.result] || "") + " ", l.move != null ? h("b", { class: "num " + (Number(l.move) >= 0 ? "pos" : "neg") }, money(Number(l.move))) : null) : h("p", { class: "muted" }, "أول ما تنزل توصية بتشوفها هني لايف."));
+        l ? h("p", { class: "muted" }, "آخر توصية: " + OUT_LBL[outcome(l)] + " ", h("b", { class: "num " + (legs(l).tot >= 0 ? "pos" : "neg") }, money(legs(l).tot))) : h("p", { class: "muted" }, "أول ما تنزل توصية بتشوفها هني لايف."));
     }
   } else {
     const open = teaser.data || [];
@@ -957,14 +977,15 @@ function finishCanvas(cv, x, w, hgt, name) {
 }
 function shareSignalImage(s) {
   const w = 1080, hgt = 1350, [cv, x] = canvasBase(w, hgt);
-  const win = WIN[s.result];
+  const LG = legs(s), oc = outcome(s), win = oc !== "l";
   x.fillStyle = "#EEF0FF"; x.font = "700 52px 'Readex Pro', Arial"; x.fillText("XAUUSD · " + (s.side === "buy" ? "شراء" : "بيع"), w / 2, 400);
   x.fillStyle = win ? "#2BD48A" : "#FF4D5E"; x.font = "800 150px 'Readex Pro', Arial";
-  x.direction = "ltr"; x.fillText((Number(s.move) > 0 ? "+" : "") + "$" + fmt(s.move), w / 2, 600); x.direction = "rtl";
-  x.font = "800 64px 'Readex Pro', Arial"; x.fillText((win ? "✅ " : "") + (RESULT[s.result] || ""), w / 2, 710);
+  x.direction = "ltr"; x.fillText((LG.tot > 0 ? "+" : LG.tot < 0 ? "-" : "") + "$" + fmt(Math.abs(LG.tot)), w / 2, 600); x.direction = "rtl";
+  x.font = "800 58px 'Readex Pro', Arial"; x.fillText(OUT_LBL[oc], w / 2, 700);
+  x.fillStyle = "#9EA3D6"; x.font = "500 34px 'Readex Pro', Arial"; x.fillText(legsText(s), w / 2, 760);
   x.fillStyle = "#9EA3D6"; x.font = "500 40px 'Readex Pro', Arial";
   const lines = ["الدخول: " + (s.entry_to ? fmt(s.entry_from) + " – " + fmt(s.entry_to) : fmt(s.entry_from)), s.sl != null ? "الوقف: " + fmt(s.sl) : "", [s.tp1, s.tp2, s.tp3, s.tp4].filter(v => v != null).length ? "الأهداف: " + [s.tp1, s.tp2, s.tp3, s.tp4].filter(v => v != null).map(fmt).join(" · ") : "", kw(s.closed_at || s.created_at, { day: "numeric", month: "long", year: "numeric" })].filter(Boolean);
-  lines.forEach((l, i) => x.fillText(l, w / 2, 830 + i * 64));
+  lines.forEach((l, i) => x.fillText(l, w / 2, 850 + i * 64));
   x.fillStyle = "#F2B705"; x.font = "700 44px 'Readex Pro', Arial"; x.fillText("اشترك وخلك أول من يوصله التوصية 🔔", w / 2, hgt - 160);
   finishCanvas(cv, x, w, hgt, "golden-ratio-" + (s.id || "").slice(0, 6) + ".png");
 }
@@ -972,13 +993,13 @@ function shareMonthImage(closed) {
   const now = new Date(), key = kw(now, { year: "numeric", month: "2-digit" });
   const mon = closed.filter(s => kw(s.closed_at || s.created_at, { year: "numeric", month: "2-digit" }) === key);
   if (!mon.length) { toast("ما فيه توصيات مقفلة هالشهر", true); return; }
-  const wins = mon.filter(s => WIN[s.result]).length, tot = mon.reduce((a, s) => a + Number(s.move || 0), 0);
+  const wins = mon.filter(s => outcome(s) !== "l").length, tot = r2(mon.reduce((a, s) => a + legs(s).tot, 0));
   const w = 1080, hgt = 1350, [cv, x] = canvasBase(w, hgt);
   x.fillStyle = "#EEF0FF"; x.font = "700 58px 'Readex Pro', Arial"; x.fillText("نتائج " + kw(now, { month: "long", year: "numeric" }), w / 2, 410);
   const box = (lab, val, col, y) => { x.fillStyle = "rgba(255,255,255,.06)"; x.fillRect(140, y, 800, 170); x.fillStyle = "#9EA3D6"; x.font = "500 36px 'Readex Pro', Arial"; x.fillText(lab, w / 2, y + 55); x.fillStyle = col; x.font = "800 80px 'Readex Pro', Arial"; x.direction = /^[+\-$\d]/.test(val) ? "ltr" : "rtl"; x.fillText(val, w / 2, y + 140); x.direction = "rtl"; };
-  box("مجموع حركة الذهب", (tot > 0 ? "+" : "") + "$" + fmt(tot), tot >= 0 ? "#2BD48A" : "#FF4D5E", 470);
-  box("نسبة النجاح", Math.round(wins / mon.length * 100) + "%", "#F2B705", 670);
-  box("التوصيات الرابحة", wins + " من " + mon.length, "#EEF0FF", 870);
+  box("صافي الربح · صفقتين 0.01", (tot > 0 ? "+" : tot < 0 ? "-" : "") + "$" + fmt(Math.abs(tot)), tot >= 0 ? "#2BD48A" : "#FF4D5E", 470);
+  box("من رأس مال " + CAPITAL + "$", pctCap(tot), tot >= 0 ? "#2BD48A" : "#FF4D5E", 670);
+  box("ما خسرت (ربح أو ربح + تعادل)", wins + " من " + mon.length, "#F2B705", 870);
   x.fillStyle = "#F2B705"; x.font = "700 44px 'Readex Pro', Arial"; x.fillText("نتائج حقيقية · كل التوصيات بدون حذف", w / 2, hgt - 160);
   finishCanvas(cv, x, w, hgt, "golden-ratio-month.png");
 }
@@ -1353,11 +1374,12 @@ function installHint() {
 function howSheet() {
   openSheet(h("div", { class: "screen" },
     h("div", { class: "between" }, h("h2", { class: "h1" }, "❓ شلون نحسب الأرباح؟"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
-    h("div", { class: "card soft" }, h("b", null, "💰 أرباح الإغلاق"), h("p", { style: "line-height:1.8" }, "حركة الذهب بالدولار من سعر الدخول لين سعر إغلاق التوصية. يعني لو خلّيت الصفقة كاملة لين النهاية.")),
-    h("div", { class: "card soft" }, h("b", null, "⚡ الربح الجزئي"), h("p", { style: "line-height:1.8" }, "مجموع الربح عند كل هدف تحقق (الهدف السريع والهدف 1 و2...). يعني لو جنيت جزء من الأرباح عند كل هدف مثل ما نوصي بالرسايل.")),
-    h("div", { class: "card soft" }, h("b", null, "📏 مثال"), h("p", { style: "line-height:1.8" }, "بيع من 4002 والهدف السريع 3992 (+10$) والهدف 1 عند 3987 (+15$)، وبعدين سكّر الباقي على الهدف 1:\n• أرباح الإغلاق = +15$\n• الربح الجزئي = 10 + 15 = +25$")),
-    h("div", { class: "card soft" }, h("b", null, "💼 باللوت"), h("p", { style: "line-height:1.8" }, "كل 1$ حركة × 0.01 لوت = 1$ ربح. يعني +25$ حركة باللوت 0.10 = +250$.")),
-    h("p", { class: "muted", style: "font-size:.85rem" }, "⚠️ الرقمين طريقتين حساب لنفس الصفقات، فما ينجمعون على بعض. والنتائج السابقة ما تضمن نتائج مستقبلية."),
+    h("div", { class: "card soft" }, h("b", null, "💼 الحساب"), h("p", { style: "line-height:1.8" }, "رأس مال " + CAPITAL + "$، وكل توصية نفتح فيها صفقتين: 0.01 + 0.01 لوت. كل 1$ حركة بالذهب = 1$ على كل صفقة.")),
+    h("div", { class: "card soft" }, h("b", null, "⚡ الصفقة الأولى"), h("p", { style: "line-height:1.8" }, "تتسكّر عند الهدف السريع، ووقتها ننقل وقف الصفقة الثانية على سعر الدخول. يعني من هني ما في خسارة.")),
+    h("div", { class: "card soft" }, h("b", null, "🎯 الصفقة الثانية"), h("p", { style: "line-height:1.8" }, "تكمّل للأهداف، وكل ما تحقق هدف ننقل الوقف للهدف اللي قبله (الهدف 1 ← الوقف على السريع، الهدف 2 ← الوقف على الهدف 1...) لين تتسكّر.")),
+    h("div", { class: "card soft" }, h("b", null, "📏 مثال"), h("p", { style: "line-height:1.8" }, "بيع من 4002، الهدف السريع 3992، والهدف 1 عند 3987:\n• الأولى سكّرت عند السريع = +10$\n• الثانية وصلت الهدف 2 وسكّرت على وقف الهدف 1 = +15$\n• المجموع = +25$ ✅ ربح\n\nولو الثانية رجعت على الدخول = +10$ ✅ ربح + ⚖️ تعادل\nولو ضرب الوقف قبل الهدف السريع = الخسارة × 2 ❌")),
+    h("div", { class: "card soft" }, h("b", null, "📈 بلوت أكبر"), h("p", { style: "line-height:1.8" }, "اضرب الرقم: 0.10 + 0.10 = الرقم × 10، و1.00 + 1.00 = الرقم × 100.")),
+    h("p", { class: "muted", style: "font-size:.85rem" }, "⚠️ النتائج السابقة ما تضمن نتائج مستقبلية. التداول فيه مخاطرة."),
     h("button", { class: "btn primary block", type: "button", onclick: closeSheet }, "فهمت")));
 }
 
@@ -1378,25 +1400,26 @@ function statsPanel(closed, ups) {
     const from = cur === "all" ? new Date(0) : kwStart(cur);
     const L = closed.filter(s => new Date(s.closed_at) >= from);
     if (!L.length) { body.append(h("div", { class: "empty" }, "ما فيه توصيات مسكّرة بهالفترة.")); return; }
-    let close = 0, part = 0, hit = 0; const n = { w: 0, b: 0, l: 0 };
-    L.forEach(s => {
-      close += Number(s.move || 0); n[outcome(s)]++;
-      const dir = s.side === "buy" ? 1 : -1;
-      const hs = ups.filter(u => u.signal_id === s.id && /^(qtp|tp[1-4])$/.test(u.kind) && u.price != null);
-      if (hs.length || WIN[s.result]) hit++;
-      hs.forEach(u => part += dir * (Number(u.price) - Number(s.entry_from)));
-    });
+    let A = 0, B = 0; const n = { w: 0, wb: 0, b: 0, l: 0 };
+    L.forEach(s => { const g = legs(s); A += g.a; B += g.b; n[outcome(s)]++; });
+    const T = r2(A + B), ok = n.w + n.wb + n.b;
+    const col = (ic, v, lb, cls) => h("div", null, h("span", null, ic), h("b", { class: "num " + (cls || "") }, v), h("small", { class: "muted" }, lb));
     body.append(
       h("div", { class: "grid2" },
-        cell("💰 أرباح الإغلاق", sgn(close), close >= 0 ? "pos" : "neg", "حركة الذهب لين الإغلاق"),
-        cell("⚡ الربح الجزئي", sgn(part), part >= 0 ? "pos" : "neg", "مجموع كل هدف تحقق")),
+        h("div", { class: "card soft", style: "gap:4px" }, h("small", { class: "muted" }, "💰 صافي الربح"), h("b", { class: "num " + (T >= 0 ? "pos" : "neg"), style: "font-size:1.5rem;white-space:nowrap", dir: "ltr" }, sgn(T)),
+          h("small", { class: "muted" }, "صفقتين 0.01 + 0.01"), h("small", { class: "muted" }, "الحساب ", h("bdi", { class: "num " + (T >= 0 ? "pos" : "neg"), dir: "ltr" }, pctCap(T)), " من " + CAPITAL + "$")),
+        h("div", { class: "card soft", style: "gap:6px" }, h("small", { class: "muted" }, "🧩 التفصيل"),
+          h("div", { class: "legs" },
+            h("div", null, h("span", null, "⚡ الأولى"), h("b", { class: "num " + (A >= 0 ? "pos" : "neg"), dir: "ltr" }, sgn(A))),
+            h("div", null, h("span", null, "🎯 الثانية"), h("b", { class: "num " + (B >= 0 ? "pos" : "neg"), dir: "ltr" }, sgn(B)))))),
       h("div", { class: "grid2" },
-        cell("🎯 حققت أهداف", Math.round(hit / L.length * 100) + "%", "", hit + " من " + L.length + " وصلت هدف"),
-        h("div", { class: "card soft", style: "gap:6px" }, h("small", { class: "muted" }, "📊 النتيجة عند الإغلاق"),
-          h("div", { class: "wbl" },
-            h("div", null, h("span", null, "✅"), h("b", { class: "num pos" }, n.w), h("small", { class: "muted" }, "ربح")),
-            h("div", null, h("span", null, "⚖️"), h("b", { class: "num" }, n.b), h("small", { class: "muted" }, "تعادل")),
-            h("div", null, h("span", null, "❌"), h("b", { class: "num neg" }, n.l), h("small", { class: "muted" }, "خسارة"))))));
+        cell("🎯 ما خسرت", Math.round(ok / L.length * 100) + "%", "", ok + " من " + L.length + " توصيات"),
+        h("div", { class: "card soft", style: "gap:6px" }, h("small", { class: "muted" }, "📊 النتيجة"),
+          h("div", { class: "wbl" + (n.b ? " c4" : "") },
+            col("✅", n.w, "ربح", "pos"),
+            col("✅⚖️", n.wb, "ربح+تعادل", "pos"),
+            n.b ? col("⚖️", n.b, "تعادل") : null,
+            col("❌", n.l, "خسارة", "neg")))));
     const how = h("button", { class: "linkbtn", type: "button", style: "font-size:.82rem;align-self:flex-start" }, "❓ شلون نحسب؟");
     how.onclick = () => howSheet();
     body.append(how);
