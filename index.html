@@ -129,6 +129,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .newsalert.res{border-color:var(--line)}.newsalert.res.up{border-color:var(--up)}.newsalert.res.dn{border-color:var(--down)}
 .newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
 .nt.nxt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px}.nt{font-weight:700;color:#FF6B78}
+.rx{font-size:.85rem;margin-top:6px;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--fg) 5%,transparent)}.rx.against{background:color-mix(in srgb,#F2B705 14%,transparent)}.rx-w{color:#F2B705;font-weight:700;margin-top:2px}
 .dn-sep{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .nrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nrow .nt{min-width:46px;font-weight:700;color:#FF6B78}.nrow .nn{display:grid;gap:2px}.nrow.past{opacity:.6}.nrow.next .nt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px;align-self:flex-start}.nrow .soon-t{color:#FF6B78;font-weight:700}.nrow small.up{color:var(--up)}.nrow small.dn{color:var(--down)}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
@@ -1197,6 +1198,11 @@ async function nextNewsCard() {
   }
   // 2) 📣 الأخبار القوية اللي نزلت اليوم — كلها مع نتيجتها (لين 11:45 بالليل)
   const done = kwHM < "23:45" ? dedupeCal(list.filter(e => big(e) && new Date(e.date) <= now && dayOf(e.date) === todayKey).sort((a, b) => new Date(b.date) - new Date(a.date))) : [];
+  // ⏱️ ردة فعل الذهب الحقيقية (من البوت): بعد 5 / 15 / 60 دقيقة
+  let rx = [];
+  if (done.length) { try { const r = await sb.from("news_reactions").select("*").gte("ts", new Date(Date.now() - 36 * 3600e3).toISOString()); rx = r.data || []; } catch (_) {} }
+  const rxOf = e => rx.find(r => Math.abs(new Date(r.ts) - new Date(e.date)) < 90e3);
+  const mv = v => v == null ? null : h("bdi", { class: "num " + (Number(v) >= 0 ? "pos" : "neg"), dir: "ltr" }, (Number(v) >= 0 ? "+" : "-") + "$" + fmt(Math.abs(Number(v))));
   if (done.length) {
     const v0 = verdict(done[0]);
     const card = h("a", { class: "card newsalert res " + (v0 ? v0.cls : ""), href: "#market/cal" },
@@ -1209,7 +1215,18 @@ async function nextNewsCard() {
           h("div", null, h("small", null, "الفعلي"), h("b", { class: "num big " + (v ? v.cls : "") }, calVal(e.actual, e))),
           h("div", null, h("small", null, "المتوقع"), noFc(e.forecast) ? h("span", { class: "nofc" }, "ما له توقع", h("br"), "نقارن بالسابق") : h("b", { class: "num" }, calVal(e.forecast, e))),
           h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(e.previous, e)))),
-        v ? h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub)) : h("small", { class: "muted" }, "⏳ ننتظر الرقم الفعلي")));
+        v ? h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub)) : h("small", { class: "muted" }, "⏳ ننتظر الرقم الفعلي"),
+        (() => {
+          const r = rxOf(e); if (!r || r.m15 == null && r.m5 == null) return null;
+          const exp = v ? (v.gold ? 1 : -1) : Number(r.expected || 0), m15 = Number(r.m15 ?? r.m5);
+          const against = exp !== 0 && Math.abs(m15) >= 2 && m15 * exp < 0;
+          return h("div", { class: "rx" + (against ? " against" : "") },
+            h("b", null, (m15 >= 0 ? "📈" : "📉") + " الذهب فعلياً: "),
+            r.m5 != null ? h("span", null, "5 د ", mv(r.m5)) : null,
+            r.m15 != null ? h("span", null, " · 15 د ", mv(r.m15)) : null,
+            r.m60 != null ? h("span", null, " · ساعة ", mv(r.m60)) : null,
+            against ? h("div", { class: "rx-w" }, "⚠️ تحرك عكس المتوقع — السوق أقوى من الخبر") : null);
+        })()));
     });
     box.append(card);
   }
