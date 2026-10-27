@@ -130,6 +130,28 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
 .nt.nxt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px}.nt{font-weight:700;color:#FF6B78}
 .rx{font-size:.85rem;margin-top:6px;padding:6px 10px;border-radius:10px;background:color-mix(in srgb,var(--fg) 5%,transparent)}.rx.against{background:color-mix(in srgb,#F2B705 14%,transparent)}.rx-w{color:#F2B705;font-weight:700;margin-top:2px}
+.gp{position:relative;overflow:hidden;display:grid;gap:12px;padding:14px 16px 12px;border-radius:20px;background:linear-gradient(155deg,#1b2160 0%,#11154a 45%,#0b0e33 100%);border:1px solid color-mix(in srgb,var(--gold) 45%,var(--line));box-shadow:0 10px 30px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.06)}
+.gp::before{content:"";position:absolute;top:-70px;left:-50px;width:200px;height:200px;background:radial-gradient(circle,rgba(242,183,5,.22),transparent 70%);pointer-events:none}
+.gp::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;transition:box-shadow .5s}
+.gp.flash-up::after{box-shadow:inset 0 0 0 2px rgba(61,214,140,.55),inset 0 0 30px rgba(61,214,140,.18)}
+.gp.flash-dn::after{box-shadow:inset 0 0 0 2px rgba(255,107,107,.55),inset 0 0 30px rgba(255,107,107,.18)}
+.gp-top{display:flex;align-items:center;gap:12px;position:relative}
+.gp-logo{width:50px;height:50px;border-radius:50%;flex:none;box-shadow:0 0 0 2px rgba(242,183,5,.55),0 0 22px rgba(242,183,5,.35)}
+.gp-id{display:grid;line-height:1.2;min-width:0}
+.gp-sym{font-family:var(--latin);font-weight:800;font-size:1.2rem;letter-spacing:.6px;color:var(--fg)}
+.gp-sub{font-size:.8rem;color:var(--muted);display:flex;gap:6px;align-items:center;justify-content:flex-end}
+.gp-live{width:7px;height:7px;border-radius:50%;background:var(--up);animation:gpPulse 1.8s infinite}
+@keyframes gpPulse{0%{box-shadow:0 0 0 0 rgba(61,214,140,.6)}70%{box-shadow:0 0 0 8px rgba(61,214,140,0)}100%{box-shadow:0 0 0 0 rgba(61,214,140,0)}}
+.gp-px{margin-left:auto;text-align:right;display:grid;gap:2px}
+.gp-p{font-family:var(--latin);font-weight:800;font-size:1.7rem;line-height:1.1;font-variant-numeric:tabular-nums;color:var(--fg);transition:color .5s;white-space:nowrap}
+.gp-p small{font-size:.72rem;color:var(--muted);font-weight:600;margin-left:5px}
+.gp.flash-up .gp-p{color:var(--up)}.gp.flash-dn .gp-p{color:var(--down)}
+.gp-ch{font-family:var(--latin);font-weight:700;font-size:.92rem;font-variant-numeric:tabular-nums;white-space:pre}
+.gp-ch.up{color:var(--up)}.gp-ch.dn{color:var(--down)}
+.gp-rng{display:grid;gap:6px;position:relative}
+.gp-bar{position:relative;height:6px;border-radius:6px;background:linear-gradient(90deg,rgba(255,107,107,.6),rgba(242,183,5,.6),rgba(61,214,140,.6))}
+.gp-dot{position:absolute;top:50%;left:50%;width:13px;height:13px;border-radius:50%;background:#fff;border:3px solid var(--gold);transform:translate(-50%,-50%);transition:left .8s;box-shadow:0 0 10px rgba(242,183,5,.6)}
+.gp-lh{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);font-variant-numeric:tabular-nums}
 .dn-sep{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
 .nrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nrow .nt{min-width:46px;font-weight:700;color:#FF6B78}.nrow .nn{display:grid;gap:2px}.nrow.past{opacity:.6}.nrow.next .nt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px;align-self:flex-start}.nrow .soon-t{color:#FF6B78;font-weight:700}.nrow small.up{color:var(--up)}.nrow small.dn{color:var(--down)}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
@@ -1345,7 +1367,45 @@ async function Calendar() {
   return box;
 }
 
-function goldPrice() { const w = tvWidget("single-quote", { symbol: "OANDA:XAUUSD", locale: "en" }); w.classList.add("price"); return w; }
+// 🥇 بطاقة سعر الذهب حقتنا (بشعار GOLDEN RATIO): السعر لايف كل 10 ثواني + التغيّر اليومي + مدى اليوم
+function goldPrice() {
+  const logo = (document.querySelector(".brand img") || {}).src || "";
+  const p = h("div", { class: "gp-p" }, "—"), ch = h("div", { class: "gp-ch" }, "\u00a0"), dot = h("i", { class: "gp-dot" });
+  const lo = h("span", { dir: "rtl" }, ""), hi = h("span", { dir: "rtl" }, "");
+  const card = h("div", { class: "gp", dir: "ltr" },
+    h("div", { class: "gp-top" },
+      logo ? h("img", { class: "gp-logo", src: logo, alt: "GOLDEN RATIO" }) : null,
+      h("div", { class: "gp-id" }, h("span", { class: "gp-sym" }, "XAUUSD"), h("span", { class: "gp-sub", dir: "rtl" }, h("i", { class: "gp-live" }), "الذهب · مباشر")),
+      h("div", { class: "gp-px" }, p, ch)),
+    h("div", { class: "gp-rng" }, h("div", { class: "gp-bar" }, dot), h("div", { class: "gp-lh" }, lo, hi)));
+  const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let last = null, timer = null, seen = false;
+  const run = async () => {
+    if (card.isConnected) seen = true; else if (seen) { clearInterval(timer); return; }
+    try {
+      const j = await (await fetch(SUPABASE_URL + "/functions/v1/gold-price")).json();
+      if (!j || !j.price) return;
+      p.textContent = ""; p.append(f2(j.price), h("small", null, "USD"));
+      if (last !== null && j.price !== last) {
+        card.classList.remove("flash-up", "flash-dn"); void card.offsetWidth;
+        card.classList.add(j.price > last ? "flash-up" : "flash-dn");
+        setTimeout(() => card.classList.remove("flash-up", "flash-dn"), 1200);
+      }
+      last = j.price;
+      if (j.change != null) {
+        const u = j.change >= 0;
+        ch.className = "gp-ch " + (u ? "up" : "dn");
+        ch.textContent = (u ? "▲ +" : "▼ -") + f2(Math.abs(j.change)) + "   " + (u ? "+" : "-") + Math.abs(j.changePct || 0).toFixed(2) + "%";
+      }
+      if (j.high && j.low && j.high > j.low) {
+        dot.style.left = Math.max(0, Math.min(100, (j.price - j.low) / (j.high - j.low) * 100)) + "%";
+        lo.textContent = "أدنى اليوم " + f2(j.low); hi.textContent = "أعلى اليوم " + f2(j.high);
+      }
+    } catch (_) {}
+  };
+  run(); timer = setInterval(run, 10000);
+  return card;
+}
 async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
