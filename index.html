@@ -128,6 +128,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .newsalert{display:grid;gap:8px;text-decoration:none;color:var(--fg);border-color:color-mix(in srgb,#FF4D5E 35%,var(--line))}
 .newsalert.res{border-color:var(--line)}.newsalert.res.up{border-color:var(--up)}.newsalert.res.dn{border-color:var(--down)}
 .newsalert.near{border-color:#FF4D5E;background:color-mix(in srgb,#FF4D5E 8%,var(--bg2))}
+.nrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)}.nrow .nt{min-width:46px;font-weight:700;color:#FF6B78}.nrow .nn{display:grid;gap:2px}.nrow.past{opacity:.6}.nrow.next .nt{color:#fff;background:#FF4D5E;border-radius:8px;padding:0 6px;align-self:flex-start}.nrow .soon-t{color:#FF6B78;font-weight:700}.nrow small.up{color:var(--up)}.nrow small.dn{color:var(--down)}
 .news{display:grid;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:var(--fg)}
 .news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
 .tv.price{max-height:84px}
@@ -1129,15 +1130,28 @@ async function nextNewsCard() {
         h("div", null, h("small", null, "السابق"), h("b", { class: "num" }, calVal(done.previous, done)))),
       h("div", { class: "cal-r " + v.cls }, h("b", null, v.word), h("span", null, v.sub))));
   }
-  // 2) الخبر القوي الجاي خلال يومين، مع عد تنازلي
+  // 2) كل الأخبار القوية لليوم (أو أقرب يوم فيه أخبار قوية) — كل خبر بسطر
+  const dayOf = d => kw(d, { year: "numeric", month: "numeric", day: "numeric" });
   const soon = dedupeCal(list.filter(e => big(e) && new Date(e.date) > now && new Date(e.date) - now < 8 * 864e5).sort((a, b) => new Date(a.date) - new Date(b.date)));
   if (soon.length) {
-    const n = soon[0], near = new Date(n.date) - now < 3600e3;
-    const more = soon.filter(e => e !== n && new Date(e.date) - new Date(n.date) < 3 * 3600e3).length;
-    box.append(h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
-      h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + "الخبر القوي القادم"), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), "🔴 قوي")),
-      h("div", { class: "row", style: "gap:8px" }, h("span", { style: "font-size:1.2rem" }, FLAG[n.country] || ""), h("b", null, arTitle(n.title) || n.title)),
-      h("p", { class: "muted num" }, kw(n.date, { weekday: "long", hour: "2-digit", minute: "2-digit" }) + " · " + until(n.date) + (near ? " — انتبه للتذبذب" : "") + (more ? " · ومعاه " + more + (more === 1 ? " خبر قوي ثاني" : " أخبار قوية") : ""))));
+    const n = soon[0], dkey = dayOf(n.date), isToday = dkey === dayOf(new Date());
+    const rows = dedupeCal(list.filter(e => big(e) && dayOf(e.date) === dkey).sort((a, b) => new Date(a.date) - new Date(b.date))).slice(0, 6);
+    const near = new Date(n.date) - now < 3600e3;
+    const card = h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
+      h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + (isToday ? "الأخبار القوية اليوم" : "الأخبار القوية القادمة · " + kw(n.date, { weekday: "long" }))), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), rows.length + (rows.length === 1 ? " خبر" : " أخبار"))));
+    rows.forEach(e => {
+      const past = new Date(e.date) <= now, v = past ? verdict(e) : null, nx = e === n;
+      const nums = h("small", { class: "muted" }, noFc(e.forecast) ? null : "المتوقع ", noFc(e.forecast) ? null : h("bdi", { class: "num", dir: "ltr" }, calVal(e.forecast, e)), !noFc(e.forecast) && !noFc(e.previous) ? " · " : null, noFc(e.previous) ? null : "السابق ", noFc(e.previous) ? null : h("bdi", { class: "num", dir: "ltr" }, calVal(e.previous, e)));
+      card.append(h("div", { class: "nrow" + (past ? " past" : "") + (nx ? " next" : "") },
+        h("span", { class: "nt num", dir: "ltr" }, kw(e.date, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" })),
+        h("div", { class: "nn" },
+          h("b", null, (FLAG[e.country] || "") + " " + (arTitle(e.title) || e.title)),
+          past ? h("small", { class: v ? v.cls : "muted" }, v ? v.word + " · الفعلي " : "✅ نزل الخبر", v ? h("bdi", { class: "num", dir: "ltr" }, calVal(e.actual, e)) : null) : null,
+          !past && nx ? h("small", { class: "soon-t" }, "⏰ " + until(e.date)) : null,
+          past ? null : nums)));
+    });
+    card.append(h("small", { class: "muted" }, "💡 قبل الخبر القوي بـ15 دقيقة لا تدخل صفقة جديدة"));
+    box.append(card);
   }
   return box.childNodes.length ? box : null;
 }
