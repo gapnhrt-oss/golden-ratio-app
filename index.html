@@ -895,7 +895,8 @@ function verdict(e) {
     sub: (better ? "أحسن من " : "أسوأ من ") + vs + (us ? (better ? " · الدولار يقوى" : " · الدولار يضعف") : " · تأثيره خفيف") };
 }
 const noFc = v => v === null || v === undefined || v === "";
-const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : fmt(v) + (e.unit ? e.unit : "") + (e.scale ? e.scale : "");
+// أرقام الأخبار بـ 3 خانات (0.676M مو 0.68M) عشان الفعلي ما يطلع نفس السابق بالتقريب
+const calVal = (v, e) => v === null || v === undefined || v === "" ? "—" : (isNaN(Number(v)) ? String(v) : (Math.round(Number(v) * 1000) / 1000).toString()) + (e.unit ? e.unit : "") + (e.scale ? e.scale : "");
 function until(d) {
   const m = Math.round((new Date(d) - Date.now()) / 60000);
   if (m <= 0) return "الحين";
