@@ -326,6 +326,9 @@ $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSh
 async function signed(bucket, path) { if (!path) return null; const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600); return data && data.signedUrl; }
 
 const KIND = { idea: "فكرة: نراقب المنطقة", enter: "ادخل الآن", qtp: "الهدف 1 تحقق", tp1: "الهدف 1 تحقق", tp2: "الهدف 2 تحقق", tp3: "الهدف 3 تحقق", tp4: "الهدف 4 تحقق", tp5: "الهدف 5 تحقق", partial: "اجني جزء من الأرباح", be: "انقل الوقف للدخول", sl: "ضرب الوقف", close: "إغلاق التوصية", cancel: "إلغاء التوصية", note: "ملاحظة" };
+// 🆕 بداية جديدة: كل اللي قبل هالوقت تجارب (التوصيات ونتايجها ومنشوراتها ما تنعرض)
+const RESET_AT = "2026-10-27T16:45:00Z";
+const oldSigPost = p => new Date(p.created_at) < new Date(RESET_AT) && (p.kind === "results" || /توصية #|تصحيح الوقف/.test(p.title || ""));
 const RESULT = { qtp: "الهدف 1", tp1: "الهدف 1", tp2: "الهدف 2", tp3: "الهدف 3", tp4: "الهدف 4", tp5: "الهدف 5", be: "تعادل", sl: "ضرب الوقف" };
 // 🎯 الأهداف بالترتيب: التوصيات القديمة اللي فيها "سريع" ينعرض كـ الهدف 1 والباقي يتزحزح
 const TKEYS = ["qtp", "tp1", "tp2", "tp3", "tp4", "tp5"];
@@ -771,11 +774,11 @@ async function Home() {
   const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
     sb.rpc("open_signals_teaser"),
     sb.from("posts").select("*").order("created_at", { ascending: false }).limit(60),
-    sb.from("signals").select("id,side,result,move,closed_at,created_at,entry_from,tp_quick,tp1").eq("status", "closed").order("closed_at", { ascending: false }).limit(300),
-    S.member ? sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
+    sb.from("signals").select("id,side,result,move,closed_at,created_at,entry_from,tp_quick,tp1").eq("status", "closed").gte("created_at", RESET_AT).order("closed_at", { ascending: false }).limit(300),
+    S.member ? sb.from("signals").select("*").in("status", ["idea", "open"]).gte("created_at", RESET_AT).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
     S.member ? Promise.resolve({ data: [] }) : sb.rpc("signal_proofs")
   ]);
-  const ps = posts.data || [], closed = closedQ.data || [], openSigs = openQ.data || [];
+  const ps = (posts.data || []).filter(p => !oldSigPost(p)), closed = closedQ.data || [], openSigs = openQ.data || [];
   let ups = [];
   if (openSigs.length) { const u = await sb.from("signal_updates").select("*").in("signal_id", openSigs.map(s => s.id)).order("created_at"); ups = u.data || []; }
   //--- ⚡ الربح الجزئي لتوصيات اليوم المقفلة: مجموع كل هدف تحقق (سريع / 1 / 2 ...)
@@ -820,7 +823,7 @@ async function Home() {
     add(root, welcomeCard(ps), renewCard(), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard(proofs.data), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), signup, freeW, renewCard(), poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT))), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), signup, freeW, renewCard(), poll, lead, brokerCard(), installHint(), notifyHint());
   }
 
   root.append(contactCard());
@@ -841,7 +844,7 @@ async function Home() {
 async function Posts() {
   const { data } = await sb.from("posts").select("*").order("created_at", { ascending: false }).limit(80);
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "المنشورات"));
-  root.append(postsFeed(data || []));
+  root.append(postsFeed((data || []).filter(p => !oldSigPost(p))));
   return root;
 }
 
@@ -1490,7 +1493,7 @@ function statsPanel(closed, ups) {
 async function Signals() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"));
   const [sig, teaser] = await Promise.all([
-    sb.from("signals").select("*").order("created_at", { ascending: false }).limit(60),
+    sb.from("signals").select("*").gte("created_at", RESET_AT).order("created_at", { ascending: false }).limit(60),
     sb.rpc("open_signals_teaser")
   ]);
   const all = sig.data || [];
@@ -1803,7 +1806,7 @@ async function AdmSig() {
   const box = h("div", { class: "screen" });
   box.append(h("button", { class: "btn primary", onclick: newSignalSheet }, "+ توصية جديدة"));
   await sb.auth.refreshSession().catch(() => {});
-  const { data, error } = await sb.from("signals").select("*").in("status", ["idea", "open"]).order("created_at", { ascending: false });
+  const { data, error } = await sb.from("signals").select("*").in("status", ["idea", "open"]).gte("created_at", RESET_AT).order("created_at", { ascending: false });
   if (error) throw error;
   const open = data || [];
   if (!open.length) box.append(h("div", { class: "empty" }, "ما فيه توصيات مفتوحة."));
