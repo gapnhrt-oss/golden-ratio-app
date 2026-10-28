@@ -283,7 +283,8 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-bar button{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer}
 .chx-bar button.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
 .chx-card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden}
-.chx-ch{height:62vh;min-height:360px}
+.chx-ch{height:62vh;min-height:360px;touch-action:none}
+.chx-card{touch-action:none;overscroll-behavior:contain;-webkit-user-select:none;user-select:none}
 .chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
 .chx-ind{display:grid;gap:4px}
 .chx-whybar{display:grid;grid-template-columns:1fr 1fr;gap:6px}
@@ -576,6 +577,7 @@ async function ChartScreen() {
     grid: { vertLines: { color: "rgba(38,42,102,.45)" }, horzLines: { color: "rgba(38,42,102,.45)" } },
     rightPriceScale: { borderColor: "#262A66", minimumWidth: 78 }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 24, lockVisibleTimeRangeOnResize: true },
     crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: p => p.toFixed(2) },
+    handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
   });
   const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
   const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "MA" + n, crosshairMarkerVisible: false }) }));
