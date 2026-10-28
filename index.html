@@ -285,6 +285,10 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .chx-ch{height:62vh;min-height:360px}
 .chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
+.chx-ind{display:grid;gap:4px}
+.chx-pnw{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chx-pn{height:110px}
+.chx-pnl{position:absolute;top:4px;inset-inline-end:10px;font-size:11px;color:var(--muted);font-family:var(--latin);pointer-events:none}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
 .chx-wm img{width:46%;max-width:300px}
 .chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
@@ -519,7 +523,7 @@ async function ChartScreen() {
   const KW = 3 * 3600, mem = S.member || S.admin;
   const TFS = [["M15", "M15", 900, "15m"], ["H1", "H1", 3600, "1h"], ["H4", "H4", 14400, "4h"], ["D1", "يومي", 86400, "1d"]];
   let pref = {}; try { pref = JSON.parse(localStorage.getItem("gr-chart") || "{}"); } catch (_) {}
-  const O = Object.assign({ tf: "M15", ma: true, lv: true, pt: true, sr: true, lq: true, tl: true }, pref);
+  const O = Object.assign({ tf: "M15", ma: true, lv: true, pt: true, sr: true, lq: true, tl: true, ind: true }, pref);
   const save = () => { try { localStorage.setItem("gr-chart", JSON.stringify(O)); } catch (_) {} };
   const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const st = n => "⭐".repeat(Math.max(1, Math.min(5, n || 1)));
@@ -533,24 +537,89 @@ async function ChartScreen() {
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
   const root = h("div", { class: "screen" },
     h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
-    tfBar, optBar, card, leg, ex, srcNote);
+    tfBar, optBar, card, h("div", { class: "chx-ind" }), leg, ex, srcNote);
+  const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
   const LC = window.LightweightCharts;
   const chart = LC.createChart(box, {
     layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif" },
     grid: { vertLines: { color: "rgba(38,42,102,.45)" }, horzLines: { color: "rgba(38,42,102,.45)" } },
-    rightPriceScale: { borderColor: "#262A66" }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 8 },
+    rightPriceScale: { borderColor: "#262A66", minimumWidth: 78 }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 8 },
     crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: p => p.toFixed(2) },
   });
   const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
   const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "MA" + n, crosshairMarkerVisible: false }) }));
-  const ro = new ResizeObserver(() => chart.applyOptions({ width: box.clientWidth, height: box.clientHeight })); ro.observe(box);
+  const ro = new ResizeObserver(() => { chart.applyOptions({ width: box.clientWidth, height: box.clientHeight }); PN.forEach(p => p.c.applyOptions({ width: p.el.clientWidth, height: p.el.clientHeight })); }); ro.observe(box);
+  //--- 📊 المؤشرات تحت الشارت: RSI · MACD · ADX (+ 🔄 علامات الانعكاس على 4 ساعات واليومي — نفس قواعد البوت)
+  const PN = [];
+  const mkPane = (title, fmt) => {
+    const el = h("div", { class: "chx-pn" }), lab = h("div", { class: "chx-pnl" }, title), w = h("div", { class: "chx-pnw" }, el, lab);
+    indBox.append(w);
+    const c = LC.createChart(el, { layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif", fontSize: 10 },
+      grid: { vertLines: { visible: false }, horzLines: { color: "rgba(38,42,102,.35)" } }, rightPriceScale: { borderColor: "#262A66", minimumWidth: 78, scaleMargins: { top: .12, bottom: .08 } },
+      timeScale: { visible: false, rightOffset: 8 }, handleScroll: false, handleScale: false, crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: fmt } });
+    const p = { el, w, c }; PN.push(p); return p;
+  };
+  const pR = mkPane("RSI 14", v => v.toFixed(0)), pM = mkPane("MACD 12·26·9", v => v.toFixed(1)), pA = mkPane("ADX 14", v => v.toFixed(0));
+  const rsiS = pR.c.addLineSeries({ color: "#F2B705", lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
+  [70, 30].forEach(v => rsiS.createPriceLine({ price: v, color: "rgba(158,163,214,.5)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" }));
+  const mH = pM.c.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false }), mL = pM.c.addLineSeries({ color: "#4EA8FF", lineWidth: 2, priceLineVisible: false, lastValueVisible: false }), mS = pM.c.addLineSeries({ color: "#FF9F43", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  const aS = pA.c.addLineSeries({ color: "#E7E9FF", lineWidth: 2, priceLineVisible: false, lastValueVisible: true }), aP = pA.c.addLineSeries({ color: "rgba(61,214,140,.7)", lineWidth: 1, priceLineVisible: false, lastValueVisible: false }), aN = pA.c.addLineSeries({ color: "rgba(255,107,107,.7)", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+  aS.createPriceLine({ price: 25, color: "rgba(158,163,214,.5)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" });
+  chart.timeScale().subscribeVisibleLogicalRangeChange(r => { if (r) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(r)); });
+  const ema = (a, n) => { const k = 2 / (n + 1), o = []; let e = null; a.forEach((v, i) => { e = e === null ? v : v * k + e * (1 - k); o.push(i >= n - 1 ? e : null); }); return o; };
+  function rsiArr(c, n) { const o = Array(c.length).fill(null); let g = 0, l = 0; for (let i = 1; i < c.length; i++) { const d = c[i] - c[i - 1], up = Math.max(d, 0), dn = Math.max(-d, 0); if (i <= n) { g += up / n; l += dn / n; if (i === n) o[i] = l ? 100 - 100 / (1 + g / l) : 100; } else { g = (g * (n - 1) + up) / n; l = (l * (n - 1) + dn) / n; o[i] = l ? 100 - 100 / (1 + g / l) : 100; } } return o; }
+  function adxArr(d, n) {
+    const L = d.length, ad = Array(L).fill(null), pd = Array(L).fill(null), nd = Array(L).fill(null); let tr = 0, p = 0, m = 0, dx = [], a = null;
+    for (let i = 1; i < L; i++) {
+      const up = d[i].high - d[i - 1].high, dn = d[i - 1].low - d[i].low, t = Math.max(d[i].high - d[i].low, Math.abs(d[i].high - d[i - 1].close), Math.abs(d[i].low - d[i - 1].close));
+      const P = up > dn && up > 0 ? up : 0, M = dn > up && dn > 0 ? dn : 0;
+      if (i <= n) { tr += t; p += P; m += M; } else { tr = tr - tr / n + t; p = p - p / n + P; m = m - m / n + M; }
+      if (i >= n && tr) { const pi = 100 * p / tr, mi = 100 * m / tr, x = pi + mi ? 100 * Math.abs(pi - mi) / (pi + mi) : 0; pd[i] = pi; nd[i] = mi; dx.push(x);
+        if (dx.length === n) a = dx.reduce((s, v) => s + v, 0) / n; else if (dx.length > n) a = (a * (n - 1) + x) / n; ad[i] = a; }
+    }
+    return { ad, pd, nd };
+  }
+  const ws = (arr) => data.map((c, i) => arr[i] == null ? { time: c.time } : { time: c.time, value: arr[i] });
+  function indicators() {
+    indBox.hidden = !O.ind; if (!O.ind || data.length < 40) return;
+    const C = data.map(c => c.close), R = rsiArr(C, 14), e12 = ema(C, 12), e26 = ema(C, 26);
+    const M = C.map((_, i) => e12[i] != null && e26[i] != null ? e12[i] - e26[i] : null);
+    const Mv = M.map(v => v ?? 0), first = M.findIndex(v => v != null), Sg = Array(C.length).fill(null);
+    if (first >= 0) { const s9 = ema(Mv.slice(first), 9); s9.forEach((v, j) => Sg[first + j] = v); }
+    const A = adxArr(data, 14);
+    rsiS.setData(ws(R)); mL.setData(ws(M)); mS.setData(ws(Sg));
+    mH.setData(data.map((c, i) => M[i] == null || Sg[i] == null ? { time: c.time } : { time: c.time, value: M[i] - Sg[i], color: M[i] - Sg[i] >= 0 ? "rgba(61,214,140,.55)" : "rgba(255,107,107,.55)" }));
+    aS.setData(ws(A.ad)); aP.setData(ws(A.pd)); aN.setData(ws(A.nd));
+    //--- 🔄 علامات الانعكاس (4 ساعات واليومي بس، مثل البوت): علامتين أو أكثر بنفس الشمعة
+    const mk = [];
+    if (mem && (O.tf === "H4" || O.tf === "D1")) {
+      const H = data.map(c => c.high), Lw = data.map(c => c.low), N = data.length;
+      const piv = (i, hi) => { for (let j = 1; j <= 3; j++) { if (i - j < 0 || i + j >= N) return false; if (hi ? (H[i - j] > H[i] || H[i + j] >= H[i]) : (Lw[i - j] < Lw[i] || Lw[i + j] <= Lw[i])) return false; } return true; };
+      for (let i = 60; i < N - 1; i++) {
+        let up = [], dn = [];
+        if (R[i] >= 70) dn.push("RSI تشبع شراء"); if (R[i] <= 30) up.push("RSI تشبع بيع");
+        const hs = [], ls = []; for (let b = i - 3; b > i - 55 && (hs.length < 2 || ls.length < 2); b--) { if (hs.length < 2 && piv(b, true)) hs.push(b); if (ls.length < 2 && piv(b, false)) ls.push(b); }
+        if (hs.length === 2 && i - hs[0] <= 10 && H[hs[0]] > H[hs[1]] && R[hs[0]] < R[hs[1]] - 2) dn.push("تباين هابط RSI");
+        if (ls.length === 2 && i - ls[0] <= 10 && Lw[ls[0]] < Lw[ls[1]] && R[ls[0]] > R[ls[1]] + 2) up.push("تباين صاعد RSI");
+        for (let b = i; b > i - 3; b--) { if (M[b] == null || Sg[b] == null || M[b - 1] == null || Sg[b - 1] == null) continue; if (M[b] < Sg[b] && M[b - 1] >= Sg[b - 1]) { dn.push("تقاطع MACD هابط"); break; } if (M[b] > Sg[b] && M[b - 1] <= Sg[b - 1]) { up.push("تقاطع MACD صاعد"); break; } }
+        const aDn = A.ad[i] != null && A.ad[i - 1] != null && A.ad[i - 2] != null && A.ad[i] < A.ad[i - 1] && A.ad[i - 1] < A.ad[i - 2];
+        if (aDn) { if (C[i] > (e26[i] || C[i])) dn.push("ADX نازل (الصعود تعبان)"); else up.push("ADX نازل (النزول تعبان)"); }
+        if (up.length >= 2 && !(mk.length && mk[mk.length - 1].d === 1 && i - mk[mk.length - 1].i < 4)) mk.push({ i, d: 1, w: up });
+        if (dn.length >= 2 && !(mk.length && mk[mk.length - 1].d === -1 && i - mk[mk.length - 1].i < 4)) mk.push({ i, d: -1, w: dn });
+      }
+    }
+    rsiS.setMarkers(mk.map(m => ({ time: data[m.i].time, position: m.d === 1 ? "belowBar" : "aboveBar", color: m.d === 1 ? "#3DD68C" : "#FF6B6B", shape: m.d === 1 ? "arrowUp" : "arrowDown", text: "🔄" })));
+    RVM = mk.slice(-6).reverse();
+    const r = chart.timeScale().getVisibleLogicalRange(); if (r) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(r));
+  }
+  let RVM = [];
 
   let sigUps = {};
   let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
   const timers = [];
-  CH_STOP = () => { timers.forEach(clearInterval); ro.disconnect(); try { chart.remove(); } catch (_) {} };
+  CH_STOP = () => { timers.forEach(clearInterval); ro.disconnect(); try { chart.remove(); PN.forEach(p => p.c.remove()); } catch (_) {} };
 
   //--- البيانات
   const tfo = () => TFS.find(t => t[0] === O.tf);
@@ -731,6 +800,10 @@ async function ChartScreen() {
     ex.textContent = "";
     if (!mem || !ZN.length) return;
     ex.append(h("div", null, h("b", null, "📖 شرح المناطق "), h("small", { class: "muted" }, "(اضغط على المنطقة بالشارت أو هني)")));
+    if (O.ind && (O.tf === "H4" || O.tf === "D1")) ex.append(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس على " + (O.tf === "H4" ? "4 ساعات" : "اليومي") + (RVM.length ? " · آخر " + RVM.length : " · ما في علامات قريبة")),
+      h("div", null, "↳ السهم يطلع على RSI إذا اجتمعت علامتين أو أكثر بنفس الشمعة (نفس طريقة البوت تقريباً)"),
+      ...RVM.map(m => h("div", null, (m.d === 1 ? "🔺 " : "🔻 ") + kw(new Date((data[m.i].time - KW) * 1000), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " — " + m.w.join(" · ")))));
+    else if (O.ind) ex.append(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس"), h("div", null, "↳ تطلع على فريم H4 واليومي — حوّل الفريم وتشوف الأسهم على RSI")));
     ZN.forEach((z, i) => { const d = h("details", { id: "chz" + i, style: "border-inline-start-color:" + z.c }, h("summary", null, z.h), ...z.why.map(w => h("div", null, "↳ " + w))); ex.append(d); });
   }
   chart.subscribeClick(p => {
@@ -778,7 +851,7 @@ async function ChartScreen() {
     L = lv && lv.data ? lv.data.data : null; sigs = (sg && sg.data) || [];
     const open = sigs.filter(x => x.status === "open").map(x => x.id); sigUps = {};
     if (open.length) { const { data: u } = await sb.from("signal_updates").select("signal_id,kind").in("signal_id", open); (u || []).forEach(x => (sigUps[x.signal_id] = sigUps[x.signal_id] || []).push(x)); }
-    cs.setData(data); mas(); draw(); px(q);
+    cs.setData(data); mas(); indicators(); draw(); px(q);
     srcNote.textContent = src === "bot" ? "الشموع من البوت مباشرة (نفس سعر الوسيط)" : "البوت ما أرسل شموع حديثة — نعرض مصدر لايف مضبوط على سعر OANDA";
     if (fit && data.length) { const f = () => chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 }); f(); setTimeout(f, 400); }
   }
@@ -797,6 +870,7 @@ async function ChartScreen() {
   TFS.forEach(([v, n]) => tfBar.append(h("button", { type: "button", class: v === O.tf ? "on" : "", onclick: e => { O.tf = v; save(); tfBar.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === e.currentTarget)); loadAll(true); } }, n)));
   const opt = (k, t) => optBar.append(h("button", { type: "button", class: O[k] ? "on" : "", onclick: e => { O[k] = !O[k]; save(); e.currentTarget.classList.toggle("on", O[k]); if (k === "ma") mas(); draw(); } }, t));
   opt("ma", "📏 المتوسطات");
+  optBar.append(h("button", { type: "button", class: O.ind ? "on" : "", onclick: e => { O.ind = !O.ind; save(); e.currentTarget.classList.toggle("on", O.ind); indicators(); explain(); } }, "📊 المؤشرات"));
   if (mem) { opt("lv", "🎯 التوصيات"); opt("sr", "🧱 دعم ومقاومة"); opt("lq", "💧 السيولة"); opt("tl", "📈 الترند"); opt("pt", "🦈 الأشكال والهارمونيك"); }
   await loadAll(true);
   return root;
