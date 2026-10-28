@@ -70,9 +70,9 @@ p{margin:0}
 .tabs a[aria-current="page"]{color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:430px){.top .wrap{gap:6px}.brand{gap:6px}.brand img{width:30px;height:30px}.brand b,.brand span{font-size:15px}.who{gap:6px}.who .pill{padding:3px 8px;font-size:.72rem}.who .btn.sm{padding-inline:11px}.who .chatbtn{height:36px;width:50px}}
-.chatbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:38px;width:54px;border-radius:999px;text-decoration:none;color:#0B0C28;background:linear-gradient(135deg,#FFD54A,#E0A30A);border:1px solid #F2B705;box-shadow:0 2px 10px rgba(242,183,5,.25);transition:transform .15s,box-shadow .2s}.chatbtn span{display:none}
-.chatbtn:active{transform:scale(.94)}.chatbtn svg{width:19px;height:19px;fill:rgba(11,12,40,.12);stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-.chatbtn[aria-current="page"]{box-shadow:0 0 0 3px rgba(242,183,5,.3)}
+.chatbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:38px;width:54px;border-radius:999px;text-decoration:none;color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent);border:1px solid transparent;transition:transform .15s,box-shadow .2s}.chatbtn span{display:none}
+.chatbtn:active{transform:scale(.94)}.chatbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.chatbtn[aria-current="page"]{border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
 .chatbtn .dotbadge{top:-6px;inset-inline-end:-6px;box-shadow:0 0 0 2px var(--bg)}.chatbtn.has{animation:chatGlow 1.6s ease-in-out infinite}@keyframes chatGlow{50%{box-shadow:0 0 0 5px rgba(242,183,5,.18)}}
 .dotbadge{position:absolute;top:4px;inset-inline-end:calc(50% - 18px);min-width:16px;height:16px;border-radius:999px;background:var(--down);color:#fff;font:700 .65rem var(--latin);display:grid;place-items:center;padding:0 4px}
 
