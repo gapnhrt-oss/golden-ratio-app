@@ -595,7 +595,13 @@ async function ChartScreen() {
     s.setData(P); extra.push(s); return s;
   }
   function lvl(fromT, v, color, title, style) { if (fromT == null || !isFinite(v)) return; if (fromT >= endT()) fromT = data[Math.max(0, data.length - 6)].time; line([{ time: fromT, value: v }, { time: endT(), value: v }], color, 1, style ?? 2, { title, lastValueVisible: true }); }
-  function pl(price, color, title, style, w) { if (isFinite(price) && price) plines.push(cs.createPriceLine({ price, color, title, lineWidth: w || 1, lineStyle: style ?? 2, axisLabelVisible: true })); }
+  let used = [];
+  function pl(price, color, title, style, w, soft) {
+    if (!isFinite(price) || !price) return;
+    if (soft && used.some(u => Math.abs(u - price) < 1.5)) return;      // مستوى قريب مرسوم: ما نكرر (الشرح تحت فيه الكل)
+    used.push(price);
+    plines.push(cs.createPriceLine({ price, color, title, lineWidth: w || 1, lineStyle: style ?? 2, axisLabelVisible: true }));
+  }
   function band(lo, hi, color, from) {
     const pts = data.filter(c => c.time >= from); if (pts.length < 2) return;
     const a = chart.addBaselineSeries({ baseValue: { type: "price", price: lo }, topFillColor1: color, topFillColor2: color, topLineColor: "transparent", bottomLineColor: "transparent", bottomFillColor1: "transparent", bottomFillColor2: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
@@ -606,21 +612,25 @@ async function ChartScreen() {
   function draw() {
     clearX(); ZN = []; const TG = [];
     if (!data.length) return;
-    const n0 = data[Math.max(0, data.length - 60)].time;
+    const n0 = data[Math.max(0, data.length - 60)].time, last = data[data.length - 1].close;
+    used = [];
+    if (mem && O.lv) { sigs.forEach(x => ["entry_from", "entry_to", "sl", "tp1", "tp2", "tp3", "tp4", "tp5"].forEach(k => x[k] && used.push(Number(x[k])))); if (L) (L.ideas || []).forEach(z => used.push(z.d === 1 ? z.hi : z.lo)); }
     if (mem && L) {
-      //--- 🧱 الدعم والمقاومة (مناطق البوت بالنجوم)
-      if (O.sr) (L.zones || []).forEach(z => {
+      //--- 🧱 الدعم والمقاومة: على الشارت 🔥 الأقوى + أقرب 2 فوق وأقرب 2 تحت (الباقي بالشرح تحت)
+      const Zs = L.zones || [], near = side => Zs.filter(z => z.side === side).sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
+      const show = new Set([...Zs.filter(z => z.f), ...near("r"), ...near("s")]);
+      if (O.sr) Zs.forEach(z => {
         const r = z.side === "r", e = r ? z.lo : z.hi, c = r ? "#FF6B6B" : "#3DD68C";
-        pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + (r ? "مقاومة " : "دعم ") + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1);
+        if (show.has(z)) pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + (r ? "مقاومة " : "دعم ") + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1, !z.f);
         ZN.push({ lo: z.lo - 1, hi: z.hi + 1, c: z.f ? "#FF9F43" : c, h: (z.f ? "🔥 أقوى " : "🧱 ") + (r ? "مقاومة " : "دعم ") + f2(e) + " · " + st(z.s), why: why(z.n) });
       });
       //--- 💧 السيولة
-      if (O.lq) { const seen = {}; (L.raw || []).filter(x => /💧/.test(x.n)).forEach(x => { if (seen[x.n]) return; seen[x.n] = 1; pl(x.p, "#4EA8FF", x.n, 3, 1); ZN.push({ lo: x.p - 2, hi: x.p + 2, c: "#4EA8FF", h: x.n + " " + f2(x.p), why: ["فوقها/تحتها وقوفات وايد — السعر يحب يروح يصيدها قبل ما ينعكس"] }); }); }
+      if (O.lq) { const seen = {}; (L.raw || []).filter(x => /💧/.test(x.n)).forEach(x => { if (seen[x.n] || /فريم الساعة/.test(x.n)) return; seen[x.n] = 1; pl(x.p, "#4EA8FF", x.n, 3, 1, true); ZN.push({ lo: x.p - 2, hi: x.p + 2, c: "#4EA8FF", h: x.n + " " + f2(x.p), why: ["فوقها/تحتها وقوفات وايد — السعر يحب يروح يصيدها قبل ما ينعكس"] }); }); }
       //--- 📈 خطوط الترند
       if (O.tl) (L.tl || []).forEach(t => {
         const a = snap(t.a[0]), b = snap(t.b[0]); if (a == null || b == null) return;
         const c = t.d === 1 ? "#3DD68C" : "#FF6B6B";
-        line([{ time: a, value: t.a[1] }, { time: b, value: t.b[1] }, { time: endT(), value: t.now }], c, 2, 0, { title: (t.d === 1 ? "📈 ترند " : "📉 ترند ") + t.tf, lastValueVisible: true });
+        line([{ time: a, value: t.a[1] }, { time: b, value: t.b[1] }, { time: endT(), value: t.now }], c, 2, 0, { title: (t.d === 1 ? "📈 ترند " : "📉 ترند ") + t.tf, lastValueVisible: false });
       });
       //--- 🦈 الهارمونيك و 📐 الأشكال
       if (O.pt) (L.shapes || []).forEach(s => {
@@ -748,7 +758,7 @@ async function ChartScreen() {
     if (open.length) { const { data: u } = await sb.from("signal_updates").select("signal_id,kind").in("signal_id", open); (u || []).forEach(x => (sigUps[x.signal_id] = sigUps[x.signal_id] || []).push(x)); }
     cs.setData(data); mas(); draw(); px(q);
     srcNote.textContent = src === "bot" ? "الشموع من البوت مباشرة (نفس سعر الوسيط)" : "البوت ما أرسل شموع حديثة — نعرض مصدر لايف مضبوط على سعر OANDA";
-    if (fit && data.length) chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
+    if (fit && data.length) { const f = () => chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 }); f(); setTimeout(f, 400); }
   }
   //--- لايف: السعر كل 4 ثواني يحرك آخر شمعة، والشموع والمستويات كل 30 ثانية
   timers.push(setInterval(async () => {
