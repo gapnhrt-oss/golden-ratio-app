@@ -90,7 +90,18 @@ const chart = LightweightCharts.createChart(el, {
   crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: p => p.toFixed(2) },
 });
 const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
-const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }) }));
+const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "MA" + n, crosshairMarkerVisible: false }) }));
+// 📏 المتوسطات دايماً محسوبة على M15 (نفس البوت)، وعلى الفريمات الثانية نحط قيمتها وقت كل شمعة
+async function maData() {
+  const m = tf === "15m" ? data : (await klines("15m", 1000)).map(toC);
+  return MAS.map(x => {
+    const v = sma(m, x.n); if (tf === "15m") return v;
+    const out = []; let j = 0;
+    data.forEach(c => { while (j + 1 < v.length && v[j + 1].time <= c.time) j++; if (v.length && v[j].time <= c.time && c.time >= v[0].time) out.push({ time: c.time, value: v[j].value }); });
+    if (out.length && v.length && data[data.length - 1].time >= v[0].time) out[out.length - 1] = { time: data[data.length - 1].time, value: v[v.length - 1].value };
+    return out;
+  });
+}
 const zoneS = []; let lines = [];
 new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight })).observe(el);
 
@@ -231,7 +242,8 @@ async function load() {
   if (!k.length) return;
   if (q && q.price) off = q.price - +k[k.length - 1][4];
   data = k.map(toC); cs.setData(data);
-  MAS.forEach(m => m.s.setData(showMA && tf === "15m" ? sma(data, m.n) : []));
+  const md = showMA ? await maData() : MAS.map(() => []);
+  MAS.forEach((m, i) => m.s.setData(md[i]));
   drawLv(data); patterns(data); legend(); explain(); tags(); px(q);
   chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
 }
