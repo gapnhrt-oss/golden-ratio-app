@@ -762,7 +762,8 @@ async function ChartScreen() {
         polys.push({ t: "box", t1: t0, t2: endT(), v1: e, v2: tp, fill: "rgba(61,214,140,.13)", stroke: "rgba(61,214,140,.8)", txt: "+" + Math.abs(tp - e).toFixed(0) + "$ · R:R 1:" + rr.toFixed(1) });
         polys.push({ t: "box", t1: t0, t2: endT(), v1: e, v2: sl, fill: "rgba(255,107,107,.13)", stroke: "rgba(255,107,107,.8)", txt: "-" + Math.abs(e - sl).toFixed(0) + "$" }); };
       const legs = (P, F) => { for (let i = 0; i + 1 < P.length; i++) { const a = P[i], b = P[i + 1], up = b.value > a.value; polys.push({ t: "tri", grad: (F ? F(up) : up) ? "up" : "dn", pts: up ? [a, b, { time: b.time, value: a.value }] : [a, b, { time: a.time, value: b.value }] }); } };
-      if (O.pt) (L.shapes || []).forEach(s => {
+      //--- بس H1 / H4 / اليومي، والأشكال بالصيغة الجديدة (فيها نقاط) — القديمة ما تطلع
+      if (O.pt) (L.shapes || []).filter(s => /^(H1|H4|D1|يومي)$/.test(s.tf || "") && (s.k !== "pat" || (s.zz && s.zz.length))).forEach(s => {
         const bull = s.d === 1;
         if (s.k === "harm") {
           const P = (s.pts || []).map(p => ({ time: snap(p[0]), value: p[1] })).filter(p => p.time != null);
