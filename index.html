@@ -545,6 +545,7 @@ async function ChartScreen() {
   const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "MA" + n, crosshairMarkerVisible: false }) }));
   const ro = new ResizeObserver(() => chart.applyOptions({ width: box.clientWidth, height: box.clientHeight })); ro.observe(box);
 
+  let sigUps = {};
   let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
   const timers = [];
   CH_STOP = () => { timers.forEach(clearInterval); ro.disconnect(); try { chart.remove(); } catch (_) {} };
@@ -656,13 +657,29 @@ async function ChartScreen() {
     }
     //--- 🎯 التوصيات (من جدول التوصيات)
     if (mem && O.lv) sigs.forEach(s => {
-      const sell = s.side === "sell", e1 = Number(s.entry_from), e2 = Number(s.entry_to || s.entry_from);
-      band(Math.min(e1, e2) - 0.3, Math.max(e1, e2) + 0.3, "rgba(242,183,5,.28)", data[Math.max(0, data.length - 20)].time);
-      pl((e1 + e2) / 2, "#F2B705", (sell ? "🔴 بيع" : "🟢 شراء") + (s.status === "idea" ? " (ينتظر)" : " دخول"), 0, 2);
-      pl(Number(s.sl), "#FF6B6B", "🛑 وقف", 0, 2);
-      ["tp1", "tp2", "tp3", "tp4", "tp5"].forEach((k, i) => s[k] && pl(Number(s[k]), "#3DD68C", "🎯 " + (i + 1), 2, 1));
-      const item = { lo: Math.min(e1, e2) - 3, hi: Math.max(e1, e2) + 3, c: "#F2B705", h: (sell ? "🔴 توصية بيع " : "🟢 توصية شراء ") + f2(e1) + (s.entry_to ? " – " + f2(e2) : "") + (s.strength ? " · " + s.strength + "/10" : ""), why: why(s.reason).concat(["🛑 الوقف " + f2(s.sl)]) };
-      ZN.unshift(item); TG.push({ side: sell ? "sell" : "buy", p: Math.max(e1, e2) + (sell ? 6 : -6), t: sell ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", z: item });
+      const sell = s.side === "sell", e1 = Number(s.entry_from), e2 = Number(s.entry_to || s.entry_from), sd = sell ? -1 : 1;
+      const tag = (t, p, item) => TG.push({ side: sell ? "sell" : "buy", p, t, z: item });
+      if (s.status === "idea") {
+        //--- ⏳ قبل الدخول: المنطقة + حد الإلغاء بس (الأهداف والوقف تطلع بعد ما تتحقق الشروط ويدخل)
+        band(Math.min(e1, e2) - 0.3, Math.max(e1, e2) + 0.3, "rgba(242,183,5,.16)", data[Math.max(0, data.length - 20)].time);
+        pl((e1 + e2) / 2, "#F2B705", "⏳ " + (sell ? "بيع" : "شراء") + " ينتظر الشروط", 2, 1);
+        if (s.sl) pl(Number(s.sl), "rgba(255,107,107,.6)", "❌ تنلغي " + (sell ? "فوق" : "تحت"), 3, 1);
+        const item = { lo: Math.min(e1, e2) - 3, hi: Math.max(e1, e2) + 3, c: "#F2B705", h: "⏳ " + (sell ? "بيع" : "شراء") + " ينتظر · " + f2(e1) + (s.entry_to ? " – " + f2(e2) : "") + (s.strength ? " · " + s.strength + "/10" : ""),
+          why: why(s.reason).concat(["⏳ الأهداف والوقف تطلع على الشارت أول ما تتحقق الشروط ويدخل البوت", s.sl ? "❌ الفكرة تنلغي إذا " + (sell ? "اخترق " : "كسر ") + f2(s.sl) : ""]).filter(Boolean) };
+        ZN.unshift(item); tag(sell ? "⏳ ليش بيع؟ ⓘ" : "⏳ ليش شراء؟ ⓘ", Math.max(e1, e2) + (sell ? 6 : -6), item);
+        return;
+      }
+      //--- ✅ دخل: الدخول + الوقف (يتحرك مع الأهداف) + الأهداف 1–5 (✅ اللي تحقق)
+      const ups = sigUps[s.id] || [], hit = new Set(ups.map(u => u.kind));
+      const tps = ["tp1", "tp2", "tp3", "tp4", "tp5"].map(k => Number(s[k]) || 0);
+      let n = 0; tps.forEach((t, i) => { if (t && (hit.has("tp" + (i + 1)) || (i === 0 && hit.has("qtp")))) n = i + 1; });
+      const csl = n === 0 ? (hit.has("be") ? e1 : Number(s.sl)) : n === 1 ? e1 : tps[n - 2];
+      pl(e1, "#F2B705", (sell ? "🔴 بيع" : "🟢 شراء") + " دخول", 0, 2);
+      pl(csl, "#FF6B6B", n === 0 && !hit.has("be") ? "🛑 وقف" : n <= 1 ? "🔒 وقف على الدخول" : "🔒 وقف على هدف " + (n - 1), 0, 2);
+      tps.forEach((t, i) => t && pl(t, "#3DD68C", (i < n ? "✅ " : "🎯 ") + (i + 1), i < n ? 0 : 2, 1));
+      const item = { lo: Math.min(e1, csl) - 3, hi: Math.max(e1, csl) + 3, c: "#F2B705", h: (sell ? "🔴 بيع شغال " : "🟢 شراء شغال ") + f2(e1) + (s.strength ? " · " + s.strength + "/10" : ""),
+        why: why(s.reason).concat([n ? "✅ تحقق لين الهدف " + n : "🎯 الهدف 1: " + f2(tps[0]), "🛑 الوقف الحين: " + f2(csl)]) };
+      ZN.unshift(item); tag(sell ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", e1 + sd * -6, item);
     });
     marks.sort((a, b) => a.time - b.time); cs.setMarkers(marks);
     tags(TG); explain(); legend();
@@ -727,6 +744,8 @@ async function ChartScreen() {
     if (tf !== O.tf) return;
     data = d; m15 = tf === "M15" ? d : (m || []);
     L = lv && lv.data ? lv.data.data : null; sigs = (sg && sg.data) || [];
+    const open = sigs.filter(x => x.status === "open").map(x => x.id); sigUps = {};
+    if (open.length) { const { data: u } = await sb.from("signal_updates").select("signal_id,kind").in("signal_id", open); (u || []).forEach(x => (sigUps[x.signal_id] = sigUps[x.signal_id] || []).push(x)); }
     cs.setData(data); mas(); draw(); px(q);
     srcNote.textContent = src === "bot" ? "الشموع من البوت مباشرة (نفس سعر الوسيط)" : "البوت ما أرسل شموع حديثة — نعرض مصدر لايف مضبوط على سعر OANDA";
     if (fit && data.length) chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
