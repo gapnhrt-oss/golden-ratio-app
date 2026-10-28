@@ -284,6 +284,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-bar button.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
 .chx-card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .chx-ch{height:62vh;min-height:360px}
+.chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
 .chx-wm img{width:46%;max-width:300px}
 .chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
@@ -526,7 +527,8 @@ async function ChartScreen() {
   const pxEl = h("div", { class: "chx-px" }, "—"), chgEl = h("small", { class: "chx-chg" });
   const tfBar = h("div", { class: "chx-bar" }), optBar = h("div", { class: "chx-bar" });
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
-  const card = h("div", { class: "chx-card" }, box, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
+  const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
   const root = h("div", { class: "screen" },
@@ -587,7 +589,20 @@ async function ChartScreen() {
   const endT = () => data[data.length - 1].time;
 
   //--- الرسم
-  function clearX() { extra.forEach(s => chart.removeSeries(s)); extra = []; plines.forEach(l => cs.removePriceLine(l)); plines = []; marks = []; }
+  //--- 🎨 تظليل الهارمونيك والأشكال (طبقة SVG فوق الشارت)
+  let polys = [];
+  function paint() {
+    if (!polys.length) { if (svg.firstChild) svg.textContent = ""; return; }
+    const ts = chart.timeScale(), W = box.clientWidth, H = box.clientHeight; let out = "";
+    svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("width", W); svg.setAttribute("height", H);
+    polys.forEach(g => {
+      const pts = g.pts.map(p => [ts.timeToCoordinate(p.time), cs.priceToCoordinate(p.value)]);
+      if (pts.some(p => p[0] == null || p[1] == null)) return;
+      out += '<polygon points="' + pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '" fill="' + g.fill + '" stroke="' + g.stroke + '" stroke-width="1"' + (g.dash ? ' stroke-dasharray="4 3"' : "") + "/>";
+    });
+    svg.innerHTML = out;
+  }
+  function clearX() { polys = []; extra.forEach(s => chart.removeSeries(s)); extra = []; plines.forEach(l => cs.removePriceLine(l)); plines = []; marks = []; }
   function line(pts, color, w, style, opt) {
     const P = []; pts.forEach(p => { if (p && p.time != null && isFinite(p.value)) { if (P.length && P[P.length - 1].time >= p.time) P[P.length - 1] = p; else P.push(p); } });
     if (P.length < 2) return null;
@@ -641,6 +656,12 @@ async function ChartScreen() {
           const labs = s.done ? (P.length === 5 ? "XABCD" : "ABCD") : (P.length === 4 ? "XABC" : "ABC");
           line(P, "#B388FF", 2);
           if (P.length >= 4) line([P[0], P[2], P[P.length - 1]], "rgba(179,136,255,.5)", 1, 2);
+          { const F = bull ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", Sk = "rgba(179,136,255,.55)";
+            const tri = a => polys.push({ pts: a, fill: F, stroke: Sk });
+            if (P.length >= 5) { tri([P[0], P[1], P[2]]); tri([P[2], P[3], P[4]]); }
+            else if (P.length === 4 && s.done) { tri([P[0], P[1], P[2]]); tri([P[1], P[2], P[3]]); }
+            else if (P.length === 4 && s.lo) { tri([P[0], P[1], P[2]]); polys.push({ pts: [P[2], P[3], { time: endT(), value: (s.lo + s.hi) / 2 }], fill: F, stroke: Sk, dash: 1 }); }
+            else if (P.length === 3) tri(P); }
           P.forEach((p, i) => marks.push({ time: p.time, position: (i > 0 ? p.value > P[i - 1].value : p.value > P[1].value) ? "aboveBar" : "belowBar", color: "#B388FF", shape: "circle", text: labs[i] || "" }));
           const last = P[P.length - 1];
           if (!s.done && s.lo) { band(s.lo, s.hi, "rgba(179,136,255,.18)", last.time); line([last, { time: endT(), value: (s.lo + s.hi) / 2 }], "rgba(179,136,255,.8)", 1, 2); }
@@ -649,7 +670,8 @@ async function ChartScreen() {
           ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
         } else if (s.k === "pat") {
           const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 == null) return;
-          band(s.lo, s.hi, "rgba(78,225,236,.10)", t1);
+          const t2e = t2 != null && t2 > t1 ? t2 : endT();
+          polys.push({ pts: [{ time: t1, value: s.hi }, { time: t2e, value: s.hi }, { time: t2e, value: s.lo }, { time: t1, value: s.lo }], fill: bull ? "rgba(61,214,140,.13)" : "rgba(255,107,107,.13)", stroke: "rgba(78,225,236,.7)", dash: 1 });
           lvl(t1, s.lv, "#4EE1EC", "📐 " + (bull ? "الاختراق" : "الكسر"), 0); lvl(t2 ?? t1, s.tp1, "#4EE1EC", "📐 هدف الشكل"); lvl(t2 ?? t1, s.sl, "#FF6B6B", "📐 وقف");
           marks.push({ time: t2 ?? t1, position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
           ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
@@ -688,7 +710,7 @@ async function ChartScreen() {
       pl(csl, "#FF6B6B", n === 0 && !hit.has("be") ? "🛑 وقف" : n <= 1 ? "🔒 وقف على الدخول" : "🔒 وقف على هدف " + (n - 1), 0, 2);
       tps.forEach((t, i) => t && pl(t, "#3DD68C", (i < n ? "✅ " : "🎯 ") + (i + 1), i < n ? 0 : 2, 1));
       const item = { lo: Math.min(e1, csl) - 3, hi: Math.max(e1, csl) + 3, c: "#F2B705", h: (sell ? "🔴 بيع شغال " : "🟢 شراء شغال ") + f2(e1) + (s.strength ? " · " + s.strength + "/10" : ""),
-        why: why(s.reason).concat([n ? "✅ تحقق لين الهدف " + n : "🎯 الهدف 1: " + f2(tps[0]), "🛑 الوقف الحين: " + f2(csl)]) };
+        why: why(s.reason).filter(w => !/^🛑/.test(w)).concat([n ? "✅ تحقق لين الهدف " + n : "🎯 الهدف 1: " + f2(tps[0]), "🛑 الوقف الحين: " + f2(csl)]) };
       ZN.unshift(item); tag(sell ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", e1 + sd * -6, item);
     });
     marks.sort((a, b) => a.time - b.time); cs.setMarkers(marks);
@@ -703,7 +725,7 @@ async function ChartScreen() {
     });
     place();
   }
-  function place() { tagsEl.querySelectorAll(".chx-tg").forEach((b, i) => { const y = cs.priceToCoordinate(b._p); b.style.display = y == null || y < 10 || y > box.clientHeight - 30 ? "none" : ""; if (y != null) b.style.top = y + "px"; }); }
+  function place() { paint(); tagsEl.querySelectorAll(".chx-tg").forEach((b, i) => { const y = cs.priceToCoordinate(b._p); b.style.display = y == null || y < 10 || y > box.clientHeight - 30 ? "none" : ""; if (y != null) b.style.top = y + "px"; }); }
   timers.push(setInterval(place, 300));
   function explain() {
     ex.textContent = "";
