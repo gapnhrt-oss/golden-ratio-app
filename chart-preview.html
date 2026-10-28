@@ -31,6 +31,11 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
 .leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-inline-end:5px}
 .note{font-size:12px;color:var(--muted);margin-top:8px;text-align:center}
 .mode{font-size:13px}
+.tg{position:absolute;left:10px;transform:translateY(-50%);z-index:3;border:0;border-radius:999px;padding:5px 11px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.tg.buy{background:#3DD68C;color:#062414}.tg.sell{background:#FF6B6B;color:#2a0606}
+.pop{position:absolute;left:10px;right:80px;top:12px;z-index:4;background:rgba(16,18,58,.97);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.8;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.pop b{display:block;margin-bottom:4px}.pop .x{position:absolute;left:8px;top:6px;background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+.pop .ft{margin-top:6px;font-size:12px;color:var(--muted)}
 #ex{margin-top:12px;display:grid;gap:8px}
 #ex details{background:var(--bg2);border:1px solid var(--line);border-inline-start:4px solid var(--gold);border-radius:12px;padding:8px 12px}
 #ex summary{cursor:pointer;font-weight:600;font-size:14px}
@@ -54,6 +59,8 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
   <div class="card">
     <div id="ch"></div>
     <div class="wm"><img src="icon-512.png" alt=""></div>
+    <div id="tags"></div>
+    <div class="pop" id="pop" hidden></div>
     <div class="lock" id="lock" hidden>🔒 <b>التوصية والمناطق للمشتركين بس</b><div style="font-size:13px;color:var(--muted)">اشترك وشوف الدخول والوقف والأهداف على الشارت لايف</div><a href="./#sub">اشترك الحين 👑</a></div>
   </div>
   <div class="leg" id="leg"></div>
@@ -114,6 +121,29 @@ function drawLv(data) {
   s.tps.forEach((t, i) => pl(t, "#3DD68C", "🎯 " + (i + 1), 2, 1));
   LV.fire.forEach(f => pl(f.p, "#FF9F43", f.t + " · " + f.tag, 3, 1));
 }
+// 💬 زر "ليش شراء؟ / ليش بيع؟" على المنطقة نفسها بالشارت
+function tagList() {
+  const s = LV.sig, out = [];
+  LV.ideas.forEach(z => out.push({ side: z.side, p: (z.lo + z.hi) / 2, t: z.side === "buy" ? "🟢 ليش شراء؟ ⓘ" : "🔴 ليش بيع؟ ⓘ",
+    h: (z.side === "buy" ? "🟢 فكرة شراء " : "🔴 فكرة بيع ") + z.tf + " · " + st(z.stars) + "<br><small>" + z.lo.toFixed(2) + " – " + z.hi.toFixed(2) + "</small>", why: z.why,
+    ft: "⏳ ننتظر السعر يوصل المنطقة + شمعة تأكيد، أو دخول مباشر إذا صاد السيولة والفريمات الكبيرة معنا" }));
+  out.push({ side: s.side, p: s.hi + 6, t: s.side === "sell" ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", h: (s.side === "sell" ? "🔴 توصية بيع " : "🟢 توصية شراء ") + s.lo.toFixed(2) + " – " + s.hi.toFixed(2), why: LV.sigWhy, ft: "🛑 الوقف " + s.sl.toFixed(2) });
+  return out;
+}
+function tags() {
+  const T = document.getElementById("tags"); T.innerHTML = ""; document.getElementById("pop").hidden = true;
+  if (!showLv || !member) return;
+  tagList().forEach(g => {
+    const b = document.createElement("button"); b.className = "tg " + g.side; b.textContent = g.t; b._p = g.p;
+    b.onclick = e => { e.stopPropagation(); const P = document.getElementById("pop");
+      P.innerHTML = '<button class="x" aria-label="سكّر">✕</button><b>' + g.h + "</b>" + g.why.map(w => "<div>↳ " + w + "</div>").join("") + '<div class="ft">' + g.ft + "</div>";
+      P.querySelector(".x").onclick = () => P.hidden = true; P.hidden = false; };
+    T.append(b);
+  });
+  place();
+}
+function place() { document.querySelectorAll("#tags .tg").forEach(b => { const y = cs.priceToCoordinate(b._p); b.style.display = y == null || y < 10 || y > el.clientHeight - 30 ? "none" : ""; if (y != null) b.style.top = y + "px"; }); }
+setInterval(place, 250);
 // 📖 شرح المناطق تحت الشارت + الضغط على الشارت جنب منطقة يفتح شرحها
 const st = n => "⭐".repeat(n);
 function zones() {
@@ -154,7 +184,7 @@ async function load() {
   if (q && q.price) off = q.price - +k[k.length - 1][4];
   data = k.map(toC); cs.setData(data);
   MAS.forEach(m => m.s.setData(showMA && tf === "15m" ? sma(data, m.n) : []));
-  drawLv(data); legend(); explain(); px(q);
+  drawLv(data); legend(); explain(); tags(); px(q);
   chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
 }
 function px(q) {
@@ -176,7 +206,7 @@ TFS.forEach(([v, n, m]) => { const b = document.createElement("button"); b.textC
 const tg = (id, f) => document.getElementById(id).onclick = e => { f(); e.currentTarget.classList.toggle("on"); load(); };
 tg("bMA", () => showMA = !showMA);
 tg("bLv", () => showLv = !showLv);
-document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); legend(); explain(); };
+document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); legend(); explain(); tags(); };
 load();
 </script>
 </body>
