@@ -2080,6 +2080,11 @@ function Learn() {
   const L = TOOL_LESSONS.find(x => x.id === id);
   if (L) return LessonPage(L);
   const box = h("div", { class: "screen" });
+  //--- 📚 الدروس · 🧮 حاسبة اللوت
+  const seg = h("div", { class: "seg" });
+  [["", "📚 الدروس"], ["calc", "🧮 حاسبة اللوت"]].forEach(([k, t]) => seg.append(h("button", { type: "button", "aria-pressed": String((id || "") === k), onclick: () => location.hash = "#learn" + (k ? "/" + k : "") }, t)));
+  box.append(seg);
+  if (id === "calc") { box.append(h("h2", { class: "h1", style: "margin:0" }, "🧮 حاسبة اللوت"), h("p", { class: "muted", style: "font-size:.88rem;margin:0" }, "اعرف حجم الصفقة المناسب لرصيدك قبل ما تدخل"), LotCalc()); return box; }
   const done = lDone(), n = TOOL_LESSONS.filter(x => done.includes(x.id)).length;
   box.append(h("div", null, h("h2", { class: "h1", style: "margin:0" }, "📚 تعلّم الأدوات"), h("p", { class: "muted", style: "font-size:.88rem;margin:4px 0 0" }, "كل أداة يستخدمها البوت — بكلام بسيط ورسمة، وتشوفها على الشارت")));
   box.append(h("div", { class: "lprog" }, h("b", null, "🏅 تقدمك: " + n + " من " + TOOL_LESSONS.length + " دروس" + (n === TOOL_LESSONS.length ? " — 🎉 خلصتها كلها!" : "")), h("div", { class: "lbar" }, h("i", { style: "width:" + (n / TOOL_LESSONS.length * 100).toFixed(0) + "%" }))));
@@ -2395,11 +2400,11 @@ async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
   const seg = h("div", { class: "seg" });
-  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
+  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["sess", "🕐 الجلسات"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
   root.append(seg);
   if (sub === "cal") {
     root.append(await Calendar());
-  } else if (sub === "calc") { root.append(LotCalc());
+  } else if (sub === "calc") { location.hash = "#learn/calc";
   } else if (sub === "sess") { root.append(Sessions());
   } else if (sub === "learn") { location.hash = "#learn" + (location.hash.split("/")[2] ? "/" + location.hash.split("/")[2] : "");
   } else if (sub === "chart") { location.hash = "#chart";
