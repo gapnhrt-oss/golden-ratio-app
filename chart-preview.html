@@ -54,6 +54,8 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
     <button id="bMA" class="on">📏 المتوسطات</button>
     <button id="bLv" class="on">🎯 التوصيات والمناطق</button>
     <button id="bPt" class="on">🦈 الأشكال والهارمونيك</button>
+    <button id="bSr" class="on">🧱 الدعم والمقاومة</button>
+    <button id="bLq" class="on">💧 السيولة</button>
     <span class="sp"></span>
     <button id="bMode" class="mode">👁️ عرض الزائر</button>
   </div>
@@ -80,7 +82,7 @@ const LV = {
          { p: 3955.00, t: "🔥 أقوى دعم", tag: "قاع ثلاثي", stars: 5, why: ["🧱 قاع ثلاثي على اليومي", "💧 قاع الأسبوع الماضي", "🧱 بيفوت أسبوعي S1"] }],
 };
 const TFS = [["15m", "M15", 15], ["1h", "H1", 60], ["4h", "H4", 240], ["1d", "يومي", 1440]];
-let showPt = true;
+let showPt = true, showSr = true, showLq = true, SR = [];
 let tf = "15m", member = true, showMA = true, showLv = true, off = 0, last = null, ma = [];
 const el = document.getElementById("ch");
 const chart = LightweightCharts.createChart(el, {
@@ -179,6 +181,40 @@ function patterns(d) {
   }
   mk.sort((x, y) => x.time - y.time); cs.setMarkers(mk);
 }
+// 🧱 الدعم والمقاومة (قمم وقيعان 4 ساعات واليومي، المتقاربة 5$ تصير منطقة وحدة بنجوم) + 💧 السيولة
+let srL = [];
+async function srLevels() {
+  srL.forEach(l => cs.removePriceLine(l)); srL = []; SR = [];
+  if (!member || !data.length || (!showSr && !showLq)) return;
+  const px0 = data[data.length - 1].close;
+  const [h4, d1, w1, h1] = await Promise.all([klines("4h", 300), klines("1d", 120), klines("1w", 3), klines("1h", 26)]);
+  const C = a => a.map(toC);
+  if (showSr) {
+    const L = [];
+    [[C(h4), "4 ساعات", 1], [C(d1), "اليومي", 2]].forEach(([d, n, w]) => pivots(d, 3).forEach(p => L.push({ v: p.v, n: (p.t === 1 ? "قمة " : "قاع ") + n, w })));
+    L.sort((a, b) => a.v - b.v);
+    const Z = [];
+    L.forEach(l => { const z = Z[Z.length - 1]; if (z && l.v - z.lo <= 5) { z.hi = l.v; z.w += l.w; z.n.add(l.n); } else Z.push({ lo: l.v, hi: l.v, w: l.w, n: new Set([l.n]) }); });
+    const up = Z.filter(z => z.lo > px0 + 1 && z.lo - px0 <= 120).sort((a, b) => a.lo - b.lo).slice(0, 4);
+    const dn = Z.filter(z => z.hi < px0 - 1 && px0 - z.hi <= 120).sort((a, b) => b.hi - a.hi).slice(0, 4);
+    [[up, "#FF6B6B", "مقاومة", z => z.lo], [dn, "#3DD68C", "دعم", z => z.hi]].forEach(([arr, c, t, edge]) => arr.forEach(z => {
+      const sTar = Math.min(5, z.w);
+      srL.push(cs.createPriceLine({ price: edge(z), color: c, lineWidth: sTar >= 3 ? 2 : 1, lineStyle: 1, axisLabelVisible: true, title: "🧱 " + t + " " + st(sTar) }));
+      SR.push({ id: "sr" + SR.length, lo: z.lo - 1, hi: z.hi + 1, c, h: "🧱 " + t + " " + edge(z).toFixed(2) + " · " + st(sTar), why: [...z.n].map(x => "🧱 " + x) });
+    }));
+  }
+  if (showLq) {
+    const q = [];
+    if (d1.length > 1) { const y = toC(d1[d1.length - 2]); q.push([y.high, "💧 قمة أمس"], [y.low, "💧 قاع أمس"]); }
+    if (w1.length > 1) { const y = toC(w1[w1.length - 2]); q.push([y.high, "💧 قمة الأسبوع الماضي"], [y.low, "💧 قاع الأسبوع الماضي"]); }
+    if (h1.length > 2) { const a = C(h1.slice(0, -1)).slice(-24); q.push([Math.max(...a.map(c => c.high)), "💧 قمة الساعة (24 شمعة)"], [Math.min(...a.map(c => c.low)), "💧 قاع الساعة (24 شمعة)"]); }
+    q.filter(([v]) => Math.abs(v - px0) <= 120).forEach(([v, t]) => {
+      srL.push(cs.createPriceLine({ price: v, color: "#4EA8FF", lineWidth: 1, lineStyle: 3, axisLabelVisible: true, title: t }));
+      SR.push({ id: "lq" + SR.length, lo: v - 2, hi: v + 2, c: "#4EA8FF", h: t + " " + v.toFixed(2), why: ["💧 تحتها/فوقها وقوفات وايد — السعر يحب يروح يصيدها قبل ما ينعكس"] });
+    });
+  }
+  explain();
+}
 // 💬 زر "ليش شراء؟ / ليش بيع؟" على المنطقة نفسها بالشارت
 function tagList() {
   const s = LV.sig, out = [];
@@ -209,11 +245,11 @@ function zones() {
   Z.push({ id: "sig", lo: s.lo - 3, hi: s.sl, c: "#F2B705", h: (s.side === "sell" ? "🔴 توصية بيع " : "🟢 توصية شراء ") + s.lo.toFixed(2) + " – " + s.hi.toFixed(2), why: s.sigWhy || LV.sigWhy });
   LV.ideas.forEach((z, i) => Z.push({ id: "i" + i, lo: z.lo, hi: z.hi, c: z.side === "buy" ? "#3DD68C" : "#FF6B6B", h: (z.side === "buy" ? "🟢 منطقة شراء " : "🔴 منطقة بيع ") + z.lo.toFixed(2) + " – " + z.hi.toFixed(2) + " · " + st(z.stars), why: z.why }));
   LV.fire.forEach((f, i) => Z.push({ id: "f" + i, lo: f.p - 3, hi: f.p + 3, c: "#FF9F43", h: f.t + " " + f.p.toFixed(2) + " · " + st(f.stars), why: f.why }));
-  return Z;
+  return Z.concat(SR);
 }
 function explain() {
   const B = document.getElementById("ex"); B.innerHTML = '<div><b>📖 شرح المناطق</b> <small style="color:var(--muted)">(اضغط على المنطقة بالشارت أو هني)</small></div>';
-  if (!showLv || !member) { B.hidden = true; return; }
+  if (!member || (!showLv && !SR.length)) { B.hidden = true; return; }
   B.hidden = false;
   zones().forEach(z => {
     const d = document.createElement("details"); d.id = "z_" + z.id; d.style.borderInlineStartColor = z.c;
@@ -233,6 +269,8 @@ function legend() {
   const L = document.getElementById("leg"); L.innerHTML = "";
   const add = (c, t) => { const s = document.createElement("span"); s.innerHTML = '<i style="background:' + c + '"></i>' + t; L.append(s); };
   if (showMA) { add("#4EA8FF", "MA200"); add("#F2B705", "MA370"); add("#E7E9FF", "MA500"); }
+  if (showSr && member) { add("#FF6B6B", "🧱 مقاومة"); add("#3DD68C", "🧱 دعم"); }
+  if (showLq && member) add("#4EA8FF", "💧 سيولة");
   if (showPt && member) { add("#B388FF", "🦈 هارمونيك"); add("#4EE1EC", "📐 شكل فني"); }
   if (showLv && member) { add("#F2B705", "الدخول"); add("#FF6B6B", "الوقف"); add("#3DD68C", "الأهداف"); add("#FF9F43", "🔥 أقوى مناطق"); add("rgba(61,214,140,.6)", "منطقة الفكرة"); }
 }
@@ -244,7 +282,7 @@ async function load() {
   data = k.map(toC); cs.setData(data);
   const md = showMA ? await maData() : MAS.map(() => []);
   MAS.forEach((m, i) => m.s.setData(md[i]));
-  drawLv(data); patterns(data); legend(); explain(); tags(); px(q);
+  drawLv(data); patterns(data); legend(); explain(); tags(); px(q); srLevels();
   chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
 }
 function px(q) {
@@ -267,7 +305,9 @@ const tg = (id, f) => document.getElementById(id).onclick = e => { f(); e.curren
 tg("bMA", () => showMA = !showMA);
 tg("bLv", () => showLv = !showLv);
 tg("bPt", () => showPt = !showPt);
-document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); patterns(data); legend(); explain(); tags(); };
+tg("bSr", () => showSr = !showSr);
+tg("bLq", () => showLq = !showLq);
+document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); patterns(data); legend(); explain(); tags(); srLevels(); };
 load();
 </script>
 </body>
