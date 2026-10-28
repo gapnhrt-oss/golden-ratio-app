@@ -25,7 +25,11 @@
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.6}
-body{padding-top:env(safe-area-inset-top);padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+body{padding-top:env(safe-area-inset-top)}
+/* 📱 الصفحة ما تتحرك كلها: المحتوى بس يتمرر، والقائمة تحت ثابتة (مشكلة iOS) */
+html,body{height:100%;overflow:hidden}
+body{display:flex;flex-direction:column;height:100vh;height:100dvh}
+#scroller{flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;padding-bottom:16px}
 a{color:inherit}
 button,input,select,textarea{font:inherit;color:inherit}
 h1,h2,h3{margin:0;line-height:1.3}
@@ -38,7 +42,7 @@ p{margin:0}
 .wrap{max-width:720px;margin:0 auto;padding:0 max(16px,env(safe-area-inset-left)) 0 max(16px,env(safe-area-inset-right))}
 
 /* top bar */
-.top{position:sticky;top:0;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top{position:relative;flex:none;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .top .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;height:58px}
 .brand{display:flex;align-items:center;gap:8px;direction:ltr;text-decoration:none}
 .brand img{width:34px;height:34px}
@@ -47,7 +51,7 @@ p{margin:0}
 .who{font-size:.85rem;color:var(--muted);display:flex;align-items:center;gap:8px}
 
 /* tabs */
-.tabs{position:fixed;inset:auto 0 0 0;z-index:10;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
+.tabs{position:relative;flex:none;z-index:10;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:color-mix(in srgb,var(--bg) 95%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:6px max(6px,env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(6px,env(safe-area-inset-left))}
 .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:12px;text-decoration:none;color:var(--muted);font-size:.72rem;font-weight:500;position:relative}
 .tabs a[aria-current="page"]{color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -303,7 +307,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
   <div class="who" id="who"></div>
 </div></header>
 
-<main class="wrap" id="app"><div class="spinner"></div></main>
+<div id="scroller"><main class="wrap" id="app"><div class="spinner"></div></main></div>
 
 <nav class="tabs" id="tabs"></nav>
 <div class="toast" id="toast" hidden role="status"></div>
@@ -754,7 +758,7 @@ async function route() {
   let r = (location.hash || "#home").slice(1).split("/")[0];
   if (!SCREENS[r]) r = "home";
   if (r === "admin" && !S.admin) r = "home";
-  if (S.route !== r) S.prev = S.route;
+  if (S.route !== r) { S.prev = S.route; const sc = $("scroller"); if (sc) sc.scrollTop = 0; }
   S.route = r; renderChrome();
   const my = ++renderToken;
   const app = $("app");
@@ -771,7 +775,8 @@ async function route() {
     }
     app.append(node);
   } catch (e) { app.textContent = ""; app.append(h("div", { class: "empty" }, "ما قدرنا نحمّل الصفحة: " + errText(e))); }
-  if (r === "chat") { const c = document.querySelector(".chat"); if (c) setTimeout(() => window.scrollTo(0, document.body.scrollHeight), 50); }
+  const sc = $("scroller");
+  if (r === "chat") { const c = document.querySelector(".chat"); if (c) setTimeout(() => sc.scrollTop = sc.scrollHeight, 50); }
 }
 window.addEventListener("hashchange", route);
 function refreshIf(...routes) { if (routes.includes(S.route)) route(); }
