@@ -699,7 +699,7 @@ async function ChartScreen() {
     mtfBox.append(h("b", null, "📋 كل الفريمات"), tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
   }
 
-  let sigUps = {};
+  let sigUps = {}, focusKey = null, openTitle = null;
   let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
   const timers = [];
   CH_STOP = () => { timers.forEach(clearInterval); ro.disconnect(); try { chart.remove(); PN.forEach(p => p.c.remove()); } catch (_) {} };
@@ -849,7 +849,8 @@ async function ChartScreen() {
       const legs = (P, F) => { for (let i = 0; i + 1 < P.length; i++) { const a = P[i], b = P[i + 1], up = b.value > a.value; polys.push({ t: "tri", grad: (F ? F(up) : up) ? "up" : "dn", pts: up ? [a, b, { time: b.time, value: a.value }] : [a, b, { time: a.time, value: b.value }] }); } };
       //--- بس H1 / H4 / اليومي، والأشكال بالصيغة الجديدة (فيها نقاط) — القديمة ما تطلع
       if (O.pt) (L.shapes || []).filter(s => /^(H1|H4|D1|يومي)$/.test(s.tf || "") && (s.k !== "pat" || (s.zz && s.zz.length))).forEach(s => {
-        const bull = s.d === 1;
+        const bull = s.d === 1, key = s.k + s.n + s.tf + JSON.stringify(s.brk || s.pts || "").slice(0, 40), full = focusKey === key;
+        const axis = (v, t, c) => isFinite(v) && v && plines.push(cs.createPriceLine({ price: v, color: c, lineVisible: false, axisLabelVisible: true, title: t }));
         if (s.k === "harm") {
           const P = (s.pts || []).map(p => ({ time: snap(p[0]), value: p[1] })).filter(p => p.time != null);
           if (P.length < 3) return;
@@ -862,16 +863,20 @@ async function ChartScreen() {
           //--- نسب فيبوناتشي بخطوط نقط برتقالية (مثل الكتاب)
           const r = (a, b, c, d) => Math.abs(P[c].value - P[d].value) / Math.max(0.01, Math.abs(P[a].value - P[b].value));
           const rl = (i, j, v) => polys.push({ t: "seg", a: P[i], b: P[j], c: "#FF9F43", w: 1.3, dash: "2 4", label: v.toFixed(3).replace(/0+$/, "").replace(/\.$/, ""), lp: .5 });
-          if (P.length === 5) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); rl(2, 4, r(2, 3, 3, 4)); rl(0, 4, r(0, 1, 1, 4)); }
-          else if (P.length === 4 && s.done) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); }
-          else if (P.length === 4) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); }
-          P.forEach((p, i) => polys.push({ t: "label", p, txt: (labs[i] || "") + " " + p.value.toFixed(0), up: i > 0 ? p.value > P[i - 1].value : p.value > P[1].value, bg: "#B388FF" }));
+          if (full) {
+            if (P.length === 5) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); rl(2, 4, r(2, 3, 3, 4)); rl(0, 4, r(0, 1, 1, 4)); }
+            else if (P.length === 4) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); }
+          }
+          P.forEach((p, i) => polys.push({ t: "label", p, txt: (labs[i] || "") + (full ? " " + p.value.toFixed(0) : ""), up: i > 0 ? p.value > P[i - 1].value : p.value > P[1].value, bg: "#B388FF" }));
           const last = P[P.length - 1];
-          if (!s.done && s.lo) { polys.push({ t: "box", t1: last.time, t2: endT(), v1: s.lo, v2: s.hi, fill: "rgba(179,136,255,.2)", stroke: "rgba(179,136,255,.9)", txt: "منطقة D" }); }
-          else { polys.push({ t: "circ", p: last }); polys.push({ t: "arrow", a: last, b: { time: endT(), value: s.tp2 || s.tp1 }, c: bull ? "#3DD68C" : "#FF6B6B", w: 2.4 }); box2(last.time, last.value, s.tp2 || s.tp1, s.sl); }
-          if (s.tp1) polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯1 " + f2(s.tp1) });
-          if (s.tp2) polys.push({ t: "target", p: { time: endT(), value: s.tp2 }, txt: "🎯2 " + f2(s.tp2) });
-          lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
+          if (!s.done && s.lo) { polys.push({ t: "box", t1: last.time, t2: endT(), v1: s.lo, v2: s.hi, fill: "rgba(179,136,255,.2)", stroke: "rgba(179,136,255,.9)", txt: full ? "منطقة D" : "" }); }
+          else { polys.push({ t: "circ", p: last }); if (full) { polys.push({ t: "arrow", a: last, b: { time: endT(), value: s.tp2 || s.tp1 }, c: bull ? "#3DD68C" : "#FF6B6B", w: 2.4 }); box2(last.time, last.value, s.tp2 || s.tp1, s.sl); } }
+          if (full) {
+            if (s.tp1) polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯1 " + f2(s.tp1) });
+            if (s.tp2) polys.push({ t: "target", p: { time: endT(), value: s.tp2 }, txt: "🎯2 " + f2(s.tp2) });
+            lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
+          } else { axis(s.tp1, "🦈 🎯1", "#B388FF"); axis(s.tp2, "🦈 🎯2", "#B388FF"); }
+          TG.push({ side: bull ? "buy" : "sell", p: last.value, key, z: { h: "🦈 " + s.n + " " + (bull ? "صاعد" : "هابط") + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط على الشارت = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان ترجع الشارت خفيف" : ""].filter(Boolean) } });
           marks.push({ time: last.time, position: bull ? "belowBar" : "aboveBar", color: "#B388FF", shape: bull ? "arrowUp" : "arrowDown", text: "🦈 " + s.n + " " + s.tf + (s.done ? "" : " (قريب)") });
           ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
         } else if (s.k === "pat") {
@@ -892,21 +897,22 @@ async function ChartScreen() {
               if (p.lb) polys.push({ t: "label", p, txt: p.lb, up, bg: "#4EE1EC" }); });
           }
           //--- 4) الدخول الأول + الاختراق/الكسر (دوائر خضرا) + 100% + الهدف ⊕ + صندوق الربح/الخسارة
-          if (s.e1) { const e = { time: snap(s.e1[0]), value: s.e1[1] }; if (e.time != null) polys.push({ t: "circ", p: e, label: "الدخول الأول", up: !bull }); }
+          if (s.e1) { const e = { time: snap(s.e1[0]), value: s.e1[1] }; if (e.time != null) polys.push({ t: "circ", p: e, label: full ? "الدخول الأول" : "", up: !bull }); }
           if (brk && brk.time != null) {
-            polys.push({ t: "circ", p: brk, label: s.e1 ? "الدخول الثاني (" + (bull ? "الاختراق" : "الكسر") + ")" : (bull ? "الاختراق" : "الكسر"), up: bull });
+            polys.push({ t: "circ", p: brk, label: full ? (s.e1 ? "الدخول الثاني (" + (bull ? "الاختراق" : "الكسر") + ")" : (bull ? "الاختراق" : "الكسر")) : "", up: bull });
             const hgt = Math.abs(s.tp1 - s.lv);
-            if (hgt > 0) {
+            if (hgt > 0 && full) {
               const ti = data.findIndex(c => c.time >= brk.time), tm = data[Math.min(data.length - 1, Math.max(0, ti + 3))].time;
               //--- 100% داخل الشكل: من أبعد نقطة (القاع للصاعد / القمة للهابط) بطول الشكل
               const ex = Z.length ? Z.reduce((m, p) => (bull ? p.value < m.value : p.value > m.value) ? p : m, Z[0]) : brk;
               polys.push({ t: "arrow", a: { time: ex.time, value: ex.value }, b: { time: ex.time, value: ex.value + (bull ? hgt : -hgt) }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
               polys.push({ t: "arrow", a: { time: tm, value: s.lv }, b: { time: tm, value: s.tp1 }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
             }
-            box2(brk.time, s.lv, s.tp1, s.sl);
+            if (full) box2(brk.time, s.lv, s.tp1, s.sl);
           }
-          polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯 " + f2(s.tp1) });
-          lvl(brk && brk.time != null ? brk.time : endT(), s.sl, "#FF6B6B", "📐 وقف");
+          if (full) { polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯 " + f2(s.tp1) }); lvl(brk && brk.time != null ? brk.time : endT(), s.sl, "#FF6B6B", "📐 وقف"); }
+          else axis(s.tp1, "📐 🎯", "#4EE1EC");
+          TG.push({ side: bull ? "buy" : "sell", p: s.lv, key, z: { h: "📐 " + s.n + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(bull ? "📍 الاختراق صار عند " : "📍 الكسر صار عند ") + f2(s.lv), "📏 طول الشكل = " + Math.abs(s.tp1 - s.lv).toFixed(1) + "$ — والهدف نفس المسافة من نقطة الكسر (100%)", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الشكل يفشل إذا " + (bull ? "نزل تحت " : "صعد فوق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان ترجع الشارت خفيف" : "👆 اضغط وتشوف على الشارت الهدف وصندوق الربح/الخسارة"] } });
           if (!Z.length) { const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 != null) polys.push({ pts: [{ time: t1, value: s.hi }, { time: t2 ?? endT(), value: s.hi }, { time: t2 ?? endT(), value: s.lo }, { time: t1, value: s.lo }], fill: "rgba(78,225,236,.06)", stroke: "rgba(78,225,236,.6)", dash: 1 }); }
           marks.push({ time: (brk && brk.time) || snap(s.t2) || endT(), position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
           ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), s.e1 ? "🟢 الدخول الأول: عند آخر قاع/قمة بالشكل · الدخول الثاني: بعد الكسر" : "🟢 الدخول بعد " + (bull ? "الاختراق" : "الكسر") + " وإغلاق الشمعة", "📏 الهدف = نفس طول الشكل (100%) من نقطة الكسر", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
@@ -958,7 +964,7 @@ async function ChartScreen() {
     tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
     whyBar.append(h("b", { class: "chx-whyhd" }, "❓ التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
-    const pr = g => /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
+    const pr = g => g.key ? 3 : /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
     TG.forEach(g => {
       //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
@@ -967,10 +973,14 @@ async function ChartScreen() {
       const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl + " ❓"), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
+        if (g.key) { focusKey = open ? null : g.key; openTitle = open ? null : g.z.h; draw(); return; }   // 📐🦈 الشكل: التفاصيل الكاملة على الشارت
+        openTitle = open ? null : g.z.h;
         whyBar.querySelectorAll(".chx-why").forEach(x => x.classList.remove("on")); whyDet.hidden = open;
         if (open) return; b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); const all = [...whyBar.querySelectorAll(".chx-why")], ix = all.indexOf(b); (ix % 2 === 0 && all[ix + 1] ? all[ix + 1] : b).after(whyDet); };
       whyBar.append(b);
+      if (openTitle && g.z.h === openTitle) { b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); whyDet.hidden = false; }
     });
+    { const on = whyBar.querySelector(".chx-why.on"); if (on) { const all = [...whyBar.querySelectorAll(".chx-why")], ix = all.indexOf(on); (ix % 2 === 0 && all[ix + 1] ? all[ix + 1] : on).after(whyDet); } }
     place();
   }
   function place() {
