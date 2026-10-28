@@ -53,6 +53,7 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
   <div class="bar">
     <button id="bMA" class="on">📏 المتوسطات</button>
     <button id="bLv" class="on">🎯 التوصيات والمناطق</button>
+    <button id="bPt" class="on">🦈 الأشكال والهارمونيك</button>
     <span class="sp"></span>
     <button id="bMode" class="mode">👁️ عرض الزائر</button>
   </div>
@@ -79,6 +80,7 @@ const LV = {
          { p: 3955.00, t: "🔥 أقوى دعم", tag: "قاع ثلاثي", stars: 5, why: ["🧱 قاع ثلاثي على اليومي", "💧 قاع الأسبوع الماضي", "🧱 بيفوت أسبوعي S1"] }],
 };
 const TFS = [["15m", "M15", 15], ["1h", "H1", 60], ["4h", "H4", 240], ["1d", "يومي", 1440]];
+let showPt = true;
 let tf = "15m", member = true, showMA = true, showLv = true, off = 0, last = null, ma = [];
 const el = document.getElementById("ch");
 const chart = LightweightCharts.createChart(el, {
@@ -120,6 +122,51 @@ function drawLv(data) {
   pl(s.sl, "#FF6B6B", "🛑 وقف", 0, 2);
   s.tps.forEach((t, i) => pl(t, "#3DD68C", "🎯 " + (i + 1), 2, 1));
   LV.fire.forEach(f => pl(f.p, "#FF9F43", f.t + " · " + f.tag, 3, 1));
+}
+// 🦈 الأشكال الفنية والهارمونيك: الرسمة + الأهداف + الوقف  (بالتجربة: مثال مرسوم على قمم وقيعان حقيقية)
+const ptS = [];
+function pivots(d, k) {
+  const out = [];
+  for (let i = k; i < d.length - k; i++) {
+    let H = true, L = true;
+    for (let j = 1; j <= k; j++) { if (d[i - j].high > d[i].high || d[i + j].high > d[i].high) H = false; if (d[i - j].low < d[i].low || d[i + j].low < d[i].low) L = false; }
+    const t = H ? 1 : L ? -1 : 0; if (!t) continue;
+    const p = { i, t, time: d[i].time, v: t === 1 ? d[i].high : d[i].low }, q = out[out.length - 1];
+    if (q && q.t === t) { if ((t === 1 && p.v > q.v) || (t === -1 && p.v < q.v)) out[out.length - 1] = p; } else out.push(p);
+  }
+  return out;
+}
+function seg(pts, color, w, style) { const l = chart.addLineSeries({ color, lineWidth: w || 2, lineStyle: style || 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }); l.setData(pts); ptS.push(l); return l; }
+function lvl(fromT, toT, v, color, title) { const l = seg([{ time: fromT, value: v }, { time: toT, value: v }], color, 1, 2); l.applyOptions({ title, lastValueVisible: true }); }
+function patterns(d) {
+  ptS.forEach(x => chart.removeSeries(x)); ptS.length = 0; cs.setMarkers([]);
+  if (!showPt || !member || d.length < 60) return;
+  const pv = pivots(d, tf === "1d" ? 3 : 5); if (pv.length < 7) return;
+  const end = d[d.length - 1].time, mk = [];
+  //--- 🦈 هارمونيك XABCD: آخر 5 قمم/قيعان
+  const H = pv.slice(-5), [X, A, B, C, D] = H, bull = D.t === -1, cd = Math.abs(C.v - D.v);
+  seg(H.map(p => ({ time: p.time, value: p.v })), "#B388FF", 2);
+  seg([X, B, D].map(p => ({ time: p.time, value: p.v })), "rgba(179,136,255,.55)", 1, 2);
+  seg([A, C].map(p => ({ time: p.time, value: p.v })), "rgba(179,136,255,.55)", 1, 2);
+  ["X", "A", "B", "C", "D"].forEach((n, k) => mk.push({ time: H[k].time, position: H[k].t === 1 ? "aboveBar" : "belowBar", color: "#B388FF", shape: "circle", text: n }));
+  const s1 = bull ? 1 : -1;
+  lvl(D.time, end, D.v + s1 * 0.382 * cd, "#B388FF", "🦈 هدف 1");
+  lvl(D.time, end, D.v + s1 * 0.618 * cd, "#B388FF", "🦈 هدف 2");
+  lvl(D.time, end, D.v - s1 * Math.max(8, 0.15 * cd), "#FF6B6B", "🦈 وقف");
+  mk.push({ time: D.time, position: bull ? "belowBar" : "aboveBar", color: "#B388FF", shape: bull ? "arrowUp" : "arrowDown", text: "🦈 هارمونيك (مثال)" });
+  //--- 📐 شكل فني: قمة/قاع مزدوج (آخر قمتين أو قاعين وبينهم خط الرقبة)
+  const P = pv.slice(-7, -2);
+  for (let k = P.length - 3; k >= 0; k--) {
+    const a = P[k], m = P[k + 1], b = P[k + 2]; if (a.t !== b.t) continue;
+    const top = a.t === 1, h = Math.abs(((a.v + b.v) / 2) - m.v), tg = m.v + (top ? -h : h);
+    seg([a, m, b].map(p => ({ time: p.time, value: p.v })), "#4EE1EC", 2);
+    lvl(a.time, end, m.v, "#4EE1EC", "📐 خط الرقبة");
+    lvl(b.time, end, tg, "#4EE1EC", "📐 هدف الشكل");
+    lvl(b.time, end, Math.max(a.v, b.v) * (top ? 1 : 0) + Math.min(a.v, b.v) * (top ? 0 : 1) + (top ? 3 : -3), "#FF6B6B", "📐 وقف");
+    mk.push({ time: b.time, position: top ? "aboveBar" : "belowBar", color: "#4EE1EC", shape: top ? "arrowDown" : "arrowUp", text: (top ? "📐 قمة مزدوجة" : "📐 قاع مزدوج") + " (مثال)" });
+    break;
+  }
+  mk.sort((x, y) => x.time - y.time); cs.setMarkers(mk);
 }
 // 💬 زر "ليش شراء؟ / ليش بيع؟" على المنطقة نفسها بالشارت
 function tagList() {
@@ -175,6 +222,7 @@ function legend() {
   const L = document.getElementById("leg"); L.innerHTML = "";
   const add = (c, t) => { const s = document.createElement("span"); s.innerHTML = '<i style="background:' + c + '"></i>' + t; L.append(s); };
   if (showMA) { add("#4EA8FF", "MA200"); add("#F2B705", "MA370"); add("#E7E9FF", "MA500"); }
+  if (showPt && member) { add("#B388FF", "🦈 هارمونيك"); add("#4EE1EC", "📐 شكل فني"); }
   if (showLv && member) { add("#F2B705", "الدخول"); add("#FF6B6B", "الوقف"); add("#3DD68C", "الأهداف"); add("#FF9F43", "🔥 أقوى مناطق"); add("rgba(61,214,140,.6)", "منطقة الفكرة"); }
 }
 let data = [];
@@ -184,7 +232,7 @@ async function load() {
   if (q && q.price) off = q.price - +k[k.length - 1][4];
   data = k.map(toC); cs.setData(data);
   MAS.forEach(m => m.s.setData(showMA && tf === "15m" ? sma(data, m.n) : []));
-  drawLv(data); legend(); explain(); tags(); px(q);
+  drawLv(data); patterns(data); legend(); explain(); tags(); px(q);
   chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
 }
 function px(q) {
@@ -206,7 +254,8 @@ TFS.forEach(([v, n, m]) => { const b = document.createElement("button"); b.textC
 const tg = (id, f) => document.getElementById(id).onclick = e => { f(); e.currentTarget.classList.toggle("on"); load(); };
 tg("bMA", () => showMA = !showMA);
 tg("bLv", () => showLv = !showLv);
-document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); legend(); explain(); tags(); };
+tg("bPt", () => showPt = !showPt);
+document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); patterns(data); legend(); explain(); tags(); };
 load();
 </script>
 </body>
