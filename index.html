@@ -1540,7 +1540,7 @@ async function nextNewsCard() {
     const rows = soon.filter(e => dayOf(e.date) === dkey).slice(0, 6);
     const near = new Date(n.date) - now < 3600e3;
     const card = h("a", { class: "card newsalert" + (near ? " near" : ""), href: "#market/cal" },
-      h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + (isToday ? "الأخبار القوية اليوم" : "الأخبار القوية القادمة · " + kw(n.date, { weekday: "long" }))), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), rows.length + (rows.length === 1 ? " خبر" : " أخبار"))));
+      h("div", { class: "between" }, h("b", null, (near ? "⚠️ " : "📅 ") + (isToday ? "الأخبار القوية لليوم" : "الأخبار القوية القادمة · " + kw(n.date, { weekday: "long" }))), h("span", { class: "imp hi" }, h("i"), h("i"), h("i"), rows.length + (rows.length === 1 ? " خبر" : " أخبار"))));
     rows.forEach((e, i) => {
       // نفس مربعات الأخبار اللي نزلت: الفعلي (ينتظر) · المتوقع · السابق
       card.append(h("div", { class: i ? "dn-sep" : "" },
