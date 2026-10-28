@@ -671,8 +671,9 @@ function mapText(t, style) {
     last = h("div", { class: /^\s*[🔴🟢]/u.test(l) ? "ml" : "" }, l || "\u00a0"); box.append(last);
   });
   if (ex.length) {
-    const b = h("button", { class: "btn ghost sm", type: "button", style: "margin-top:6px" }, "📖 شرح المناطق ▾");
-    b.onclick = () => { const open = ex.some(e => e.hidden); ex.forEach(e => e.hidden = !open); b.textContent = open ? "📖 إخفاء الشرح ▴" : "📖 شرح المناطق ▾"; };
+    const lb = /^\s*[🔴🟢]\s*[\d,.]+\s*—/mu.test(t || "") ? "📖 شرح المناطق ▾" : "📖 الشرح ▾";
+    const b = h("button", { class: "btn ghost sm", type: "button", style: "margin-top:6px" }, lb);
+    b.onclick = () => { const open = ex.some(e => e.hidden); ex.forEach(e => e.hidden = !open); b.textContent = open ? "📖 إخفاء الشرح ▴" : lb; };
     box.append(b);
   }
   return box;
