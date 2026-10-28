@@ -611,10 +611,10 @@ async function ChartScreen() {
       }
     }
     rsiS.setMarkers(mk.map(m => ({ time: data[m.i].time, position: m.d === 1 ? "belowBar" : "aboveBar", color: m.d === 1 ? "#3DD68C" : "#FF6B6B", shape: m.d === 1 ? "arrowUp" : "arrowDown", text: "🔄" })));
-    RVM = mk.slice(-6).reverse();
+    RVM = mk.slice(-6).reverse(); RVALL = mk;
     const r = chart.timeScale().getVisibleLogicalRange(); if (r) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(r));
   }
-  let RVM = [];
+  let RVM = [], RVALL = [];
 
   let sigUps = {};
   let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
@@ -782,6 +782,8 @@ async function ChartScreen() {
         why: why(s.reason).filter(w => !/^🛑/.test(w)).concat([n ? "✅ تحقق لين الهدف " + n : "🎯 الهدف 1: " + f2(tps[0]), "🛑 الوقف الحين: " + f2(csl)]) };
       ZN.unshift(item); tag(sell ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", e1 + sd * -6, item);
     });
+    //--- 🔄 علامات الانعكاس: سهم تحت الشمعة (صاعد) أو فوقها (هابط)
+    if (mem && O.ind && (O.tf === "H4" || O.tf === "D1")) RVALL.forEach(m => data[m.i] && marks.push({ time: data[m.i].time, position: m.d === 1 ? "belowBar" : "aboveBar", color: m.d === 1 ? "#3DD68C" : "#FF6B6B", shape: m.d === 1 ? "arrowUp" : "arrowDown", text: "🔄 انعكاس" }));
     marks.sort((a, b) => a.time - b.time); cs.setMarkers(marks);
     tags(TG); explain(); legend();
   }
