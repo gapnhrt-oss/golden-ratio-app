@@ -286,9 +286,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-ch{height:62vh;min-height:360px}
 .chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
 .chx-ind{display:grid;gap:4px}
-.chx-whybar{display:flex;gap:6px;flex-wrap:wrap}
-.chx-why{display:flex;flex-direction:column;align-items:flex-start;gap:0;border-radius:12px;padding:6px 12px;cursor:pointer;border:1px solid var(--line);background:var(--bg2);text-align:start}
-.chx-why b{font-size:13px}.chx-why small{font-size:11px;color:var(--muted);direction:rtl}
+.chx-whybar{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chx-why{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0;border-radius:12px;padding:6px 10px;cursor:pointer;border:1px solid var(--line);background:var(--bg2);text-align:start}
+.chx-why b{font-size:13px}.chx-why small{font-size:10.5px;color:var(--muted);direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .chx-why.buy{border-color:rgba(61,214,140,.6)}.chx-why.sell{border-color:rgba(255,107,107,.6)}
 .chx-pnw{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chx-pn{height:110px}
@@ -309,6 +309,8 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-mtf td .chx-bar2{width:60px;margin-inline-end:6px}
 .chx-mtf td .chx-bar2 em{display:none}
 .chx-mtf small{color:var(--muted)}
+.chx-mtf tr.det td{font-size:12px;color:var(--muted);border-top:0;padding-top:0}
+.chx-whyline{font-size:12.5px;color:var(--muted);margin-top:4px;line-height:1.7}.chx-whyline b{color:var(--fg)}
 .chx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .chx-chips span{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
@@ -653,6 +655,7 @@ async function ChartScreen() {
     indSum.textContent = "";
     indSum.append(h("b", null, "🧭 الاتجاه: " + dirT), h("small", null, " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
       X ? h("div", { class: "chx-meter" }, h("span", null, "قوة الحركة"), h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + X.score + "%;background:" + (X.dir > 0 ? "var(--up)" : X.dir < 0 ? "var(--down)" : "var(--muted)") })), h("b", null, X.score + " — " + X.word)) : null,
+      X ? h("div", { class: "chx-whyline" }, h("b", null, "ليش " + X.word.replace(" 💪", "") + "؟ "), X.why.join(" · ")) : null,
       h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD))), mtfBox);
     mtf();
     const vr = chart.timeScale().getVisibleLogicalRange(); if (vr) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(vr));
@@ -669,7 +672,14 @@ async function ChartScreen() {
     const vote = rD + mD + aD, dir = vote > 0 ? 1 : vote < 0 ? -1 : 0;
     const hs = k => (M[i - k] ?? 0) - (Sg[i - k] ?? 0), grow = dir !== 0 && dir * hs(0) > dir * hs(1) && dir * hs(1) > dir * hs(2);
     const score = Math.round(Math.min(50, (ad || 0)) + Math.abs(vote) / 3 * 30 + (grow ? 20 : dir * hs(0) > 0 ? 10 : 0));
-    return { r, ad, rD, mD, aD, vote, dir, score: Math.max(0, Math.min(100, score)), word: score >= 70 ? "قوية 💪" : score >= 40 ? "متوسطة" : "ضعيفة" };
+    const sc = Math.max(0, Math.min(100, score)), agree = Math.abs(vote);
+    //--- ليش قوية / ليش ضعيفة (بكلام بسيط)
+    const why = [
+      (ad == null ? "" : ad >= 25 ? "✅ ADX " + ad.toFixed(0) + " = الحركة قوية" : ad < 20 ? "❌ ADX " + ad.toFixed(0) + " = ما في اتجاه واضح" : "➖ ADX " + ad.toFixed(0) + " = حركة متوسطة"),
+      (agree === 3 ? "✅ المؤشرات الثلاثة متفقة" : agree === 2 ? "➖ مؤشرين من ثلاثة متفقين" : "❌ المؤشرات مختلفة"),
+      (grow ? "✅ الزخم يزيد" : dir !== 0 && dir * hs(0) > 0 ? "➖ الزخم ثابت" : "❌ الزخم يخف"),
+      (r == null ? "" : r >= 70 ? "⚠️ RSI تشبع شراء — ممكن يرجع" : r <= 30 ? "⚠️ RSI تشبع بيع — ممكن يرجع" : "")].filter(Boolean);
+    return { r, ad, rD, mD, aD, vote, dir, why, score: sc, word: sc >= 70 ? "قوية 💪" : sc >= 40 ? "متوسطة" : "ضعيفة" };
   }
   const dirWord = v => v >= 2 ? "🟢 صاعد" : v <= -2 ? "🔴 هابط" : v === 1 ? "🟢 يميل للصعود" : v === -1 ? "🔴 يميل للنزول" : "➖ محتار";
   //--- 📋 جدول الفريمات: كل الفريمات بنظرة وحدة
@@ -678,8 +688,9 @@ async function ChartScreen() {
     const rows = await Promise.all(TFS.map(async t => [t, readTF(await botCandles(t[0], 300))]));
     mtfBox.textContent = "";
     const tb = h("table", null, h("tr", null, h("th", null, "الفريم"), h("th", null, "الاتجاه"), h("th", null, "القوة")));
-    rows.forEach(([t, x]) => tb.append(h("tr", { class: t[0] === O.tf ? "on" : "" }, h("td", null, t[1]), h("td", null, x ? dirWord(x.vote) : "—"),
-      h("td", null, x ? [h("span", { class: "chx-bar2" }, h("i", { style: "width:" + x.score + "%;background:" + (x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)") })), " " + x.word] : "—"))));
+    rows.forEach(([t, x]) => { const det = h("tr", { class: "det", hidden: true }, h("td", { colspan: "3" }, x ? "ليش " + x.word.replace(" 💪", "") + "؟ " + x.why.join(" · ") : ""));
+      tb.append(h("tr", { class: t[0] === O.tf ? "on" : "", onclick: () => det.hidden = !det.hidden, style: "cursor:pointer" }, h("td", null, t[1] + " ▾"), h("td", null, x ? dirWord(x.vote) : "—"),
+      h("td", null, x ? [h("span", { class: "chx-bar2" }, h("i", { style: "width:" + x.score + "%;background:" + (x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)") })), " " + x.word] : "—"))); tb.append(det); });
     const ds = rows.map(r => r[1] ? r[1].dir : 0).filter(v => v), same = ds.length >= 3 && ds.every(v => v === ds[0]);
     mtfBox.append(h("b", null, "📋 كل الفريمات"), tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
   }
@@ -941,6 +952,9 @@ async function ChartScreen() {
   //--- "ليش شراء؟ / ليش بيع؟" صارت أزرار تحت الشارت (ما تغطي الشموع) — تضغطها ويطلع الشرح فوق الشارت
   function tags(TG) {
     tagsEl.textContent = ""; whyBar.textContent = ""; pop.hidden = true; whyBar.hidden = !TG.length;
+    //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
+    const pr = g => /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
+    TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
     TG.forEach(g => {
       const ctx = g.z.h.replace(/^\S+\s*/, "");
       const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, (g.side === "buy" ? "🟢 ليش شراء؟" : "🔴 ليش بيع؟") + (/ينتظر/.test(g.z.h) ? " ⏳" : "")), h("small", null, ctx));
