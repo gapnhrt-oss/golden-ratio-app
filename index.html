@@ -186,7 +186,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .lbar{height:7px;border-radius:4px;background:#262A66;overflow:hidden}.lbar i{display:block;height:100%;background:linear-gradient(90deg,#C67F0B,#FFD54A);border-radius:4px}
 .lcard{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:inherit;text-decoration:none}
 .lcard.ok{border-color:#3DD68C}.lcard b{display:block;font-size:15px}.lcard small{font-size:12px}
-.lvl{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap;width:fit-content}
+.llv{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap;width:fit-content;flex:none}
 .lpage{gap:10px}.lfig{background:#11143F;border:1px solid var(--line);border-radius:16px;padding:6px}.lsvg{width:100%;height:auto;display:block;direction:ltr}
 .lsec b{color:#FFD54A;font-size:15px}.lsec p{margin:4px 0 0;line-height:1.85}
 .lquiz{display:grid;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -436,7 +436,8 @@ const ICON = {
   chat: "M4 5h16v11H9l-5 4z",
   market: "M5 4h11l3 3v13H5zM8 10h8M8 14h8M8 18h5",
   chart: "M4 4v16h16M8 15l3-4 3 2 5-6",
-  admin: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"
+  admin: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z",
+  learn: "M4 5c3-1 6-1 8 1 2-2 5-2 8-1v14c-3-1-6-1-8 1-2-2-5-2-8-1zM12 6v14"
 };
 let toastT;
 function toast(msg, bad) { const t = $("toast"); t.textContent = msg; t.className = "toast" + (bad ? " bad" : ""); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 3200); }
@@ -523,7 +524,7 @@ function renderChrome() {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
-  const tabs = [["home", "الرئيسية", ICON.home], ["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["sub", "اشتراكي", ICON.sub], ["chat", "تواصل", ICON.chat]];
+  const tabs = [["home", "الرئيسية", ICON.home], ["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub], ["chat", "تواصل", ICON.chat]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
@@ -1242,7 +1243,7 @@ async function ChartScreen() {
 }
 
 /* ================== التوجيه ================== */
-const SCREENS = { posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin, vip: Vip };
+const SCREENS = { posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin, vip: Vip, learn: async () => Learn() };
 let renderToken = 0;
 async function route() {
   let r = (location.hash || "#home").slice(1).split("/")[0];
@@ -2072,10 +2073,10 @@ function lessonFor(t) {
   t = String(t || "");
   return /🦈|هارمونيك/.test(t) ? "harm" : /📐/.test(t) ? "pat" : /💧|سيولة/.test(t) ? "liq" : /منطقة انعكاس|🧱|دعم|مقاومة/.test(t) ? "sr" : /فكرة/.test(t) ? "mtf" : /ترند/.test(t) ? "trend" : null;
 }
-function lessonLink(id) { const L = TOOL_LESSONS.find(x => x.id === id); return L ? h("a", { class: "llink", href: "#market/learn/" + id }, "📚 تعلّم: " + L.ic + " " + L.t) : null; }
+function lessonLink(id) { const L = TOOL_LESSONS.find(x => x.id === id); return L ? h("a", { class: "llink", href: "#learn/" + id }, "📚 تعلّم: " + L.ic + " " + L.t) : null; }
 
 function Learn() {
-  const id = location.hash.split("/")[2];
+  const hp = location.hash.slice(1).split("/"), id = hp[0] === "learn" ? hp[1] : hp[2];
   const L = TOOL_LESSONS.find(x => x.id === id);
   if (L) return LessonPage(L);
   const box = h("div", { class: "screen" });
@@ -2084,9 +2085,9 @@ function Learn() {
   box.append(h("div", { class: "lprog" }, h("b", null, "🏅 تقدمك: " + n + " من " + TOOL_LESSONS.length + " دروس" + (n === TOOL_LESSONS.length ? " — 🎉 خلصتها كلها!" : "")), h("div", { class: "lbar" }, h("i", { style: "width:" + (n / TOOL_LESSONS.length * 100).toFixed(0) + "%" }))));
   TOOL_LESSONS.forEach((x, i) => {
     const ok = done.includes(x.id);
-    box.append(h("a", { class: "lcard" + (ok ? " ok" : ""), href: "#market/learn/" + x.id },
+    box.append(h("a", { class: "lcard" + (ok ? " ok" : ""), href: "#learn/" + x.id },
       h("div", null, h("b", null, x.ic + " " + x.t), h("small", { class: "muted" }, x.sub)),
-      h("span", { class: "lvl", style: "color:" + LVLC[x.lvl] + ";background:" + LVLC[x.lvl] + "22" }, (ok ? "✅ " : "") + LVLN[x.lvl])));
+      h("span", { class: "llv", style: "color:" + LVLC[x.lvl] + ";background:" + LVLC[x.lvl] + "22" }, (ok ? "✅ " : "") + LVLN[x.lvl])));
   });
   box.append(h("h3", { style: "margin:14px 0 0" }, "💡 أساسيات التداول"));
   LESSONS.forEach(([t, b], i) => box.append(h("details", { class: "card lesson" }, h("summary", null, h("span", { class: "pill wait num" }, i + 1), h("b", null, t)), ...b.split("\n").map(x => h("p", null, x)))));
@@ -2097,8 +2098,8 @@ function Learn() {
 function LessonPage(L) {
   const i = TOOL_LESSONS.indexOf(L), nx = TOOL_LESSONS[i + 1];
   const box = h("div", { class: "screen lpage" });
-  box.append(h("small", { class: "muted" }, h("a", { href: "#market/learn" }, "📚 تعلّم الأدوات"), " › الدرس " + (i + 1) + " من " + TOOL_LESSONS.length));
-  box.append(h("h2", { class: "h1", style: "margin:2px 0 0" }, L.ic + " " + L.t), h("span", { class: "lvl", style: "color:" + LVLC[L.lvl] + ";background:" + LVLC[L.lvl] + "22;justify-self:start" }, LVLN[L.lvl]));
+  box.append(h("small", { class: "muted" }, h("a", { href: "#learn" }, "📚 تعلّم الأدوات"), " › الدرس " + (i + 1) + " من " + TOOL_LESSONS.length));
+  box.append(h("h2", { class: "h1", style: "margin:2px 0 0" }, L.ic + " " + L.t), h("span", { class: "llv", style: "color:" + LVLC[L.lvl] + ";background:" + LVLC[L.lvl] + "22;justify-self:start" }, LVLN[L.lvl]));
   const fig = h("div", { class: "lfig" }); fig.innerHTML = L.svg(); box.append(fig);
   [["🤔 شنو هي؟", L.what], ["🎯 ليش مهمة؟", L.why], ["🤖 شلون البوت يستخدمها؟", L.bot], ["⚠️ انتبه", L.warn]].forEach(([a, b]) => box.append(h("div", { class: "lsec" }, h("b", null, a), h("p", null, b))));
   //--- ❓ سؤال سريع
@@ -2113,7 +2114,7 @@ function LessonPage(L) {
   qb.append(res); box.append(qb);
   box.append(h("a", { class: "btn primary", href: "#chart/only=" + L.only, style: "text-align:center" }, "📈 شوف " + L.t + " الحين على الشارت"));
   box.append(h("small", { class: "muted", style: "text-align:center" }, "يفتح الشارت ويبيّن هالأداة بس"));
-  if (nx) box.append(h("a", { class: "btn ghost", href: "#market/learn/" + nx.id, style: "text-align:center" }, "الدرس الجاي: " + nx.ic + " " + nx.t + " ←"));
+  if (nx) box.append(h("a", { class: "btn ghost", href: "#learn/" + nx.id, style: "text-align:center" }, "الدرس الجاي: " + nx.ic + " " + nx.t + " ←"));
   return box;
 }
 
@@ -2394,13 +2395,13 @@ async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
   const seg = h("div", { class: "seg" });
-  [["news", "📰 أخبار الذهب"], ["learn", "📚 تعلّم الأدوات"], ["cal", "📅 الأجندة"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
+  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
   root.append(seg);
   if (sub === "cal") {
     root.append(await Calendar());
   } else if (sub === "calc") { root.append(LotCalc());
   } else if (sub === "sess") { root.append(Sessions());
-  } else if (sub === "learn") { root.append(Learn());
+  } else if (sub === "learn") { location.hash = "#learn" + (location.hash.split("/")[2] ? "/" + location.hash.split("/")[2] : "");
   } else if (sub === "chart") { location.hash = "#chart";
   } else if (false) {
     root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, fillH(460, 330)));
