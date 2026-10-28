@@ -836,8 +836,9 @@ async function ChartScreen() {
             const hgt = Math.abs(s.tp1 - s.lv);
             if (hgt > 0) {
               const ti = data.findIndex(c => c.time >= brk.time), tm = data[Math.min(data.length - 1, Math.max(0, ti + 3))].time;
-              const z0 = Z.length ? Z[Math.max(0, Z.length - 3)].time : brk.time;
-              polys.push({ t: "arrow", a: { time: z0, value: s.lv }, b: { time: z0, value: s.lv - (s.tp1 - s.lv) }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
+              //--- 100% داخل الشكل: من أبعد نقطة (القاع للصاعد / القمة للهابط) بطول الشكل
+              const ex = Z.length ? Z.reduce((m, p) => (bull ? p.value < m.value : p.value > m.value) ? p : m, Z[0]) : brk;
+              polys.push({ t: "arrow", a: { time: ex.time, value: ex.value }, b: { time: ex.time, value: ex.value + (bull ? hgt : -hgt) }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
               polys.push({ t: "arrow", a: { time: tm, value: s.lv }, b: { time: tm, value: s.tp1 }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
             }
             box2(brk.time, s.lv, s.tp1, s.sl);
@@ -899,7 +900,14 @@ async function ChartScreen() {
     });
     place();
   }
-  function place() { paint(); tagsEl.querySelectorAll(".chx-tg").forEach((b, i) => { const y = cs.priceToCoordinate(b._p); b.style.display = y == null || y < 10 || y > box.clientHeight - 30 ? "none" : ""; if (y != null) b.style.top = y + "px"; }); }
+  function place() {
+    paint();
+    //--- أزرار "ليش شراء؟/بيع؟": ما تركب على بعض (اللي قريبة تنزل تحت بعض)
+    const L2 = [...tagsEl.querySelectorAll(".chx-tg")].map(b => ({ b, y: cs.priceToCoordinate(b._p) })).sort((a, c) => (a.y ?? 1e9) - (c.y ?? 1e9));
+    let last = -1e9;
+    L2.forEach(o => { if (o.y == null || o.y < 10 || o.y > box.clientHeight - 30) { o.b.style.display = "none"; return; }
+      const y = Math.max(o.y, last + 36); last = y; o.b.style.display = y > box.clientHeight - 20 ? "none" : ""; o.b.style.top = y + "px"; });
+  }
   timers.push(setInterval(place, 300));
   function explain() {
     ex.textContent = "";
