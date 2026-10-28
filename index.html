@@ -926,15 +926,33 @@ async function ChartScreen() {
           extra.splice(keep.x).forEach(x => chart.removeSeries(x)); plines.splice(keep.l).forEach(l => cs.removePriceLine(l));
         }
       });
-      //--- 🔭 الأفكار
+      //--- 🔭 الأفكار — وقت الصفقة الشغالة: نفس الاتجاه "✅ يأكد"، والعكس: اللي جهة الوقف تختفي، واللي جهة الأهداف "⏳ بعد الصفقة"
+      const act = sigs.find(x => x.status === "open"), aD = act ? (act.side === "sell" ? -1 : 1) : 0, aE = act ? Number(act.entry_from) : 0;
+      const aName = aD === -1 ? "البيع" : "الشراء";
       if (O.lv) (L.ideas || []).forEach(z => {
-        const b = z.d === 1, c = b ? "#3DD68C" : "#FF6B6B";
-        band(z.lo, z.hi, b ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", n0);
-        pl(b ? z.hi : z.lo, c, (b ? "🟢 شراء " : "🔴 بيع ") + z.tf, 1, 1);
+        const b = z.d === 1, c = b ? "#3DD68C" : "#FF6B6B", mid = (z.lo + z.hi) / 2;
+        const same = aD !== 0 && z.d === aD, opp = aD !== 0 && z.d !== aD;
+        if (opp && aD * (mid - aE) < 0) return;                         // عكس الصفقة وجهة الوقف: ما تطلع
+        const later = opp;                                                // عكس الصفقة وجهة الأهداف: خطة بعدين
+        band(z.lo, z.hi, b ? "rgba(61,214,140," + (later ? ".08" : ".16") + ")" : "rgba(255,107,107," + (later ? ".08" : ".16") + ")", n0);
+        pl(b ? z.hi : z.lo, later ? (b ? "rgba(61,214,140,.55)" : "rgba(255,107,107,.55)") : c, (b ? "🟢 شراء " : "🔴 بيع ") + z.tf + (later ? " ⏳" : same ? " ✅" : ""), 1, 1);
         const w = why(z.why); if (z.dn) w.push("⚡ " + z.dh.replace(/^⚡\s*/, ""), "🔧 المنطقة فيها: " + z.dn);
-        const item = { lo: z.lo, hi: z.hi, c, h: (b ? "🟢 فكرة شراء " : "🔴 فكرة بيع ") + z.tf + " · " + f2(z.lo) + " – " + f2(z.hi), why: ["📐 " + z.src].concat(w, ["❌ الفكرة تنلغي " + (b ? "تحت " : "فوق ") + f2(z.inv)]) };
-        ZN.push(item); TG.push({ side: b ? "buy" : "sell", p: (z.lo + z.hi) / 2, t: b ? "🟢 ليش شراء؟ ⓘ" : "🔴 ليش بيع؟ ⓘ", z: item });
+        const pre = later ? ["⏳ هذي خطة بعد ما تخلص صفقة " + aName + " الشغالة — لا تدخلها الحين"] : same ? ["✅ تأكد صفقة " + aName + " الشغالة"] : [];
+        const item = { lo: z.lo, hi: z.hi, c, h: (b ? "🟢 فكرة شراء " : "🔴 فكرة بيع ") + z.tf + (later ? " ⏳ بعد الصفقة" : same ? " ✅ يأكد " + aName : "") + " · " + f2(z.lo) + " – " + f2(z.hi), why: pre.concat(["📐 " + z.src], w, ["❌ الفكرة تنلغي " + (b ? "تحت " : "فوق ") + f2(z.inv)]) };
+        ZN.push(item); TG.push({ side: b ? "buy" : "sell", p: mid, t: "", z: item });
       });
+      //--- 🔄 مناطق الانعكاس القوية جهة الأهداف (دعوم قوية للبيع / مقاومات قوية للشراء)
+      if (O.lv && aD !== 0) {
+        const rev = (L.zones || []).filter(z => (aD === -1 ? z.side === "s" : z.side === "r") && (z.s >= 4 || z.f) && aD * ((z.lo + z.hi) / 2 - aE) > 3)
+          .sort((x, y) => Math.abs((x.lo + x.hi) / 2 - aE) - Math.abs((y.lo + y.hi) / 2 - aE)).slice(0, 2);
+        rev.forEach(z => {
+          const up = aD === -1, c2 = up ? "#3DD68C" : "#FF6B6B", nm = up ? "شراء" : "بيع";
+          band(z.lo - 1, z.hi + 1, up ? "rgba(61,214,140,.10)" : "rgba(255,107,107,.10)", n0);
+          const item = { lo: z.lo - 1, hi: z.hi + 1, c: c2, h: (up ? "🟢" : "🔴") + " منطقة انعكاس " + st(z.s) + " · " + f2(z.lo) + (z.hi - z.lo > 1 ? " – " + f2(z.hi) : ""),
+            why: ["🔄 " + (up ? "دعم" : "مقاومة") + " قوي جهة أهداف " + aName + " — ممكن السعر يرتد منه", "💰 إذا وصلها السعر: أمّن ربح صفقة " + aName, "⏳ ممكن يبدا " + nm + " من هني بس بعد شمعة تأكيد وتوصية من البوت"].concat(why(z.n).map(x => "🧱 " + x)) };
+          ZN.push(item); TG.push({ side: up ? "buy" : "sell", p: (z.lo + z.hi) / 2, t: "", z: item });
+        });
+      }
     }
     //--- 🎯 التوصيات (من جدول التوصيات)
     if (mem && O.lv) sigs.forEach(s => {
