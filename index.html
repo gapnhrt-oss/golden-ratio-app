@@ -288,7 +288,12 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-ind{display:grid;gap:4px}
 .chx-pnw{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chx-pn{height:110px}
-.chx-pnl{position:absolute;top:4px;inset-inline-end:10px;font-size:11px;color:var(--muted);font-family:var(--latin);pointer-events:none}
+.chx-pnl{position:absolute;top:4px;inset-inline-end:10px;z-index:2;font-size:12px;font-weight:600;color:var(--fg);background:rgba(16,18,58,.85);border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer}
+.chx-tip{position:absolute;top:30px;inset-inline:10px;z-index:3;font-size:12.5px;line-height:1.7;background:rgba(16,18,58,.97);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.chx-sum{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}
+.chx-sum small{color:var(--muted)}
+.chx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chx-chips span{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
 .chx-wm img{width:46%;max-width:300px}
 .chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
@@ -554,13 +559,15 @@ async function ChartScreen() {
   //--- 📊 المؤشرات تحت الشارت: RSI · MACD · ADX (+ 🔄 علامات الانعكاس على 4 ساعات واليومي — نفس قواعد البوت)
   const PN = [];
   const mkPane = (title, fmt) => {
-    const el = h("div", { class: "chx-pn" }), lab = h("div", { class: "chx-pnl" }, title), w = h("div", { class: "chx-pnw" }, el, lab);
+    const el = h("div", { class: "chx-pn" }), lab = h("button", { class: "chx-pnl", type: "button" }, title), tip = h("div", { class: "chx-tip", hidden: true }), w = h("div", { class: "chx-pnw" }, el, lab, tip);
+    lab.onclick = () => tip.hidden = !tip.hidden;
     indBox.append(w);
     const c = LC.createChart(el, { layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif", fontSize: 10 },
       grid: { vertLines: { visible: false }, horzLines: { color: "rgba(38,42,102,.35)" } }, rightPriceScale: { borderColor: "#262A66", minimumWidth: 78, scaleMargins: { top: .12, bottom: .08 } },
       timeScale: { visible: false, rightOffset: 24 }, handleScroll: false, handleScale: false, crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: fmt } });
-    const p = { el, w, c }; PN.push(p); return p;
+    const p = { el, w, c, lab, tip, title }; PN.push(p); return p;
   };
+  const indSum = h("div", { class: "chx-sum" }); indBox.append(indSum);
   const pR = mkPane("RSI 14", v => v.toFixed(0)), pM = mkPane("MACD 12·26·9", v => v.toFixed(1)), pA = mkPane("ADX 14", v => v.toFixed(0));
   const rsiS = pR.c.addLineSeries({ color: "#F2B705", lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
   [70, 30].forEach(v => rsiS.createPriceLine({ price: v, color: "rgba(158,163,214,.5)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" }));
@@ -612,7 +619,23 @@ async function ChartScreen() {
     }
     rsiS.setMarkers(mk.map(m => ({ time: data[m.i].time, position: m.d === 1 ? "belowBar" : "aboveBar", color: m.d === 1 ? "#3DD68C" : "#FF6B6B", shape: m.d === 1 ? "arrowUp" : "arrowDown", text: "🔄" })));
     RVM = mk.slice(-6).reverse(); RVALL = mk;
-    const r = chart.timeScale().getVisibleLogicalRange(); if (r) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(r));
+    //--- 🧭 قراءة سريعة بكلام بسيط: كل مؤشر بكلمة + الاتجاه العام على طول
+    const li = data.length - 1, r = R[li], mv = M[li], sv = Sg[li], ad = A.ad[li], pdi = A.pd[li], ndi = A.nd[li];
+    const tag = (d) => d > 0 ? "🟢 صاعد" : d < 0 ? "🔴 هابط" : "➖ محايد";
+    const rD = r == null ? 0 : r >= 60 ? 1 : r <= 40 ? -1 : 0, mD = mv == null || sv == null ? 0 : mv > sv ? 1 : -1, aD = pdi == null ? 0 : pdi > ndi ? 1 : -1;
+    const rT = r == null ? "—" : r >= 70 ? "⚠️ تشبع شراء (ممكن ينزل)" : r <= 30 ? "⚠️ تشبع بيع (ممكن يصعد)" : tag(rD);
+    const aS2 = ad == null ? "" : ad >= 25 ? "قوية 💪" : ad < 20 ? "ضعيفة (السوق يتذبذب)" : "متوسطة";
+    pR.lab.textContent = "RSI " + (r == null ? "" : r.toFixed(0)) + " · " + rT + " ⓘ";
+    pM.lab.textContent = "MACD · " + tag(mD) + " ⓘ";
+    pA.lab.textContent = "ADX " + (ad == null ? "" : ad.toFixed(0)) + " · الحركة " + aS2 + " ⓘ";
+    pR.tip.textContent = "فوق 60 = الشراء أقوى 🟢 · تحت 40 = البيع أقوى 🔴 · فوق 70 أو تحت 30 = الحركة تعبانة وممكن ترجع";
+    pM.tip.textContent = "الخط الأزرق فوق البرتقالي = الزخم صاعد 🟢 · تحته = الزخم هابط 🔴";
+    pA.tip.textContent = "يقيس قوة الحركة بس: فوق 25 = اتجاه قوي · تحت 20 = ما في اتجاه واضح · الأخضر فوق الأحمر = المشترين أقوى";
+    const vote = rD + mD + aD, dirT = vote >= 2 ? "🟢 صاعد" : vote <= -2 ? "🔴 هابط" : vote === 1 ? "🟢 يميل للصعود" : vote === -1 ? "🔴 يميل للنزول" : "➖ محتار";
+    indSum.textContent = "";
+    indSum.append(h("b", null, "🧭 المؤشرات تقول: " + dirT), h("small", null, (ad != null ? " · الحركة " + aS2 : "") + " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
+      h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD))));
+    const vr = chart.timeScale().getVisibleLogicalRange(); if (vr) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(vr));
   }
   let RVM = [], RVALL = [];
 
