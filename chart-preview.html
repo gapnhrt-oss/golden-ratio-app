@@ -124,7 +124,7 @@ function zones() {
   return Z;
 }
 function explain() {
-  const B = document.getElementById("ex"); B.innerHTML = "";
+  const B = document.getElementById("ex"); B.innerHTML = '<div><b>📖 شرح المناطق</b> <small style="color:var(--muted)">(اضغط على المنطقة بالشارت أو هني)</small></div>';
   if (!showLv || !member) { B.hidden = true; return; }
   B.hidden = false;
   zones().forEach(z => {
