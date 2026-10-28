@@ -296,6 +296,19 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-tip{position:absolute;top:30px;inset-inline:10px;z-index:3;font-size:12.5px;line-height:1.7;background:rgba(16,18,58,.97);border:1px solid var(--line);border-radius:10px;padding:6px 10px}
 .chx-sum{background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:14px}
 .chx-sum small{color:var(--muted)}
+.chx-meter{display:flex;align-items:center;gap:8px;margin-top:6px;font-size:13px}
+.chx-bar2{position:relative;display:inline-block;width:70px;height:8px;border-radius:4px;background:var(--line);overflow:hidden;vertical-align:middle}
+.chx-bar2.big{flex:1;height:10px}
+.chx-bar2 i{position:absolute;inset:0 auto 0 0;border-radius:4px}
+.chx-bar2 em{display:none}
+.chx-mtf{margin-top:8px}
+.chx-mtf table{width:100%;border-collapse:collapse;font-size:13px;margin:4px 0}
+.chx-mtf th{color:var(--muted);font-weight:500;text-align:start;padding:3px 4px}
+.chx-mtf td{padding:4px;border-top:1px solid var(--line)}
+.chx-mtf tr.on td{background:rgba(242,183,5,.08)}
+.chx-mtf td .chx-bar2{width:60px;margin-inline-end:6px}
+.chx-mtf td .chx-bar2 em{display:none}
+.chx-mtf small{color:var(--muted)}
 .chx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .chx-chips span{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
@@ -636,13 +649,40 @@ async function ChartScreen() {
     pR.tip.textContent = "فوق 60 = الشراء أقوى 🟢 · تحت 40 = البيع أقوى 🔴 · فوق 70 أو تحت 30 = الحركة تعبانة وممكن ترجع";
     pM.tip.textContent = "الخط الأزرق فوق البرتقالي = الزخم صاعد 🟢 · تحته = الزخم هابط 🔴";
     pA.tip.textContent = "يقيس قوة الحركة بس: فوق 25 = اتجاه قوي · تحت 20 = ما في اتجاه واضح · الأخضر فوق الأحمر = المشترين أقوى";
-    const vote = rD + mD + aD, dirT = vote >= 2 ? "🟢 صاعد" : vote <= -2 ? "🔴 هابط" : vote === 1 ? "🟢 يميل للصعود" : vote === -1 ? "🔴 يميل للنزول" : "➖ محتار";
+    const X = readTF(data), dirT = X ? dirWord(X.vote) : "—";
     indSum.textContent = "";
-    indSum.append(h("b", null, "🧭 المؤشرات تقول: " + dirT), h("small", null, (ad != null ? " · الحركة " + aS2 : "") + " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
-      h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD))));
+    indSum.append(h("b", null, "🧭 الاتجاه: " + dirT), h("small", null, " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
+      X ? h("div", { class: "chx-meter" }, h("span", null, "قوة الحركة"), h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + X.score + "%;background:" + (X.dir > 0 ? "var(--up)" : X.dir < 0 ? "var(--down)" : "var(--muted)") })), h("b", null, X.score + " — " + X.word)) : null,
+      h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD))), mtfBox);
+    mtf();
     const vr = chart.timeScale().getVisibleLogicalRange(); if (vr) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(vr));
   }
   let RVM = [], RVALL = [];
+  //--- 🧭 قراءة فريم كامل: الاتجاه (تصويت RSI + MACD + ADX) + قوة الحركة 0–100
+  function readTF(d) {
+    if (!d || d.length < 60) return null;
+    const C = d.map(c => c.close), R = rsiArr(C, 14), e12 = ema(C, 12), e26 = ema(C, 26);
+    const M = C.map((_, i) => e12[i] != null && e26[i] != null ? e12[i] - e26[i] : null), f = M.findIndex(v => v != null), Sg = Array(C.length).fill(null);
+    if (f >= 0) ema(M.slice(f).map(v => v ?? 0), 9).forEach((v, j) => Sg[f + j] = v);
+    const A = adxArr(d, 14), i = d.length - 1, r = R[i], ad = A.ad[i];
+    const rD = r == null ? 0 : r >= 60 ? 1 : r <= 40 ? -1 : 0, mD = M[i] == null || Sg[i] == null ? 0 : M[i] > Sg[i] ? 1 : -1, aD = A.pd[i] == null ? 0 : A.pd[i] > A.nd[i] ? 1 : -1;
+    const vote = rD + mD + aD, dir = vote > 0 ? 1 : vote < 0 ? -1 : 0;
+    const hs = k => (M[i - k] ?? 0) - (Sg[i - k] ?? 0), grow = dir !== 0 && dir * hs(0) > dir * hs(1) && dir * hs(1) > dir * hs(2);
+    const score = Math.round(Math.min(50, (ad || 0)) + Math.abs(vote) / 3 * 30 + (grow ? 20 : dir * hs(0) > 0 ? 10 : 0));
+    return { r, ad, rD, mD, aD, vote, dir, score: Math.max(0, Math.min(100, score)), word: score >= 70 ? "قوية 💪" : score >= 40 ? "متوسطة" : "ضعيفة" };
+  }
+  const dirWord = v => v >= 2 ? "🟢 صاعد" : v <= -2 ? "🔴 هابط" : v === 1 ? "🟢 يميل للصعود" : v === -1 ? "🔴 يميل للنزول" : "➖ محتار";
+  //--- 📋 جدول الفريمات: كل الفريمات بنظرة وحدة
+  const mtfBox = h("div", { class: "chx-mtf" });
+  async function mtf() {
+    const rows = await Promise.all(TFS.map(async t => [t, readTF(await botCandles(t[0], 300))]));
+    mtfBox.textContent = "";
+    const tb = h("table", null, h("tr", null, h("th", null, "الفريم"), h("th", null, "الاتجاه"), h("th", null, "القوة")));
+    rows.forEach(([t, x]) => tb.append(h("tr", { class: t[0] === O.tf ? "on" : "" }, h("td", null, t[1]), h("td", null, x ? dirWord(x.vote) : "—"),
+      h("td", null, x ? [h("span", { class: "chx-bar2" }, h("i", { style: "width:" + x.score + "%;background:" + (x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)") })), " " + x.word] : "—"))));
+    const ds = rows.map(r => r[1] ? r[1].dir : 0).filter(v => v), same = ds.length >= 3 && ds.every(v => v === ds[0]);
+    mtfBox.append(h("b", null, "📋 كل الفريمات"), tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
+  }
 
   let sigUps = {};
   let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
