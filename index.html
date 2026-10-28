@@ -852,6 +852,8 @@ async function ChartScreen() {
       //--- بس H1 / H4 / اليومي، والأشكال بالصيغة الجديدة (فيها نقاط) — القديمة ما تطلع
       if (O.pt) (L.shapes || []).filter(s => /^(H1|H4|D1|يومي)$/.test(s.tf || "") && (s.k !== "pat" || (s.zz && s.zz.length))).forEach(s => {
         const bull = s.d === 1, key = s.k + s.n + s.tf + JSON.stringify(s.brk || s.pts || "").slice(0, 40), full = focusKey === key;
+        //--- الشكل ما يطلع على الشارت إلا لمن تضغط زره (ونضغط مرة ثانية ينشال كامل)
+        const keep = full ? null : { p: polys.length, m: marks.length, x: extra.length, l: plines.length, z: ZN.length };
         const axis = (v, t, c) => isFinite(v) && v && plines.push(cs.createPriceLine({ price: v, color: c, lineVisible: false, axisLabelVisible: true, title: t }));
         if (s.k === "harm") {
           const P = (s.pts || []).map(p => ({ time: snap(p[0]), value: p[1] })).filter(p => p.time != null);
@@ -878,7 +880,7 @@ async function ChartScreen() {
             if (s.tp2) polys.push({ t: "target", p: { time: endT(), value: s.tp2 }, txt: "🎯2 " + f2(s.tp2) });
             lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
           } else { axis(s.tp1, "🦈 🎯1", "#B388FF"); axis(s.tp2, "🦈 🎯2", "#B388FF"); }
-          TG.push({ side: bull ? "buy" : "sell", p: last.value, key, z: { h: "🦈 " + s.n + " " + (bull ? "صاعد" : "هابط") + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط على الشارت = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان ترجع الشارت خفيف" : ""].filter(Boolean) } });
+          TG.push({ side: bull ? "buy" : "sell", p: last.value, key, z: { h: "🦈 " + s.n + " " + (bull ? "صاعد" : "هابط") + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط على الشارت = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل النموذج من الشارت" : "👆 اضغط علشان يطلع النموذج كامل على الشارت"].filter(Boolean) } });
           marks.push({ time: last.time, position: bull ? "belowBar" : "aboveBar", color: "#B388FF", shape: bull ? "arrowUp" : "arrowDown", text: "🦈 " + s.n + " " + s.tf + (s.done ? "" : " (قريب)") });
           ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
         } else if (s.k === "pat") {
@@ -914,10 +916,14 @@ async function ChartScreen() {
           }
           if (full) { polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯 " + f2(s.tp1) }); lvl(brk && brk.time != null ? brk.time : endT(), s.sl, "#FF6B6B", "📐 وقف"); }
           else axis(s.tp1, "📐 🎯", "#4EE1EC");
-          TG.push({ side: bull ? "buy" : "sell", p: s.lv, key, z: { h: "📐 " + s.n + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(bull ? "📍 الاختراق صار عند " : "📍 الكسر صار عند ") + f2(s.lv), "📏 طول الشكل = " + Math.abs(s.tp1 - s.lv).toFixed(1) + "$ — والهدف نفس المسافة من نقطة الكسر (100%)", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الشكل يفشل إذا " + (bull ? "نزل تحت " : "صعد فوق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان ترجع الشارت خفيف" : "👆 اضغط وتشوف على الشارت الهدف وصندوق الربح/الخسارة"] } });
+          TG.push({ side: bull ? "buy" : "sell", p: s.lv, key, z: { h: "📐 " + s.n + " " + s.tf + " · 🎯 " + f2(s.tp1), why: [(bull ? "📍 الاختراق صار عند " : "📍 الكسر صار عند ") + f2(s.lv), "📏 طول الشكل = " + Math.abs(s.tp1 - s.lv).toFixed(1) + "$ — والهدف نفس المسافة من نقطة الكسر (100%)", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الشكل يفشل إذا " + (bull ? "نزل تحت " : "صعد فوق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل الشكل من الشارت" : "👆 اضغط علشان يطلع الشكل كامل على الشارت"] } });
           if (!Z.length) { const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 != null) polys.push({ pts: [{ time: t1, value: s.hi }, { time: t2 ?? endT(), value: s.hi }, { time: t2 ?? endT(), value: s.lo }, { time: t1, value: s.lo }], fill: "rgba(78,225,236,.06)", stroke: "rgba(78,225,236,.6)", dash: 1 }); }
           marks.push({ time: (brk && brk.time) || snap(s.t2) || endT(), position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
           ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), s.e1 ? "🟢 الدخول الأول: عند آخر قاع/قمة بالشكل · الدخول الثاني: بعد الكسر" : "🟢 الدخول بعد " + (bull ? "الاختراق" : "الكسر") + " وإغلاق الشمعة", "📏 الهدف = نفس طول الشكل (100%) من نقطة الكسر", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
+        }
+        if (keep) {   // نشيل كل اللي انرسم لهالشكل (يظل زره تحت بس)
+          polys.length = keep.p; marks.length = keep.m; ZN.length = keep.z;
+          extra.splice(keep.x).forEach(x => chart.removeSeries(x)); plines.splice(keep.l).forEach(l => cs.removePriceLine(l));
         }
       });
       //--- 🔭 الأفكار
