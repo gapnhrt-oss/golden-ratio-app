@@ -286,6 +286,10 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-ch{height:62vh;min-height:360px}
 .chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
 .chx-ind{display:grid;gap:4px}
+.chx-whybar{display:flex;gap:6px;flex-wrap:wrap}
+.chx-why{display:flex;flex-direction:column;align-items:flex-start;gap:0;border-radius:12px;padding:6px 12px;cursor:pointer;border:1px solid var(--line);background:var(--bg2);text-align:start}
+.chx-why b{font-size:13px}.chx-why small{font-size:11px;color:var(--muted);direction:rtl}
+.chx-why.buy{border-color:rgba(61,214,140,.6)}.chx-why.sell{border-color:rgba(255,107,107,.6)}
 .chx-pnw{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .chx-pn{height:110px}
 .chx-pnl{position:absolute;top:4px;inset-inline-end:10px;z-index:2;font-size:12px;font-weight:600;color:var(--fg);background:rgba(16,18,58,.85);border:1px solid var(--line);border-radius:999px;padding:2px 10px;cursor:pointer}
@@ -538,11 +542,12 @@ async function ChartScreen() {
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
+  const whyBar = h("div", { class: "chx-whybar", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
   const root = h("div", { class: "screen" },
     h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
-    tfBar, optBar, card, h("div", { class: "chx-ind" }), leg, ex, srcNote);
+    tfBar, optBar, card, whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
@@ -893,19 +898,21 @@ async function ChartScreen() {
     marks.sort((a, b) => a.time - b.time); cs.setMarkers(marks);
     tags(TG); explain(); legend();
   }
+  //--- "ليش شراء؟ / ليش بيع؟" صارت أزرار تحت الشارت (ما تغطي الشموع) — تضغطها ويطلع الشرح فوق الشارت
   function tags(TG) {
-    tagsEl.textContent = ""; pop.hidden = true;
+    tagsEl.textContent = ""; whyBar.textContent = ""; pop.hidden = true; whyBar.hidden = !TG.length;
     TG.forEach(g => {
-      const b = h("button", { class: "chx-tg " + g.side, type: "button" }, g.t); b._p = g.p;
+      const ctx = g.z.h.replace(/^\S+\s*/, "");
+      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, (g.side === "buy" ? "🟢 ليش شراء؟" : "🔴 ليش بيع؟") + (/ينتظر/.test(g.z.h) ? " ⏳" : "")), h("small", null, ctx));
       b.onclick = e => { e.stopPropagation(); pop.textContent = ""; pop.append(h("button", { class: "x", type: "button", onclick: () => pop.hidden = true }, "✕"), h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); pop.hidden = false; };
-      tagsEl.append(b);
+      whyBar.append(b);
     });
     place();
   }
   function place() {
     paint();
     //--- أزرار "ليش شراء؟/بيع؟": ما تركب على بعض (اللي قريبة تنزل تحت بعض)
-    const L2 = [...tagsEl.querySelectorAll(".chx-tg")].map(b => ({ b, y: cs.priceToCoordinate(b._p) })).sort((a, c) => (a.y ?? 1e9) - (c.y ?? 1e9));
+    const L2 = [...tagsEl.querySelectorAll(".chx-tg-off")].map(b => ({ b, y: cs.priceToCoordinate(b._p) })).sort((a, c) => (a.y ?? 1e9) - (c.y ?? 1e9));
     let last = -1e9;
     L2.forEach(o => { if (o.y == null || o.y < 10 || o.y > box.clientHeight - 30) { o.b.style.display = "none"; return; }
       const y = Math.max(o.y, last + 36); last = y; o.b.style.display = y > box.clientHeight - 20 ? "none" : ""; o.b.style.top = y + "px"; });
