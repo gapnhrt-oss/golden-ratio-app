@@ -287,6 +287,10 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-svg{position:absolute;left:0;top:0;pointer-events:none;z-index:2;overflow:visible}
 .chx-ind{display:grid;gap:4px}
 .chx-whybar{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chx-whyhd{grid-column:1/-1;font-size:14px}
+.chx-whydet{grid-column:1/-1;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8}
+.chx-whydet div{color:var(--muted)}
+.chx-why.on{background:var(--panel);box-shadow:0 0 0 2px var(--gold) inset}
 .chx-why{display:flex;flex-direction:column;align-items:flex-start;gap:0;min-width:0;border-radius:12px;padding:6px 10px;cursor:pointer;border:1px solid var(--line);background:var(--bg2);text-align:start}
 .chx-why b{font-size:13px}.chx-why small{font-size:10.5px;color:var(--muted);direction:rtl;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .chx-why.buy{border-color:rgba(61,214,140,.6)}.chx-why.sell{border-color:rgba(255,107,107,.6)}
@@ -557,12 +561,12 @@ async function ChartScreen() {
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
-  const whyBar = h("div", { class: "chx-whybar", hidden: true });
+  const whyBar = h("div", { class: "chx-whybar", hidden: true }), whyDet = h("div", { class: "chx-whydet", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
   const root = h("div", { class: "screen" },
     h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
-    tfBar, optBar, card, whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
+    tfBar, optBar, card, h("div", { class: "chx-ind" }), leg, whyBar, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
@@ -951,14 +955,18 @@ async function ChartScreen() {
   }
   //--- "ليش شراء؟ / ليش بيع؟" صارت أزرار تحت الشارت (ما تغطي الشموع) — تضغطها ويطلع الشرح فوق الشارت
   function tags(TG) {
-    tagsEl.textContent = ""; whyBar.textContent = ""; pop.hidden = true; whyBar.hidden = !TG.length;
+    tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
+    whyBar.append(h("b", { class: "chx-whyhd" }, "❓ ليش شراء؟ / ليش بيع؟ ", h("small", { class: "muted" }, "(اضغط وينفتح الشرح)")));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
     const pr = g => /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
     TG.forEach(g => {
       const ctx = g.z.h.replace(/^\S+\s*/, "");
       const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, (g.side === "buy" ? "🟢 ليش شراء؟" : "🔴 ليش بيع؟") + (/ينتظر/.test(g.z.h) ? " ⏳" : "")), h("small", null, ctx));
-      b.onclick = e => { e.stopPropagation(); pop.textContent = ""; pop.append(h("button", { class: "x", type: "button", onclick: () => pop.hidden = true }, "✕"), h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); pop.hidden = false; };
+      //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
+      b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
+        whyBar.querySelectorAll(".chx-why").forEach(x => x.classList.remove("on")); whyDet.hidden = open;
+        if (open) return; b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); const all = [...whyBar.querySelectorAll(".chx-why")], ix = all.indexOf(b); (ix % 2 === 0 && all[ix + 1] ? all[ix + 1] : b).after(whyDet); };
       whyBar.append(b);
     });
     place();
