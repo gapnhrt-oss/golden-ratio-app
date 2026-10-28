@@ -69,6 +69,7 @@ p{margin:0}
 .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:12px;text-decoration:none;color:var(--muted);font-size:.72rem;font-weight:500;position:relative}
 .tabs a[aria-current="page"]{color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.chatbtn{position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);color:var(--muted);background:var(--panel)}.chatbtn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.chatbtn[aria-current="page"]{color:var(--gold);border-color:var(--gold)}.chatbtn .dotbadge{top:-5px;inset-inline-end:-5px}
 .dotbadge{position:absolute;top:4px;inset-inline-end:calc(50% - 18px);min-width:16px;height:16px;border-radius:999px;background:var(--down);color:#fff;font:700 .65rem var(--latin);display:grid;place-items:center;padding:0 4px}
 
 main{padding:18px 0 24px}
@@ -520,16 +521,19 @@ async function loadUser() {
 
 function renderChrome() {
   const who = $("who"); who.textContent = "";
+  //--- 💬 تواصل: أيقونة فوق (مع رقم الرسايل الجديدة)
+  const chatA = h("a", { class: "chatbtn", href: "#chat", "aria-label": "تواصل", "aria-current": S.route === "chat" ? "page" : null }, SVG(ICON.chat));
+  if (S.unread) chatA.append(h("span", { class: "dotbadge" }, S.unread));
+  who.append(chatA);
   if (S.session) {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
-  const tabs = [["home", "الرئيسية", ICON.home], ["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub], ["chat", "تواصل", ICON.chat]];
+  const tabs = [["home", "الرئيسية", ICON.home], ["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
     const a = h("a", { href: "#" + t[0], "aria-current": S.route === t[0] ? "page" : null }, SVG(t[2]), t[1]);
-    if (t[0] === "chat" && S.unread) a.append(h("span", { class: "dotbadge" }, S.unread));
     nav.append(a);
   });
 }
