@@ -956,13 +956,15 @@ async function ChartScreen() {
   //--- "ليش شراء؟ / ليش بيع؟" صارت أزرار تحت الشارت (ما تغطي الشموع) — تضغطها ويطلع الشرح فوق الشارت
   function tags(TG) {
     tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
-    whyBar.append(h("b", { class: "chx-whyhd" }, "❓ ليش شراء؟ / ليش بيع؟ ", h("small", { class: "muted" }, "(اضغط وينفتح الشرح)")));
+    whyBar.append(h("b", { class: "chx-whyhd" }, "❓ التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
     const pr = g => /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
     TG.forEach(g => {
-      const ctx = g.z.h.replace(/^\S+\s*/, "");
-      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, (g.side === "buy" ? "🟢 ليش شراء؟" : "🔴 ليش بيع؟") + (/ينتظر/.test(g.z.h) ? " ⏳" : "")), h("small", null, ctx));
+      //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
+      const parts = g.z.h.split(" · "), m = parts[0].match(/^(.*?)\s([\d,]+\.\d+.*)$/);
+      const ttl = (m ? m[1] : parts[0]), sub = [m ? m[2] : ""].concat(parts.slice(1)).filter(Boolean).join(" · ");
+      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl + " ❓"), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
         whyBar.querySelectorAll(".chx-why").forEach(x => x.classList.remove("on")); whyDet.hidden = open;
