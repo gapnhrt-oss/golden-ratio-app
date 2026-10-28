@@ -871,6 +871,19 @@ async function ChartScreen() {
     const a = chart.addBaselineSeries({ baseValue: { type: "price", price: lo }, topFillColor1: color, topFillColor2: color, topLineColor: "transparent", bottomLineColor: "transparent", bottomFillColor1: "transparent", bottomFillColor2: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
     a.setData(pts.map(c => ({ time: c.time, value: hi }))); extra.push(a);
   }
+  //--- شرح كل أداة بكلام بسيط للمشترك
+  const toolTxt = x => {
+    const t = x.replace(/^[🧱💧📈📉📏🦈📐🏛️\s]+/u, "").trim();
+    if (/بيفوت/.test(x)) return "🧱 " + t + " — مستوى يحسبه المتداولين كل " + (/أسبوعي/.test(x) ? "أسبوع" : /شهري/.test(x) ? "شهر" : "يوم") + "، والسعر يحترمه وايد";
+    if (/^💧/u.test(x)) return "💧 " + t + " — فيها وقوفات وايد، السعر يحب يوصلها ويصيدها وبعدها ينعكس";
+    if (/^(📈|📉)/u.test(x)) return x.slice(0, 2) + " " + t + " — خط السعر لمسه أكثر من مرة وارتد منه";
+    if (/^📏/u.test(x)) return "📏 " + t + " — متوسط متحرك، السوق يحترمه ويرتد منه";
+    if (/^🦈/u.test(x)) return "🦈 " + t + " — منطقة انعكاس من نموذج هارمونيك";
+    if (/^📐/u.test(x)) return "📐 " + t + " — هدف شكل فني، السعر يوقف عنده عادةً";
+    if (/^🏛️/u.test(x)) return "🏛️ " + t + " — منطقة من تحليل الفريمات الكبيرة";
+    if (/قمة|قاع/.test(x)) return "🧱 " + t + " — السعر ارتد من هني قبل، يعني " + (/قاع/.test(x) ? "دعم" : "مقاومة");
+    return "• " + x;
+  };
   const why = s => String(s || "").split(/\n|·/).map(x => x.replace(/^[\s•↳]+/, "").trim()).filter(Boolean);
 
   function draw() {
@@ -1039,8 +1052,11 @@ async function ChartScreen() {
         rev.forEach(z => {
           const up = aD === -1, c2 = up ? "#3DD68C" : "#FF6B6B", nm = up ? "شراء" : "بيع";
           band(z.lo - 1, z.hi + 1, up ? "rgba(61,214,140,.10)" : "rgba(255,107,107,.10)", n0);
+          const tools = why(z.n);
           const item = { lo: z.lo - 1, hi: z.hi + 1, c: c2, h: (up ? "🟢" : "🔴") + " منطقة انعكاس " + st(z.s) + " · " + f2(z.lo) + (z.hi - z.lo > 1 ? " – " + f2(z.hi) : ""),
-            why: ["🔄 " + (up ? "دعم" : "مقاومة") + " قوي جهة أهداف " + aName + " — ممكن السعر يرتد منه", "💰 إذا وصلها السعر: أمّن ربح صفقة " + aName, "⏳ ممكن يبدا " + nm + " من هني بس بعد شمعة تأكيد وتوصية من البوت"].concat(why(z.n).map(x => "🧱 " + x)) };
+            why: ["🔧 فيها " + (tools.length === 1 ? "أداة وحدة" : tools.length === 2 ? "أداتين" : tools.length + " أدوات") + " مجتمعة بنفس المكان — كل ما زادت الأدوات صارت المنطقة أقوى (" + st(z.s) + ")"]
+              .concat(tools.map(toolTxt), ["🔄 لهالسبب ممكن السعر " + (up ? "يوقف نزوله ويرتد لفوق" : "يوقف صعوده وينزل") + " من هني",
+                "💰 إذا وصلها السعر: أمّن ربح صفقة " + aName + " الشغالة", "⏳ " + nm + " من هني يصير بس بعد شمعة تأكيد وتوصية من البوت — لا تدخل قبل"]) };
           ZN.push(item); TG.push({ side: up ? "buy" : "sell", p: (z.lo + z.hi) / 2, t: "", z: item });
         });
       }
