@@ -58,7 +58,7 @@ p{margin:0}
 /* top bar */
 .top{position:relative;flex:none;z-index:10;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 .top .wrap{display:flex;align-items:center;justify-content:space-between;gap:10px;height:58px}
-.brand{display:flex;align-items:center;gap:8px;direction:ltr;text-decoration:none}
+.brand{display:flex;align-items:center;gap:8px;direction:ltr;text-decoration:none;white-space:nowrap;flex:none}
 .brand img{width:34px;height:34px}
 .brand b{font-family:var(--latin);font-weight:800;letter-spacing:.02em}
 .brand span{font-family:var(--latin);font-weight:300}
@@ -69,7 +69,12 @@ p{margin:0}
 .tabs a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:12px;text-decoration:none;color:var(--muted);font-size:.72rem;font-weight:500;position:relative}
 .tabs a[aria-current="page"]{color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,transparent)}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.chatbtn{position:relative;display:grid;place-items:center;width:40px;height:40px;border-radius:12px;border:1px solid var(--line);color:var(--muted);background:var(--panel)}.chatbtn svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.chatbtn[aria-current="page"]{color:var(--gold);border-color:var(--gold)}.chatbtn .dotbadge{top:-5px;inset-inline-end:-5px}
+@media (max-width:430px){.top .wrap{gap:6px}.brand{gap:6px}.brand img{width:30px;height:30px}.brand b,.brand span{font-size:15px}.who{gap:6px}.who .pill{padding:3px 8px;font-size:.72rem}.who .btn.sm{padding-inline:11px}.chatbtn{padding:0 10px 0 9px;height:36px}}
+@media (max-width:360px){.chatbtn span{display:none}}
+.chatbtn{position:relative;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 13px 0 11px;border-radius:999px;text-decoration:none;font-size:.82rem;font-weight:700;color:#FFD54A;background:linear-gradient(135deg,rgba(242,183,5,.22),rgba(242,183,5,.06));border:1px solid rgba(242,183,5,.55);box-shadow:0 0 0 0 rgba(242,183,5,.0);transition:transform .15s,box-shadow .2s}
+.chatbtn:active{transform:scale(.96)}.chatbtn svg{width:18px;height:18px;fill:rgba(242,183,5,.18);stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.chatbtn[aria-current="page"]{background:linear-gradient(135deg,#F2B705,#C67F0B);color:#0B0C28;border-color:#F2B705}.chatbtn[aria-current="page"] svg{fill:rgba(11,12,40,.15)}
+.chatbtn .dotbadge{top:-6px;inset-inline-end:-6px;box-shadow:0 0 0 2px var(--bg)}.chatbtn.has{animation:chatGlow 1.6s ease-in-out infinite}@keyframes chatGlow{50%{box-shadow:0 0 0 5px rgba(242,183,5,.18)}}
 .dotbadge{position:absolute;top:4px;inset-inline-end:calc(50% - 18px);min-width:16px;height:16px;border-radius:999px;background:var(--down);color:#fff;font:700 .65rem var(--latin);display:grid;place-items:center;padding:0 4px}
 
 main{padding:18px 0 24px}
@@ -522,7 +527,7 @@ async function loadUser() {
 function renderChrome() {
   const who = $("who"); who.textContent = "";
   //--- 💬 تواصل: أيقونة فوق (مع رقم الرسايل الجديدة)
-  const chatA = h("a", { class: "chatbtn", href: "#chat", "aria-label": "تواصل", "aria-current": S.route === "chat" ? "page" : null }, SVG(ICON.chat));
+  const chatA = h("a", { class: "chatbtn" + (S.unread ? " has" : ""), href: "#chat", "aria-label": "تواصل", "aria-current": S.route === "chat" ? "page" : null }, SVG(ICON.chat), h("span", null, "تواصل"));
   if (S.unread) chatA.append(h("span", { class: "dotbadge" }, S.unread));
   who.append(chatA);
   if (S.session) {
