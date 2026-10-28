@@ -545,7 +545,7 @@ async function ChartScreen() {
   const chart = LC.createChart(box, {
     layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif" },
     grid: { vertLines: { color: "rgba(38,42,102,.45)" }, horzLines: { color: "rgba(38,42,102,.45)" } },
-    rightPriceScale: { borderColor: "#262A66", minimumWidth: 78 }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 8, fixRightEdge: true, rightBarStaysOnScroll: true, lockVisibleTimeRangeOnResize: true },
+    rightPriceScale: { borderColor: "#262A66", minimumWidth: 78 }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 24, lockVisibleTimeRangeOnResize: true },
     crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: p => p.toFixed(2) },
   });
   const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
@@ -558,7 +558,7 @@ async function ChartScreen() {
     indBox.append(w);
     const c = LC.createChart(el, { layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif", fontSize: 10 },
       grid: { vertLines: { visible: false }, horzLines: { color: "rgba(38,42,102,.35)" } }, rightPriceScale: { borderColor: "#262A66", minimumWidth: 78, scaleMargins: { top: .12, bottom: .08 } },
-      timeScale: { visible: false, rightOffset: 8, fixRightEdge: true }, handleScroll: false, handleScale: false, crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: fmt } });
+      timeScale: { visible: false, rightOffset: 24 }, handleScroll: false, handleScale: false, crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: fmt } });
     const p = { el, w, c }; PN.push(p); return p;
   };
   const pR = mkPane("RSI 14", v => v.toFixed(0)), pM = mkPane("MACD 12·26·9", v => v.toFixed(1)), pA = mkPane("ADX 14", v => v.toFixed(0));
@@ -935,7 +935,7 @@ async function ChartScreen() {
     if (open.length) { const { data: u } = await sb.from("signal_updates").select("signal_id,kind").in("signal_id", open); (u || []).forEach(x => (sigUps[x.signal_id] = sigUps[x.signal_id] || []).push(x)); }
     cs.setData(data); mas(); indicators(); draw(); px(q);
     srcNote.textContent = src === "bot" ? "الشموع من البوت مباشرة (نفس سعر الوسيط)" : "البوت ما أرسل شموع حديثة — نعرض مصدر لايف مضبوط على سعر OANDA";
-    if (fit && data.length) { const f = () => chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 }); f(); setTimeout(f, 400); }
+    if (fit && data.length) { const f = () => chart.timeScale().setVisibleLogicalRange({ from: data.length - 110, to: data.length + 24 }); f(); setTimeout(f, 400); }
   }
   //--- لايف: السعر كل 4 ثواني يحرك آخر شمعة، والشموع والمستويات كل 30 ثانية
   timers.push(setInterval(async () => {
