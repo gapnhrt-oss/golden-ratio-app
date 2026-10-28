@@ -658,16 +658,57 @@ async function ChartScreen() {
   const endT = () => data[data.length - 1].time;
 
   //--- الرسم
-  //--- 🎨 تظليل الهارمونيك والأشكال (طبقة SVG فوق الشارت)
-  let polys = [];
+  //--- 🎨 رسم الأشكال والهارمونيك بأسلوب الكتاب (طبقة SVG فوق الشارت)
+  let polys = [];   // عناصر الرسم: poly / tri / path / seg / arc / circ / label / target / box / pin / arrow
+  const SVGDEFS = '<defs>' + [["up", "#3DD68C", 0, 1], ["dn", "#FF6B6B", 0, 1]].map(([id, c]) => '<linearGradient id="bk' + id + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="' + c + '" stop-opacity=".5"/><stop offset="1" stop-color="' + c + '" stop-opacity="0"/></linearGradient>').join("") +
+    ["4EA8FF", "B388FF", "3DD68C", "FF6B6B", "F2B705"].map(c => '<marker id="ar' + c + '" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto-start-reverse"><path d="M0,0 L9,4.5 L0,9 z" fill="#' + c + '"/></marker>').join("") +
+    '<filter id="bkglow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>';
+  const esc = t => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;");
   function paint() {
     if (!polys.length) { if (svg.firstChild) svg.textContent = ""; return; }
-    const ts = chart.timeScale(), W = box.clientWidth, H = box.clientHeight; let out = "";
+    const ts = chart.timeScale(), W = box.clientWidth, H = box.clientHeight, PW = W - 80;
+    const XY = p => { const x = ts.timeToCoordinate(p.time), y = cs.priceToCoordinate(p.value); return x == null || y == null ? null : [x, y]; };
     svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("width", W); svg.setAttribute("height", H);
+    let out = SVGDEFS;
+    const pill = (x, y, t, bg, fg, bd) => { const w = Math.max(28, t.length * 6.6 + 16); x = Math.min(Math.max(x, w / 2 + 2), PW - w / 2 - 2); return '<g><rect x="' + (x - w / 2).toFixed(1) + '" y="' + (y - 11).toFixed(1) + '" width="' + w.toFixed(1) + '" height="22" rx="11" fill="' + bg + '"' + (bd ? ' stroke="' + bd + '"' : "") + '/><text x="' + x.toFixed(1) + '" y="' + (y + 4.5).toFixed(1) + '" text-anchor="middle" font-size="11.5" font-weight="700" fill="' + fg + '" font-family="Readex Pro,Tahoma,sans-serif">' + esc(t) + "</text></g>"; };
     polys.forEach(g => {
-      const pts = g.pts.map(p => [ts.timeToCoordinate(p.time), cs.priceToCoordinate(p.value)]);
-      if (pts.some(p => p[0] == null || p[1] == null)) return;
-      out += '<polygon points="' + pts.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '" fill="' + g.fill + '" stroke="' + g.stroke + '" stroke-width="1"' + (g.dash ? ' stroke-dasharray="4 3"' : "") + "/>";
+      if (g.t === "poly" || g.t === "tri" || !g.t) {
+        const P = g.pts.map(XY); if (P.some(p => !p)) return;
+        const fill = g.t === "tri" ? "url(#bk" + g.grad + ")" : g.fill;
+        out += '<polygon points="' + P.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '" fill="' + fill + '" stroke="' + (g.stroke || "none") + '" stroke-width="1"' + (g.dash ? ' stroke-dasharray="4 3"' : "") + "/>";
+      } else if (g.t === "path") {
+        const P = g.pts.map(XY).filter(Boolean); if (P.length < 2) return;
+        out += '<polyline points="' + P.map(p => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ") + '" fill="none" stroke="' + g.c + '" stroke-width="' + (g.w || 2.6) + '" stroke-linejoin="round"' + (g.glow ? ' filter="url(#bkglow)"' : "") + (g.dash ? ' stroke-dasharray="' + g.dash + '"' : "") + "/>";
+      } else if (g.t === "seg" || g.t === "arrow") {
+        const a = XY(g.a), b = XY(g.b); if (!a || !b) return;
+        const mk = g.t === "arrow" ? ' marker-end="url(#ar' + g.c.slice(1) + ')"' + (g.both ? ' marker-start="url(#ar' + g.c.slice(1) + ')"' : "") : "";
+        out += '<line x1="' + a[0].toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + b[0].toFixed(1) + '" y2="' + b[1].toFixed(1) + '" stroke="' + g.c + '" stroke-width="' + (g.w || 2) + '"' + (g.dash ? ' stroke-dasharray="' + g.dash + '"' : "") + mk + "/>";
+        if (g.label) { // كتابة مايلة مع الخط (مثل الكتاب)
+          const k = g.lp ?? .5, mx = a[0] + (b[0] - a[0]) * k, my = a[1] + (b[1] - a[1]) * k; let ang = Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI; if (ang > 90 || ang < -90) ang += 180;
+          out += '<text transform="translate(' + mx.toFixed(1) + "," + (my - 6).toFixed(1) + ") rotate(" + ang.toFixed(1) + ')" text-anchor="middle" font-size="11.5" font-weight="700" fill="' + g.c + '" font-family="Readex Pro,Tahoma,sans-serif">' + esc(g.label) + "</text>";
+        }
+        if (g.pill) out += pill((a[0] + b[0]) / 2 + 22, (a[1] + b[1]) / 2, g.pill, "rgba(78,168,255,.2)", "#BFE0FF", g.c);
+      } else if (g.t === "arc") {
+        const a = XY(g.a), m = XY(g.m), b = XY(g.b); if (!a || !m || !b) return;
+        const cx = 2 * m[0] - (a[0] + b[0]) / 2, cy = 2 * m[1] - (a[1] + b[1]) / 2;
+        out += '<path d="M' + a[0].toFixed(1) + "," + a[1].toFixed(1) + " Q" + cx.toFixed(1) + "," + cy.toFixed(1) + " " + b[0].toFixed(1) + "," + b[1].toFixed(1) + '" fill="none" stroke="#FF9F43" stroke-width="2.6" filter="url(#bkglow)"/>';
+      } else if (g.t === "circ") {
+        const a = XY(g.p); if (!a) return;
+        out += '<circle cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1) + '" r="8" fill="none" stroke="#3DD68C" stroke-width="2.4" filter="url(#bkglow)"/>';
+        if (g.label) { const ty = a[1] + (g.up ? -30 : 30); out += '<line x1="' + a[0] + '" y1="' + (a[1] + (g.up ? -9 : 9)) + '" x2="' + a[0] + '" y2="' + (ty + (g.up ? 11 : -11)) + '" stroke="#B388FF" stroke-width="1.4"/>' + pill(a[0], ty, g.label, "#1d1f55", "#E2D6FF", "#B388FF"); }
+      } else if (g.t === "label") {
+        const a = XY(g.p); if (!a) return; out += pill(a[0], a[1] + (g.up ? -20 : 20), g.txt, g.bg || "#FF9F43", g.fg || "#0B0C28");
+      } else if (g.t === "pin") {
+        const a = XY(g.p); if (!a) return; const y = a[1] + (g.up ? -8 : 8), s = g.up ? -5 : 5;
+        out += '<path d="M' + (a[0] - 4) + "," + y + " l4," + s + " l4," + -s + ' z" fill="#FF6B6B"/>';
+      } else if (g.t === "target") {
+        const a = XY(g.p); if (!a) return; const [x, y] = a;
+        out += '<g filter="url(#bkglow)"><circle cx="' + x + '" cy="' + y + '" r="8" fill="none" stroke="#4EA8FF" stroke-width="2.2"/><line x1="' + (x - 13) + '" x2="' + (x + 13) + '" y1="' + y + '" y2="' + y + '" stroke="#4EA8FF" stroke-width="1.8"/><line x1="' + x + '" x2="' + x + '" y1="' + (y - 13) + '" y2="' + (y + 13) + '" stroke="#4EA8FF" stroke-width="1.8"/></g>' + pill(x - 62, y, g.txt, "#4EA8FF", "#0B0C28");
+      } else if (g.t === "box") {
+        const a = XY({ time: g.t1, value: g.v1 }), b = XY({ time: g.t2, value: g.v2 }); if (!a || !b) return;
+        out += '<rect x="' + Math.min(a[0], b[0]).toFixed(1) + '" y="' + Math.min(a[1], b[1]).toFixed(1) + '" width="' + Math.abs(b[0] - a[0]).toFixed(1) + '" height="' + Math.abs(b[1] - a[1]).toFixed(1) + '" fill="' + g.fill + '" stroke="' + g.stroke + '"/>';
+        if (g.txt) out += pill((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, g.txt, g.stroke, "#0B0C28");
+      }
     });
     svg.innerHTML = out;
   }
@@ -716,34 +757,72 @@ async function ChartScreen() {
         const c = t.d === 1 ? "#3DD68C" : "#FF6B6B";
         line([{ time: a, value: t.a[1] }, { time: b, value: t.b[1] }, { time: endT(), value: t.now }], c, 2, 0, { title: (t.d === 1 ? "📈 ترند " : "📉 ترند ") + t.tf, lastValueVisible: false });
       });
-      //--- 🦈 الهارمونيك و 📐 الأشكال
+      //--- 🦈 الهارمونيك و 📐 الأشكال — نفس أسلوب الكتاب
+      const box2 = (t0, e, tp, sl) => { if (!(t0 != null && isFinite(e) && isFinite(tp) && isFinite(sl))) return; const rr = Math.abs(tp - e) / Math.max(0.01, Math.abs(e - sl));
+        polys.push({ t: "box", t1: t0, t2: endT(), v1: e, v2: tp, fill: "rgba(61,214,140,.13)", stroke: "rgba(61,214,140,.8)", txt: "+" + Math.abs(tp - e).toFixed(0) + "$ · R:R 1:" + rr.toFixed(1) });
+        polys.push({ t: "box", t1: t0, t2: endT(), v1: e, v2: sl, fill: "rgba(255,107,107,.13)", stroke: "rgba(255,107,107,.8)", txt: "-" + Math.abs(e - sl).toFixed(0) + "$" }); };
+      const legs = (P, F) => { for (let i = 0; i + 1 < P.length; i++) { const a = P[i], b = P[i + 1], up = b.value > a.value; polys.push({ t: "tri", grad: (F ? F(up) : up) ? "up" : "dn", pts: up ? [a, b, { time: b.time, value: a.value }] : [a, b, { time: a.time, value: b.value }] }); } };
       if (O.pt) (L.shapes || []).forEach(s => {
         const bull = s.d === 1;
         if (s.k === "harm") {
           const P = (s.pts || []).map(p => ({ time: snap(p[0]), value: p[1] })).filter(p => p.time != null);
           if (P.length < 3) return;
           const labs = s.done ? (P.length === 5 ? "XABCD" : "ABCD") : (P.length === 4 ? "XABC" : "ABC");
-          line(P, "#B388FF", 2);
-          if (P.length >= 4) line([P[0], P[2], P[P.length - 1]], "rgba(179,136,255,.5)", 1, 2);
-          { const F = bull ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", Sk = "rgba(179,136,255,.55)";
-            const tri = a => polys.push({ pts: a, fill: F, stroke: Sk });
-            if (P.length >= 5) { tri([P[0], P[1], P[2]]); tri([P[2], P[3], P[4]]); }
-            else if (P.length === 4 && s.done) { tri([P[0], P[1], P[2]]); tri([P[1], P[2], P[3]]); }
-            else if (P.length === 4 && s.lo) { tri([P[0], P[1], P[2]]); polys.push({ pts: [P[2], P[3], { time: endT(), value: (s.lo + s.hi) / 2 }], fill: F, stroke: Sk, dash: 1 }); }
-            else if (P.length === 3) tri(P); }
-          P.forEach((p, i) => marks.push({ time: p.time, position: (i > 0 ? p.value > P[i - 1].value : p.value > P[1].value) ? "aboveBar" : "belowBar", color: "#B388FF", shape: "circle", text: labs[i] || "" }));
+          const F = bull ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)";
+          if (P.length >= 5) { polys.push({ pts: [P[0], P[1], P[2]], fill: F }); polys.push({ pts: [P[2], P[3], P[4]], fill: F }); }
+          else if (P.length === 4 && s.done) { polys.push({ pts: [P[0], P[1], P[2]], fill: F }); polys.push({ pts: [P[1], P[2], P[3]], fill: F }); }
+          else if (P.length === 4 && s.lo) { polys.push({ pts: [P[0], P[1], P[2]], fill: F }); polys.push({ pts: [P[2], P[3], { time: endT(), value: (s.lo + s.hi) / 2 }], fill: F, stroke: "#B388FF", dash: 1 }); }
+          polys.push({ t: "path", pts: P, c: "#B388FF", w: 2.8, glow: 1 });
+          //--- نسب فيبوناتشي بخطوط نقط برتقالية (مثل الكتاب)
+          const r = (a, b, c, d) => Math.abs(P[c].value - P[d].value) / Math.max(0.01, Math.abs(P[a].value - P[b].value));
+          const rl = (i, j, v) => polys.push({ t: "seg", a: P[i], b: P[j], c: "#FF9F43", w: 1.3, dash: "2 4", label: v.toFixed(3).replace(/0+$/, "").replace(/\.$/, ""), lp: .5 });
+          if (P.length === 5) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); rl(2, 4, r(2, 3, 3, 4)); rl(0, 4, r(0, 1, 1, 4)); }
+          else if (P.length === 4 && s.done) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); }
+          else if (P.length === 4) { rl(0, 2, r(0, 1, 1, 2)); rl(1, 3, r(1, 2, 2, 3)); }
+          P.forEach((p, i) => polys.push({ t: "label", p, txt: (labs[i] || "") + " " + p.value.toFixed(0), up: i > 0 ? p.value > P[i - 1].value : p.value > P[1].value, bg: "#B388FF" }));
           const last = P[P.length - 1];
-          if (!s.done && s.lo) { band(s.lo, s.hi, "rgba(179,136,255,.18)", last.time); line([last, { time: endT(), value: (s.lo + s.hi) / 2 }], "rgba(179,136,255,.8)", 1, 2); }
-          lvl(last.time, s.tp1, "#B388FF", "🦈 هدف 1"); lvl(last.time, s.tp2, "#B388FF", "🦈 هدف 2"); lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
+          if (!s.done && s.lo) { polys.push({ t: "box", t1: last.time, t2: endT(), v1: s.lo, v2: s.hi, fill: "rgba(179,136,255,.2)", stroke: "rgba(179,136,255,.9)", txt: "منطقة D" }); }
+          else { polys.push({ t: "circ", p: last }); polys.push({ t: "arrow", a: last, b: { time: endT(), value: s.tp2 || s.tp1 }, c: bull ? "#3DD68C" : "#FF6B6B", w: 2.4 }); box2(last.time, last.value, s.tp2 || s.tp1, s.sl); }
+          if (s.tp1) polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯1 " + f2(s.tp1) });
+          if (s.tp2) polys.push({ t: "target", p: { time: endT(), value: s.tp2 }, txt: "🎯2 " + f2(s.tp2) });
+          lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
           marks.push({ time: last.time, position: bull ? "belowBar" : "aboveBar", color: "#B388FF", shape: bull ? "arrowUp" : "arrowDown", text: "🦈 " + s.n + " " + s.tf + (s.done ? "" : " (قريب)") });
-          ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
+          ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
         } else if (s.k === "pat") {
-          const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 == null) return;
-          const t2e = t2 != null && t2 > t1 ? t2 : endT();
-          polys.push({ pts: [{ time: t1, value: s.hi }, { time: t2e, value: s.hi }, { time: t2e, value: s.lo }, { time: t1, value: s.lo }], fill: bull ? "rgba(61,214,140,.13)" : "rgba(255,107,107,.13)", stroke: "rgba(78,225,236,.7)", dash: 1 });
-          lvl(t1, s.lv, "#4EE1EC", "📐 " + (bull ? "الاختراق" : "الكسر"), 0); lvl(t2 ?? t1, s.tp1, "#4EE1EC", "📐 هدف الشكل"); lvl(t2 ?? t1, s.sl, "#FF6B6B", "📐 وقف");
-          marks.push({ time: t2 ?? t1, position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
-          ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
+          const Z = (s.zz || []).map(p => ({ time: snap(p[0]), value: p[1], lb: p[2] })).filter(p => p.time != null);
+          const brk = s.brk ? { time: snap(s.brk[0]), value: s.brk[1] } : null;
+          if (Z.length >= 2) {
+            //--- 1) المثلثات المتدرجة تحت كل موجة + الخط البرتقالي المتعرج
+            legs(Z);
+            if (s.arc && Z.length >= 3) polys.push({ t: "arc", a: Z[0], m: Z[1], b: Z[2] });
+            polys.push({ t: "path", pts: Z, c: "#FF9F43", w: 2.6, glow: 1 });
+            //--- 2) خطوط الدعم/المقاومة بكتابة مايلة
+            (s.ln || []).forEach(l => { const a = { time: snap(l[0]), value: l[1] }, b = { time: snap(l[2]), value: l[3] }; if (a.time == null || b.time == null) return;
+              const c = /المقاومة/.test(l[4]) ? "#FF6B6B" : /الدعم/.test(l[4]) ? "#3DD68C" : /الهدف/.test(l[4]) ? "#FF4FA3" : "#FF9F43";
+              polys.push({ t: "seg", a, b, c, w: 2, label: l[4] || "", lp: .35 }); });
+            //--- 3) علامات اللمس 🔺 + أسماء النقاط
+            Z.forEach((p, i) => { const up = (i > 0 ? p.value > Z[i - 1].value : Z[1] && p.value > Z[1].value);
+              if (i > 0 && i < Z.length - 1) polys.push({ t: "pin", p, up });
+              if (p.lb) polys.push({ t: "label", p, txt: p.lb, up, bg: "#4EE1EC" }); });
+          }
+          //--- 4) الدخول الأول + الاختراق/الكسر (دوائر خضرا) + 100% + الهدف ⊕ + صندوق الربح/الخسارة
+          if (s.e1) { const e = { time: snap(s.e1[0]), value: s.e1[1] }; if (e.time != null) polys.push({ t: "circ", p: e, label: "الدخول الأول", up: !bull }); }
+          if (brk && brk.time != null) {
+            polys.push({ t: "circ", p: brk, label: s.e1 ? "الدخول الثاني (" + (bull ? "الاختراق" : "الكسر") + ")" : (bull ? "الاختراق" : "الكسر"), up: bull });
+            const hgt = Math.abs(s.tp1 - s.lv);
+            if (hgt > 0) {
+              const ti = data.findIndex(c => c.time >= brk.time), tm = data[Math.min(data.length - 1, Math.max(0, ti + 3))].time;
+              const z0 = Z.length ? Z[Math.max(0, Z.length - 3)].time : brk.time;
+              polys.push({ t: "arrow", a: { time: z0, value: s.lv }, b: { time: z0, value: s.lv - (s.tp1 - s.lv) }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
+              polys.push({ t: "arrow", a: { time: tm, value: s.lv }, b: { time: tm, value: s.tp1 }, c: "#4EA8FF", w: 1.6, both: 1, pill: "100%" });
+            }
+            box2(brk.time, s.lv, s.tp1, s.sl);
+          }
+          polys.push({ t: "target", p: { time: endT(), value: s.tp1 }, txt: "🎯 " + f2(s.tp1) });
+          lvl(brk && brk.time != null ? brk.time : endT(), s.sl, "#FF6B6B", "📐 وقف");
+          if (!Z.length) { const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 != null) polys.push({ pts: [{ time: t1, value: s.hi }, { time: t2 ?? endT(), value: s.hi }, { time: t2 ?? endT(), value: s.lo }, { time: t1, value: s.lo }], fill: "rgba(78,225,236,.06)", stroke: "rgba(78,225,236,.6)", dash: 1 }); }
+          marks.push({ time: (brk && brk.time) || snap(s.t2) || endT(), position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
+          ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), s.e1 ? "🟢 الدخول الأول: عند آخر قاع/قمة بالشكل · الدخول الثاني: بعد الكسر" : "🟢 الدخول بعد " + (bull ? "الاختراق" : "الكسر") + " وإغلاق الشمعة", "📏 الهدف = نفس طول الشكل (100%) من نقطة الكسر", "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
         }
       });
       //--- 🔭 الأفكار
