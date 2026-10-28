@@ -31,6 +31,10 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
 .leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-inline-end:5px}
 .note{font-size:12px;color:var(--muted);margin-top:8px;text-align:center}
 .mode{font-size:13px}
+#ex{margin-top:12px;display:grid;gap:8px}
+#ex details{background:var(--bg2);border:1px solid var(--line);border-inline-start:4px solid var(--gold);border-radius:12px;padding:8px 12px}
+#ex summary{cursor:pointer;font-weight:600;font-size:14px}
+#ex details div{font-size:13px;color:var(--muted);padding-top:4px}
 </style>
 </head>
 <body>
@@ -53,6 +57,7 @@ html,body{margin:0;background:var(--bg);color:var(--fg);font-family:"Readex Pro"
     <div class="lock" id="lock" hidden>🔒 <b>التوصية والمناطق للمشتركين بس</b><div style="font-size:13px;color:var(--muted)">اشترك وشوف الدخول والوقف والأهداف على الشارت لايف</div><a href="./#sub">اشترك الحين 👑</a></div>
   </div>
   <div class="leg" id="leg"></div>
+  <div id="ex"><b>📖 شرح المناطق</b> <small style="color:var(--muted)">(اضغط على المنطقة بالشارت أو هني)</small></div>
   <div class="note">نسخة تجربة — الشموع حالياً من مصدر لايف مضبوط على سعر OANDA، وبالنسخة النهائية تجي من البوت مباشرة</div>
 </div>
 <script>
@@ -60,8 +65,11 @@ const SB = "https://vrimrmltlmmwapxpvgeh.supabase.co/functions/v1/gold-price";
 // 🧪 بيانات التجربة: نفس اللي بالبانل الحين
 const LV = {
   sig: { side: "sell", lo: 4033.60, hi: 4034.81, sl: 4066.84, tps: [4024.21, 4014.21, 4003.04, 3991.84, 3980.65], note: "بيع 7/10 — ينتظر صيد 4051.84" },
-  ideas: [{ side: "buy", lo: 3989.08, hi: 4020.62, tf: "H4" }],
-  fire: [{ p: 4051.84, t: "🔥 أقوى مقاومة" }, { p: 3955.00, t: "🔥 أقوى دعم" }],
+  sigWhy: ["🏛️ منطقة بيع H1 (سمارت موني)", "💧 ينتظر يصيد السيولة فوق 4051.84", "⏳ بعدها شمعة رفض على M15"],
+  ideas: [{ side: "buy", lo: 3989.08, hi: 4020.62, tf: "H4", tag: "شكل فني + ترند", stars: 4,
+            why: ["📐 هدف شكل فني 3988", "📈 ترند صاعد H4 حوالي 4000", "📏 المتوسط 200 و 370 فوق المنطقة (4024 – 4027)", "🏛️ اصطياد سيولة + CHoCH على H4"] }],
+  fire: [{ p: 4051.84, t: "🔥 أقوى مقاومة", tag: "MA500 + سيولة", stars: 5, why: ["📏 المتوسط 500", "💧 قمة فريم الساعة (سيولة)", "📉 ترند هابط H1"] },
+         { p: 3955.00, t: "🔥 أقوى دعم", tag: "قاع ثلاثي", stars: 5, why: ["🧱 قاع ثلاثي على اليومي", "💧 قاع الأسبوع الماضي", "🧱 بيفوت أسبوعي S1"] }],
 };
 const TFS = [["15m", "M15", 15], ["1h", "H1", 60], ["4h", "H4", 240], ["1d", "يومي", 1440]];
 let tf = "15m", member = true, showMA = true, showLv = true, off = 0, last = null, ma = [];
@@ -98,14 +106,41 @@ function drawLv(data) {
   clearLv();
   if (!showLv || !member || !data.length) return;
   const recent = data.slice(-Math.min(data.length, 60));
-  LV.ideas.forEach(z => { zone(z.lo, z.hi, z.side === "buy" ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", recent); pl(z.hi, z.side === "buy" ? "#3DD68C" : "#FF6B6B", "🔭 فكرة " + (z.side === "buy" ? "شراء " : "بيع ") + z.tf, 1, 1); });
+  LV.ideas.forEach(z => { zone(z.lo, z.hi, z.side === "buy" ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", recent); pl(z.hi, z.side === "buy" ? "#3DD68C" : "#FF6B6B", (z.side === "buy" ? "🟢 شراء · " : "🔴 بيع · ") + z.tag, 1, 1); });
   const s = LV.sig, sell = s.side === "sell";
   zone(s.lo, s.hi, "rgba(242,183,5,.25)", recent.slice(-20));
   pl((s.lo + s.hi) / 2, "#F2B705", (sell ? "🔴 بيع " : "🟢 شراء ") + "دخول", 0, 2);
   pl(s.sl, "#FF6B6B", "🛑 وقف", 0, 2);
   s.tps.forEach((t, i) => pl(t, "#3DD68C", "🎯 " + (i + 1), 2, 1));
-  LV.fire.forEach(f => pl(f.p, "#FF9F43", f.t, 3, 1));
+  LV.fire.forEach(f => pl(f.p, "#FF9F43", f.t + " · " + f.tag, 3, 1));
 }
+// 📖 شرح المناطق تحت الشارت + الضغط على الشارت جنب منطقة يفتح شرحها
+const st = n => "⭐".repeat(n);
+function zones() {
+  const s = LV.sig, Z = [];
+  Z.push({ id: "sig", lo: s.lo - 3, hi: s.sl, c: "#F2B705", h: (s.side === "sell" ? "🔴 توصية بيع " : "🟢 توصية شراء ") + s.lo.toFixed(2) + " – " + s.hi.toFixed(2), why: s.sigWhy || LV.sigWhy });
+  LV.ideas.forEach((z, i) => Z.push({ id: "i" + i, lo: z.lo, hi: z.hi, c: z.side === "buy" ? "#3DD68C" : "#FF6B6B", h: (z.side === "buy" ? "🟢 منطقة شراء " : "🔴 منطقة بيع ") + z.lo.toFixed(2) + " – " + z.hi.toFixed(2) + " · " + st(z.stars), why: z.why }));
+  LV.fire.forEach((f, i) => Z.push({ id: "f" + i, lo: f.p - 3, hi: f.p + 3, c: "#FF9F43", h: f.t + " " + f.p.toFixed(2) + " · " + st(f.stars), why: f.why }));
+  return Z;
+}
+function explain() {
+  const B = document.getElementById("ex"); B.innerHTML = "";
+  if (!showLv || !member) { B.hidden = true; return; }
+  B.hidden = false;
+  zones().forEach(z => {
+    const d = document.createElement("details"); d.id = "z_" + z.id; d.style.borderInlineStartColor = z.c;
+    const sm = document.createElement("summary"); sm.textContent = z.h; d.append(sm);
+    z.why.forEach(w => { const l = document.createElement("div"); l.textContent = "↳ " + w; d.append(l); });
+    B.append(d);
+  });
+}
+chart.subscribeClick(p => {
+  if (!p || !p.point || !member || !showLv) return;
+  const y = cs.coordinateToPrice(p.point.y); if (y == null) return;
+  const z = zones().find(z => y >= z.lo - 4 && y <= z.hi + 4); if (!z) return;
+  document.querySelectorAll("#ex details").forEach(d => d.open = false);
+  const d = document.getElementById("z_" + z.id); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+});
 function legend() {
   const L = document.getElementById("leg"); L.innerHTML = "";
   const add = (c, t) => { const s = document.createElement("span"); s.innerHTML = '<i style="background:' + c + '"></i>' + t; L.append(s); };
@@ -119,7 +154,7 @@ async function load() {
   if (q && q.price) off = q.price - +k[k.length - 1][4];
   data = k.map(toC); cs.setData(data);
   MAS.forEach(m => m.s.setData(showMA && tf === "15m" ? sma(data, m.n) : []));
-  drawLv(data); legend(); px(q);
+  drawLv(data); legend(); explain(); px(q);
   chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
 }
 function px(q) {
@@ -141,7 +176,7 @@ TFS.forEach(([v, n, m]) => { const b = document.createElement("button"); b.textC
 const tg = (id, f) => document.getElementById(id).onclick = e => { f(); e.currentTarget.classList.toggle("on"); load(); };
 tg("bMA", () => showMA = !showMA);
 tg("bLv", () => showLv = !showLv);
-document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); legend(); };
+document.getElementById("bMode").onclick = e => { member = !member; e.currentTarget.textContent = member ? "👁️ عرض الزائر" : "👑 عرض المشترك"; document.getElementById("lock").hidden = member; drawLv(data); legend(); explain(); };
 load();
 </script>
 </body>
