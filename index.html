@@ -566,7 +566,7 @@ async function ChartScreen() {
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
   const root = h("div", { class: "screen" },
     h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
-    tfBar, optBar, card, h("div", { class: "chx-ind" }), leg, whyBar, ex, srcNote);
+    tfBar, optBar, card, whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
