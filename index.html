@@ -367,6 +367,15 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .chx-chips span{font-size:12px;background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
+.chx-fsbtn{position:absolute;top:8px;left:8px;z-index:5;width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(11,12,40,.85);color:var(--gold);font-size:18px;line-height:1;cursor:pointer;display:grid;place-items:center}
+.chx-fstop{display:none}
+.chx-card.fs{position:fixed;inset:0;z-index:1000;border-radius:0;border:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);background:var(--bg)}
+.chx-card.fs .chx-fstop{display:flex;align-items:center;gap:6px;padding:6px 54px 6px 8px;flex:none}
+.chx-card.fs .chx-fstop .chx-bar{flex-wrap:nowrap;overflow-x:auto}
+.chx-card.fs .chx-ch{flex:1;height:auto;min-height:0;order:2}
+.chx-card.fs .chx-fstop{order:1}
+.chx-card.fs .chx-fsbtn{top:calc(6px + env(safe-area-inset-top));left:8px}
+body.chx-fson{overflow:hidden}body.chx-fson .tabs,body.chx-fson .top{visibility:hidden}
 .chx-wm img{width:46%;max-width:300px}
 .chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
 .chx-tg{position:absolute;left:10px;transform:translateY(-50%);z-index:3;border:0;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45)}
@@ -618,6 +627,18 @@ async function ChartScreen() {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const shCard = h("div", { class: "gj-card", hidden: true });
   const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
+  //--- ⛶ الشارت على كامل الشاشة (وزر يصغّره)
+  const fsTop = h("div", { class: "chx-fstop" }), fsBtn = h("button", { class: "chx-fsbtn", type: "button", "aria-label": "كامل الشاشة" }, "⛶");
+  card.append(fsBtn, fsTop);
+  const fsSet = on => {
+    card.classList.toggle("fs", on); document.body.classList.toggle("chx-fson", on);
+    fsBtn.textContent = on ? "✕" : "⛶"; fsBtn.setAttribute("aria-label", on ? "صغّر الشارت" : "كامل الشاشة");
+    if (on) fsTop.append(tfBar); else optBar.before(tfBar);
+    try { if (on && screen.orientation && screen.orientation.lock) screen.orientation.lock("any").catch(() => {}); } catch (_) {}
+    setTimeout(() => { chart.applyOptions({ width: box.clientWidth, height: box.clientHeight }); place(); }, 60);
+  };
+  fsBtn.onclick = e => { e.stopPropagation(); fsSet(!card.classList.contains("fs")); };
+  window.addEventListener("hashchange", () => { if (card.classList.contains("fs")) fsSet(false); }, { once: true });
   const whyBar = h("div", { class: "chx-whybar", hidden: true }), whyDet = h("div", { class: "chx-whydet", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑"), h("a", { href: "#vip", style: "color:#FFD54A;font-weight:700;margin-top:6px" }, "شنو بتحصل في VIP؟")));
@@ -823,6 +844,7 @@ async function ChartScreen() {
     const ts = chart.timeScale(), W = box.clientWidth, H = box.clientHeight, PW = W - 80;
     const XY = p => { const x = p.lg != null ? ts.logicalToCoordinate(data.length - 1 + p.lg) : ts.timeToCoordinate(p.time), y = cs.priceToCoordinate(p.value); return x == null || y == null ? null : [x, y]; };
     svg.setAttribute("viewBox", "0 0 " + W + " " + H); svg.setAttribute("width", W); svg.setAttribute("height", H);
+    svg.style.top = box.offsetTop + "px"; svg.style.left = box.offsetLeft + "px";   // ⛶ كامل الشاشة: الشارت ينزل تحت أزرار الفريم
     const el = (Date.now() - animT0) / 1000, anim = el < 3.4;
     svg.style.setProperty("--e", (-el).toFixed(2) + "s");
     const A = g => anim && g.an ? ' class="ga' + g.an + '"' : "";
