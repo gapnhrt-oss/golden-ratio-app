@@ -268,6 +268,32 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .ticon{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--bg2);font-size:.9rem}
 .linkbtn{background:none;border:0;padding:0;color:var(--gold);text-decoration:underline;cursor:pointer;font-size:inherit}
 .contact .foot{display:flex;justify-content:center;gap:8px;font-size:.78rem;color:var(--muted)}
+
+/* 📈 الشارت */
+.chx-top{display:flex;align-items:center;gap:10px}
+.chx-top img{width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 2px rgba(242,183,5,.55)}
+.chx-pxw{margin-inline-start:auto;text-align:left;direction:ltr;font-family:var(--latin)}
+.chx-px{font-size:22px;font-weight:700}
+.chx-chg{display:block;font-size:12px;font-weight:600}
+.chx-bar{display:flex;gap:6px;flex-wrap:wrap}
+.chx-bar button{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer}
+.chx-bar button.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
+.chx-card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.chx-ch{height:62vh;min-height:360px}
+.chx-wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.06}
+.chx-wm img{width:46%;max-width:300px}
+.chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
+.chx-tg{position:absolute;left:10px;transform:translateY(-50%);z-index:3;border:0;border-radius:999px;padding:5px 11px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.45)}
+.chx-tg.buy{background:var(--up);color:#062414}.chx-tg.sell{background:var(--down);color:#2a0606}
+.chx-pop{position:absolute;left:10px;right:80px;top:12px;z-index:4;background:rgba(16,18,58,.97);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:14px;line-height:1.8;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.chx-pop b{display:block;margin-bottom:4px}.chx-pop .x{position:absolute;left:8px;top:6px;background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer}
+.chx-leg{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--muted)}
+.chx-leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-inline-end:5px}
+.chx-ex{display:grid;gap:8px}
+.chx-ex details{background:var(--bg2);border:1px solid var(--line);border-inline-start:4px solid var(--gold);border-radius:12px;padding:8px 12px}
+.chx-ex summary{cursor:pointer;font-weight:600;font-size:14px}
+.chx-ex details div{font-size:13px;color:var(--muted);padding-top:4px}
+.chx-note{font-size:12px;color:var(--muted);text-align:center}
 </style>
 </head>
 <body>
@@ -328,6 +354,7 @@ const ICON = {
   sub: "M3 7h18v10H3zM3 11h18M7 15h3",
   chat: "M4 5h16v11H9l-5 4z",
   market: "M5 4h11l3 3v13H5zM8 10h8M8 14h8M8 18h5",
+  chart: "M4 4v16h16M8 15l3-4 3 2 5-6",
   admin: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"
 };
 let toastT;
@@ -415,7 +442,7 @@ function renderChrome() {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
-  const tabs = [["home", "الرئيسية", ICON.home], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["sub", "اشتراكي", ICON.sub], ["chat", "تواصل", ICON.chat]];
+  const tabs = [["home", "الرئيسية", ICON.home], ["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["sub", "اشتراكي", ICON.sub], ["chat", "تواصل", ICON.chat]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
@@ -471,8 +498,257 @@ function authSheet(mode) {
   openSheet(form);
 }
 
+/* ================== 📈 الشارت (شموع البوت + التوصيات والمناطق والأشكال) ================== */
+const LWC_URL = "https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js";
+let lwcP = null;
+function loadLWC() {
+  if (window.LightweightCharts) return Promise.resolve();
+  if (!lwcP) lwcP = new Promise((ok, no) => { const s = document.createElement("script"); s.src = LWC_URL; s.onload = ok; s.onerror = () => { lwcP = null; no(new Error("ما قدرنا نحمّل الشارت")); }; document.head.append(s); });
+  return lwcP;
+}
+let CH_STOP = null;
+window.addEventListener("hashchange", () => { if (CH_STOP && !location.hash.startsWith("#chart")) { CH_STOP(); CH_STOP = null; } });
+
+async function ChartScreen() {
+  if (CH_STOP) { CH_STOP(); CH_STOP = null; }
+  const KW = 3 * 3600, mem = S.member || S.admin;
+  const TFS = [["M15", "M15", 900, "15m"], ["H1", "H1", 3600, "1h"], ["H4", "H4", 14400, "4h"], ["D1", "يومي", 86400, "1d"]];
+  let pref = {}; try { pref = JSON.parse(localStorage.getItem("gr-chart") || "{}"); } catch (_) {}
+  const O = Object.assign({ tf: "M15", ma: true, lv: true, pt: true, sr: true, lq: true, tl: true }, pref);
+  const save = () => { try { localStorage.setItem("gr-chart", JSON.stringify(O)); } catch (_) {} };
+  const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const st = n => "⭐".repeat(Math.max(1, Math.min(5, n || 1)));
+
+  const pxEl = h("div", { class: "chx-px" }, "—"), chgEl = h("small", { class: "chx-chg" });
+  const tfBar = h("div", { class: "chx-bar" }), optBar = h("div", { class: "chx-bar" });
+  const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
+  const card = h("div", { class: "chx-card" }, box, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
+  const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
+  if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑")));
+  const root = h("div", { class: "screen" },
+    h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
+    tfBar, optBar, card, leg, ex, srcNote);
+
+  await loadLWC();
+  const LC = window.LightweightCharts;
+  const chart = LC.createChart(box, {
+    layout: { background: { color: "transparent" }, textColor: "#9EA3D6", fontFamily: "Montserrat, sans-serif" },
+    grid: { vertLines: { color: "rgba(38,42,102,.45)" }, horzLines: { color: "rgba(38,42,102,.45)" } },
+    rightPriceScale: { borderColor: "#262A66" }, timeScale: { borderColor: "#262A66", timeVisible: true, rightOffset: 8 },
+    crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: p => p.toFixed(2) },
+  });
+  const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
+  const MAS = [[200, "#4EA8FF"], [370, "#F2B705"], [500, "#E7E9FF"]].map(([n, c]) => ({ n, s: chart.addLineSeries({ color: c, lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: "MA" + n, crosshairMarkerVisible: false }) }));
+  const ro = new ResizeObserver(() => chart.applyOptions({ width: box.clientWidth, height: box.clientHeight })); ro.observe(box);
+
+  let data = [], m15 = [], L = null, sigs = [], src = "bot", off = 0, ZN = [], extra = [], plines = [], marks = [];
+  const timers = [];
+  CH_STOP = () => { timers.forEach(clearInterval); ro.disconnect(); try { chart.remove(); } catch (_) {} };
+
+  //--- البيانات
+  const tfo = () => TFS.find(t => t[0] === O.tf);
+  async function botCandles(tf, n) {
+    const { data: r } = await sb.from("chart_candles").select("t,o,h,l,c").eq("tf", tf).order("t", { ascending: false }).limit(n);
+    return (r || []).reverse().map(x => ({ time: Number(x.t) + KW, open: +x.o, high: +x.h, low: +x.l, close: +x.c }));
+  }
+  async function bnCandles(iv, n) {
+    for (const host of ["https://api.binance.com", "https://data-api.binance.vision"]) {
+      try { const r = await fetch(host + "/api/v3/klines?symbol=PAXGUSDT&interval=" + iv + "&limit=" + n); if (r.ok) return (await r.json()).map(k => ({ time: Math.floor(k[0] / 1000) + KW, open: +k[1] + off, high: +k[2] + off, low: +k[3] + off, close: +k[4] + off })); } catch (_) {}
+    }
+    return [];
+  }
+  async function oanda() { try { return await (await fetch(SUPABASE_URL + "/functions/v1/gold-price")).json(); } catch (_) { return null; } }
+  async function candles(tf, n) {
+    const b = await botCandles(tf, n);
+    const stale = !b.length || (Date.now() / 1000 + KW - b[b.length - 1].time > 3 * 3600 && !weekendNY());
+    if (!stale) { src = "bot"; return b; }
+    src = "bn";
+    const q = await oanda(), k = await bnCandles(TFS.find(t => t[0] === tf)[3], n);
+    if (q && q.price && k.length) { const d = q.price - k[k.length - 1].close; k.forEach(c => { c.open += d; c.high += d; c.low += d; c.close += d; }); }
+    return k.length ? k : b;
+  }
+  function weekendNY() {
+    const p = new Intl.DateTimeFormat("en-US", { timeZone: "America/New_York", weekday: "short", hour: "numeric", hour12: false }).formatToParts(new Date());
+    const wd = p.find(x => x.type === "weekday").value, hr = Number(p.find(x => x.type === "hour").value) % 24;
+    return wd === "Sat" || (wd === "Fri" && hr >= 17) || (wd === "Sun" && hr < 18);
+  }
+  const sma = (d, n) => { const o = []; let s = 0; d.forEach((c, i) => { s += c.close; if (i >= n) s -= d[i - n].close; if (i >= n - 1) o.push({ time: c.time, value: s / n }); }); return o; };
+  function snap(t) { // أقرب شمعة (بدايتها) قبل أو عند الوقت
+    t += KW; if (!data.length || t < data[0].time) return null;
+    let lo = 0, hi = data.length - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (data[m].time <= t) lo = m; else hi = m - 1; }
+    return data[lo].time;
+  }
+  const endT = () => data[data.length - 1].time;
+
+  //--- الرسم
+  function clearX() { extra.forEach(s => chart.removeSeries(s)); extra = []; plines.forEach(l => cs.removePriceLine(l)); plines = []; marks = []; }
+  function line(pts, color, w, style, opt) {
+    const P = []; pts.forEach(p => { if (p && p.time != null && isFinite(p.value)) { if (P.length && P[P.length - 1].time >= p.time) P[P.length - 1] = p; else P.push(p); } });
+    if (P.length < 2) return null;
+    const s = chart.addLineSeries(Object.assign({ color, lineWidth: w || 2, lineStyle: style || 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, opt || {}));
+    s.setData(P); extra.push(s); return s;
+  }
+  function lvl(fromT, v, color, title, style) { if (fromT == null || !isFinite(v)) return; if (fromT >= endT()) fromT = data[Math.max(0, data.length - 6)].time; line([{ time: fromT, value: v }, { time: endT(), value: v }], color, 1, style ?? 2, { title, lastValueVisible: true }); }
+  function pl(price, color, title, style, w) { if (isFinite(price) && price) plines.push(cs.createPriceLine({ price, color, title, lineWidth: w || 1, lineStyle: style ?? 2, axisLabelVisible: true })); }
+  function band(lo, hi, color, from) {
+    const pts = data.filter(c => c.time >= from); if (pts.length < 2) return;
+    const a = chart.addBaselineSeries({ baseValue: { type: "price", price: lo }, topFillColor1: color, topFillColor2: color, topLineColor: "transparent", bottomLineColor: "transparent", bottomFillColor1: "transparent", bottomFillColor2: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    a.setData(pts.map(c => ({ time: c.time, value: hi }))); extra.push(a);
+  }
+  const why = s => String(s || "").split(/\n|·/).map(x => x.replace(/^[\s•↳]+/, "").trim()).filter(Boolean);
+
+  function draw() {
+    clearX(); ZN = []; const TG = [];
+    if (!data.length) return;
+    const n0 = data[Math.max(0, data.length - 60)].time;
+    if (mem && L) {
+      //--- 🧱 الدعم والمقاومة (مناطق البوت بالنجوم)
+      if (O.sr) (L.zones || []).forEach(z => {
+        const r = z.side === "r", e = r ? z.lo : z.hi, c = r ? "#FF6B6B" : "#3DD68C";
+        pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + (r ? "مقاومة " : "دعم ") + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1);
+        ZN.push({ lo: z.lo - 1, hi: z.hi + 1, c: z.f ? "#FF9F43" : c, h: (z.f ? "🔥 أقوى " : "🧱 ") + (r ? "مقاومة " : "دعم ") + f2(e) + " · " + st(z.s), why: why(z.n) });
+      });
+      //--- 💧 السيولة
+      if (O.lq) { const seen = {}; (L.raw || []).filter(x => /💧/.test(x.n)).forEach(x => { if (seen[x.n]) return; seen[x.n] = 1; pl(x.p, "#4EA8FF", x.n, 3, 1); ZN.push({ lo: x.p - 2, hi: x.p + 2, c: "#4EA8FF", h: x.n + " " + f2(x.p), why: ["فوقها/تحتها وقوفات وايد — السعر يحب يروح يصيدها قبل ما ينعكس"] }); }); }
+      //--- 📈 خطوط الترند
+      if (O.tl) (L.tl || []).forEach(t => {
+        const a = snap(t.a[0]), b = snap(t.b[0]); if (a == null || b == null) return;
+        const c = t.d === 1 ? "#3DD68C" : "#FF6B6B";
+        line([{ time: a, value: t.a[1] }, { time: b, value: t.b[1] }, { time: endT(), value: t.now }], c, 2, 0, { title: (t.d === 1 ? "📈 ترند " : "📉 ترند ") + t.tf, lastValueVisible: true });
+      });
+      //--- 🦈 الهارمونيك و 📐 الأشكال
+      if (O.pt) (L.shapes || []).forEach(s => {
+        const bull = s.d === 1;
+        if (s.k === "harm") {
+          const P = (s.pts || []).map(p => ({ time: snap(p[0]), value: p[1] })).filter(p => p.time != null);
+          if (P.length < 3) return;
+          const labs = s.done ? (P.length === 5 ? "XABCD" : "ABCD") : (P.length === 4 ? "XABC" : "ABC");
+          line(P, "#B388FF", 2);
+          if (P.length >= 4) line([P[0], P[2], P[P.length - 1]], "rgba(179,136,255,.5)", 1, 2);
+          P.forEach((p, i) => marks.push({ time: p.time, position: (i > 0 ? p.value > P[i - 1].value : p.value > P[1].value) ? "aboveBar" : "belowBar", color: "#B388FF", shape: "circle", text: labs[i] || "" }));
+          const last = P[P.length - 1];
+          if (!s.done && s.lo) { band(s.lo, s.hi, "rgba(179,136,255,.18)", last.time); line([last, { time: endT(), value: (s.lo + s.hi) / 2 }], "rgba(179,136,255,.8)", 1, 2); }
+          lvl(last.time, s.tp1, "#B388FF", "🦈 هدف 1"); lvl(last.time, s.tp2, "#B388FF", "🦈 هدف 2"); lvl(last.time, s.sl, "#FF6B6B", "🦈 وقف");
+          marks.push({ time: last.time, position: bull ? "belowBar" : "aboveBar", color: "#B388FF", shape: bull ? "arrowUp" : "arrowDown", text: "🦈 " + s.n + " " + s.tf + (s.done ? "" : " (قريب)") });
+          ZN.push({ lo: Math.min(s.sl, s.tp1) - 2, hi: Math.max(s.sl, s.tp2 || s.tp1) + 2, c: "#B388FF", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "🎯 هدف 1: " + f2(s.tp1) + " · هدف 2: " + f2(s.tp2), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
+        } else if (s.k === "pat") {
+          const t1 = snap(s.t1), t2 = snap(s.t2); if (t1 == null) return;
+          band(s.lo, s.hi, "rgba(78,225,236,.10)", t1);
+          lvl(t1, s.lv, "#4EE1EC", "📐 " + (bull ? "الاختراق" : "الكسر"), 0); lvl(t2 ?? t1, s.tp1, "#4EE1EC", "📐 هدف الشكل"); lvl(t2 ?? t1, s.sl, "#FF6B6B", "📐 وقف");
+          marks.push({ time: t2 ?? t1, position: bull ? "belowBar" : "aboveBar", color: "#4EE1EC", shape: bull ? "arrowUp" : "arrowDown", text: "📐 " + s.n + " " + s.tf });
+          ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#4EE1EC", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), "🎯 هدف الشكل: " + f2(s.tp1), "🛑 الوقف: " + f2(s.sl)] });
+        }
+      });
+      //--- 🔭 الأفكار
+      if (O.lv) (L.ideas || []).forEach(z => {
+        const b = z.d === 1, c = b ? "#3DD68C" : "#FF6B6B";
+        band(z.lo, z.hi, b ? "rgba(61,214,140,.16)" : "rgba(255,107,107,.16)", n0);
+        pl(b ? z.hi : z.lo, c, (b ? "🟢 شراء " : "🔴 بيع ") + z.tf, 1, 1);
+        const w = why(z.why); if (z.dn) w.push("⚡ " + z.dh.replace(/^⚡\s*/, ""), "🔧 المنطقة فيها: " + z.dn);
+        const item = { lo: z.lo, hi: z.hi, c, h: (b ? "🟢 فكرة شراء " : "🔴 فكرة بيع ") + z.tf + " · " + f2(z.lo) + " – " + f2(z.hi), why: ["📐 " + z.src].concat(w, ["❌ الفكرة تنلغي " + (b ? "تحت " : "فوق ") + f2(z.inv)]) };
+        ZN.push(item); TG.push({ side: b ? "buy" : "sell", p: (z.lo + z.hi) / 2, t: b ? "🟢 ليش شراء؟ ⓘ" : "🔴 ليش بيع؟ ⓘ", z: item });
+      });
+    }
+    //--- 🎯 التوصيات (من جدول التوصيات)
+    if (mem && O.lv) sigs.forEach(s => {
+      const sell = s.side === "sell", e1 = Number(s.entry_from), e2 = Number(s.entry_to || s.entry_from);
+      band(Math.min(e1, e2) - 0.3, Math.max(e1, e2) + 0.3, "rgba(242,183,5,.28)", data[Math.max(0, data.length - 20)].time);
+      pl((e1 + e2) / 2, "#F2B705", (sell ? "🔴 بيع" : "🟢 شراء") + (s.status === "idea" ? " (ينتظر)" : " دخول"), 0, 2);
+      pl(Number(s.sl), "#FF6B6B", "🛑 وقف", 0, 2);
+      ["tp1", "tp2", "tp3", "tp4", "tp5"].forEach((k, i) => s[k] && pl(Number(s[k]), "#3DD68C", "🎯 " + (i + 1), 2, 1));
+      const item = { lo: Math.min(e1, e2) - 3, hi: Math.max(e1, e2) + 3, c: "#F2B705", h: (sell ? "🔴 توصية بيع " : "🟢 توصية شراء ") + f2(e1) + (s.entry_to ? " – " + f2(e2) : "") + (s.strength ? " · " + s.strength + "/10" : ""), why: why(s.reason).concat(["🛑 الوقف " + f2(s.sl)]) };
+      ZN.unshift(item); TG.push({ side: sell ? "sell" : "buy", p: Math.max(e1, e2) + (sell ? 6 : -6), t: sell ? "🔴 ليش بيع؟ ⓘ" : "🟢 ليش شراء؟ ⓘ", z: item });
+    });
+    marks.sort((a, b) => a.time - b.time); cs.setMarkers(marks);
+    tags(TG); explain(); legend();
+  }
+  function tags(TG) {
+    tagsEl.textContent = ""; pop.hidden = true;
+    TG.forEach(g => {
+      const b = h("button", { class: "chx-tg " + g.side, type: "button" }, g.t); b._p = g.p;
+      b.onclick = e => { e.stopPropagation(); pop.textContent = ""; pop.append(h("button", { class: "x", type: "button", onclick: () => pop.hidden = true }, "✕"), h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w))); pop.hidden = false; };
+      tagsEl.append(b);
+    });
+    place();
+  }
+  function place() { tagsEl.querySelectorAll(".chx-tg").forEach((b, i) => { const y = cs.priceToCoordinate(b._p); b.style.display = y == null || y < 10 || y > box.clientHeight - 30 ? "none" : ""; if (y != null) b.style.top = y + "px"; }); }
+  timers.push(setInterval(place, 300));
+  function explain() {
+    ex.textContent = "";
+    if (!mem || !ZN.length) return;
+    ex.append(h("div", null, h("b", null, "📖 شرح المناطق "), h("small", { class: "muted" }, "(اضغط على المنطقة بالشارت أو هني)")));
+    ZN.forEach((z, i) => { const d = h("details", { id: "chz" + i, style: "border-inline-start-color:" + z.c }, h("summary", null, z.h), ...z.why.map(w => h("div", null, "↳ " + w))); ex.append(d); });
+  }
+  chart.subscribeClick(p => {
+    if (!p || !p.point || !mem) return;
+    const y = cs.coordinateToPrice(p.point.y); if (y == null) return;
+    const i = ZN.findIndex(z => y >= z.lo - 3 && y <= z.hi + 3); if (i < 0) return;
+    ex.querySelectorAll("details").forEach(d => d.open = false);
+    const d = document.getElementById("chz" + i); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+  });
+  function legend() {
+    leg.textContent = "";
+    const add = (c, t) => leg.append(h("span", null, h("i", { style: "background:" + c }), t));
+    if (O.ma) { add("#4EA8FF", "MA200"); add("#F2B705", "MA370"); add("#E7E9FF", "MA500"); }
+    if (!mem) return;
+    if (O.lv) { add("#F2B705", "الدخول"); add("#FF6B6B", "الوقف"); add("#3DD68C", "الأهداف"); }
+    if (O.sr) { add("#FF6B6B", "🧱 مقاومة"); add("#3DD68C", "🧱 دعم"); add("#FF9F43", "🔥 أقوى منطقة"); }
+    if (O.lq) add("#4EA8FF", "💧 سيولة");
+    if (O.tl) add("#9EA3D6", "📈 ترند");
+    if (O.pt) { add("#B388FF", "🦈 هارمونيك"); add("#4EE1EC", "📐 شكل فني"); }
+  }
+  function mas() {
+    MAS.forEach(m => {
+      if (!O.ma || !m15.length) return m.s.setData([]);
+      const v = sma(m15, m.n); if (O.tf === "M15") return m.s.setData(v);
+      const out = []; let j = 0;
+      data.forEach(c => { while (j + 1 < v.length && v[j + 1].time <= c.time) j++; if (v.length && c.time >= v[0].time) out.push({ time: c.time, value: v[j].value }); });
+      if (out.length) out[out.length - 1] = { time: out[out.length - 1].time, value: v[v.length - 1].value };
+      m.s.setData(out);
+    });
+  }
+  function px(q) {
+    const c = data[data.length - 1]; if (!c) return;
+    pxEl.textContent = f2(c.close);
+    if (q && q.change != null) { chgEl.textContent = (q.change >= 0 ? "▲ +" : "▼ ") + Number(q.change).toFixed(2) + " (" + Number(q.changePct).toFixed(2) + "%)"; chgEl.className = "chx-chg " + (q.change >= 0 ? "pos" : "neg"); }
+  }
+  async function loadAll(fit) {
+    const tf = O.tf;
+    const [d, m, lv, sg, q] = await Promise.all([
+      candles(tf, 1000), tf === "M15" ? null : candles("M15", 1000),
+      mem ? sb.from("chart_levels").select("data,updated_at").eq("id", 1).maybeSingle() : Promise.resolve({ data: null }),
+      mem ? sb.from("signals").select("*").in("status", ["idea", "open"]).gte("created_at", RESET_AT).order("created_at", { ascending: false }).limit(3) : Promise.resolve({ data: [] }),
+      oanda()]);
+    if (tf !== O.tf) return;
+    data = d; m15 = tf === "M15" ? d : (m || []);
+    L = lv && lv.data ? lv.data.data : null; sigs = (sg && sg.data) || [];
+    cs.setData(data); mas(); draw(); px(q);
+    srcNote.textContent = src === "bot" ? "الشموع من البوت مباشرة (نفس سعر الوسيط)" : "البوت ما أرسل شموع حديثة — نعرض مصدر لايف مضبوط على سعر OANDA";
+    if (fit && data.length) chart.timeScale().setVisibleLogicalRange({ from: data.length - 120, to: data.length + 6 });
+  }
+  //--- لايف: السعر كل 4 ثواني يحرك آخر شمعة، والشموع والمستويات كل 30 ثانية
+  timers.push(setInterval(async () => {
+    if (!data.length || weekendNY()) return;
+    const q = await oanda(); if (!q || !q.price) return;
+    const c = data[data.length - 1], now = Math.floor(Date.now() / 1000) + KW, span = tfo()[2];
+    if (O.tf !== "D1" && now >= c.time + span) { const t = c.time + Math.floor((now - c.time) / span) * span; data.push({ time: t, open: c.close, high: Math.max(c.close, q.price), low: Math.min(c.close, q.price), close: q.price }); }
+    else { c.close = q.price; c.high = Math.max(c.high, q.price); c.low = Math.min(c.low, q.price); }
+    cs.update(data[data.length - 1]); px(q);
+  }, 4000));
+  timers.push(setInterval(() => loadAll(false), 30000));
+
+  //--- الأزرار
+  TFS.forEach(([v, n]) => tfBar.append(h("button", { type: "button", class: v === O.tf ? "on" : "", onclick: e => { O.tf = v; save(); tfBar.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === e.currentTarget)); loadAll(true); } }, n)));
+  const opt = (k, t) => optBar.append(h("button", { type: "button", class: O[k] ? "on" : "", onclick: e => { O[k] = !O[k]; save(); e.currentTarget.classList.toggle("on", O[k]); if (k === "ma") mas(); draw(); } }, t));
+  opt("ma", "📏 المتوسطات");
+  if (mem) { opt("lv", "🎯 التوصيات"); opt("sr", "🧱 دعم ومقاومة"); opt("lq", "💧 السيولة"); opt("tl", "📈 الترند"); opt("pt", "🦈 الأشكال والهارمونيك"); }
+  await loadAll(true);
+  return root;
+}
+
 /* ================== التوجيه ================== */
-const SCREENS = { posts: Posts, home: Home, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin };
+const SCREENS = { posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin };
 let renderToken = 0;
 async function route() {
   let r = (location.hash || "#home").slice(1).split("/")[0];
@@ -1469,14 +1745,15 @@ async function Market() {
   const sub = (location.hash.split("/")[1]) || "news";
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "السوق"), goldPrice());
   const seg = h("div", { class: "seg" });
-  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["chart", "📈 الشارت"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"], ["learn", "📚 تعلّم"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
+  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["calc", "🧮 حاسبة اللوت"], ["sess", "🕐 الجلسات"], ["learn", "📚 تعلّم"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#market/" + t[0] }, t[1])));
   root.append(seg);
   if (sub === "cal") {
     root.append(await Calendar());
   } else if (sub === "calc") { root.append(LotCalc());
   } else if (sub === "sess") { root.append(Sessions());
   } else if (sub === "learn") { root.append(Learn());
-  } else if (sub === "chart") {
+  } else if (sub === "chart") { location.hash = "#chart";
+  } else if (false) {
     root.append(tvWidget("advanced-chart", { symbol: "OANDA:XAUUSD", interval: "15", timezone: "Asia/Kuwait", theme: "dark", style: "1", locale: "ar_AE", allow_symbol_change: false, hide_side_toolbar: true, backgroundColor: "rgba(0,0,0,0)" }, fillH(460, 330)));
   } else {
     root.append(await News());
