@@ -718,7 +718,9 @@ async function ChartScreen() {
       } else if (g.t === "circ") {
         const a = XY(g.p); if (!a) return;
         out += '<circle cx="' + a[0].toFixed(1) + '" cy="' + a[1].toFixed(1) + '" r="8" fill="none" stroke="#3DD68C" stroke-width="2.4" filter="url(#bkglow)"/>';
-        if (g.label) { const ty = a[1] + (g.up ? -30 : 30); out += '<line x1="' + a[0] + '" y1="' + (a[1] + (g.up ? -9 : 9)) + '" x2="' + a[0] + '" y2="' + (ty + (g.up ? 11 : -11)) + '" stroke="#B388FF" stroke-width="1.4"/>' + pill(a[0], ty, g.label, "#1d1f55", "#E2D6FF", "#B388FF"); }
+        if (g.label) { // الكتابة بعيد عن الشموع: يمين بالفراغ + خط يوصلها للدائرة
+          const w = g.label.length * 6.6 + 16, tx = Math.min(a[0] + 46 + w / 2, PW - w / 2 - 4), ty = Math.min(Math.max(a[1] + (g.up ? -46 : 46), 14), H - 14);
+          out += '<line x1="' + (a[0] + 6).toFixed(1) + '" y1="' + a[1].toFixed(1) + '" x2="' + (tx - w / 2).toFixed(1) + '" y2="' + ty.toFixed(1) + '" stroke="#B388FF" stroke-width="1.2" stroke-dasharray="3 3"/>' + '<g opacity=".92">' + pill(tx, ty, g.label, "#1d1f55", "#E2D6FF", "#B388FF") + "</g>"; }
       } else if (g.t === "label") {
         const a = XY(g.p); if (!a) return; out += pill(a[0], a[1] + (g.up ? -20 : 20), g.txt, g.bg || "#FF9F43", g.fg || "#0B0C28");
       } else if (g.t === "pin") {
