@@ -801,7 +801,7 @@ async function ChartScreen() {
   function line(pts, color, w, style, opt) {
     const P = []; pts.forEach(p => { if (p && p.time != null && isFinite(p.value)) { if (P.length && P[P.length - 1].time >= p.time) P[P.length - 1] = p; else P.push(p); } });
     if (P.length < 2) return null;
-    const s = chart.addLineSeries(Object.assign({ color, lineWidth: w || 2, lineStyle: style || 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false }, opt || {}));
+    const s = chart.addLineSeries(Object.assign({ color, lineWidth: w || 2, lineStyle: style || 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null }, opt || {}));
     s.setData(P); extra.push(s); return s;
   }
   function lvl(fromT, v, color, title, style) { if (fromT == null || !isFinite(v)) return; if (fromT >= endT()) fromT = data[Math.max(0, data.length - 6)].time; line([{ time: fromT, value: v }, { time: endT(), value: v }], color, 1, style ?? 2, { title, lastValueVisible: true }); }
@@ -814,7 +814,7 @@ async function ChartScreen() {
   }
   function band(lo, hi, color, from) {
     const pts = data.filter(c => c.time >= from); if (pts.length < 2) return;
-    const a = chart.addBaselineSeries({ baseValue: { type: "price", price: lo }, topFillColor1: color, topFillColor2: color, topLineColor: "transparent", bottomLineColor: "transparent", bottomFillColor1: "transparent", bottomFillColor2: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+    const a = chart.addBaselineSeries({ baseValue: { type: "price", price: lo }, topFillColor1: color, topFillColor2: color, topLineColor: "transparent", bottomLineColor: "transparent", bottomFillColor1: "transparent", bottomFillColor2: "transparent", priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false, autoscaleInfoProvider: () => null });
     a.setData(pts.map(c => ({ time: c.time, value: hi }))); extra.push(a);
   }
   const why = s => String(s || "").split(/\n|·/).map(x => x.replace(/^[\s•↳]+/, "").trim()).filter(Boolean);
