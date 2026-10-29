@@ -189,6 +189,11 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .lesson summary{display:flex;gap:10px;align-items:center;cursor:pointer;list-style:none}.lesson summary::-webkit-details-marker{display:none}
 .lprog{background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.45);border-radius:14px;padding:10px 12px;display:grid;gap:8px}.lprog b{color:#FFD54A;font-size:14px}
 .lbar{height:7px;border-radius:4px;background:#262A66;overflow:hidden}.lbar i{display:block;height:100%;background:linear-gradient(90deg,#C67F0B,#FFD54A);border-radius:4px}
+.lgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ltile{position:relative;display:grid;gap:4px;align-content:start;min-height:128px;background:linear-gradient(160deg,#171a55,#0f1238);border:1px solid var(--line);border-radius:16px;padding:12px;color:inherit;text-decoration:none}
+.ltile:active{transform:scale(.98)}.ltile.ok{border-color:#3DD68C}
+.ltile .lti{font-size:28px;line-height:1}.ltile b{font-size:15px;color:#FFD54A}.ltile small{font-size:11.5px;line-height:1.6}
+.ltc{position:absolute;top:10px;inset-inline-end:10px;font-size:11px;font-weight:700;color:#9EA3D6;background:#0B0C28;border:1px solid var(--line);border-radius:999px;padding:1px 8px}
 .lcard{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:inherit;text-decoration:none}
 .lcard.ok{border-color:#3DD68C}.lcard b{display:block;font-size:15px}.lcard small{font-size:12px}
 .llv{font-size:12px;font-weight:700;border-radius:999px;padding:3px 10px;white-space:nowrap;width:fit-content;flex:none}
@@ -2108,35 +2113,53 @@ function lessonFor(t) {
 }
 function lessonLink(id) { const L = TOOL_LESSONS.find(x => x.id === id); return L ? h("a", { class: "llink", href: "#learn/" + id }, "📚 تعلّم: " + L.ic + " " + L.t) : null; }
 
+//--- أقسام التعليم: كل موضوع بروحه
+const LCATS = [
+  { id: "sr", ic: "🧱", t: "الدعم والمقاومة", d: "وين السعر يوقف ويرتد + البيفوت", ls: ["sr", "pivot"] },
+  { id: "liq", ic: "💧", t: "السيولة", d: "ليش السعر يصيد الوقوفات", ls: ["liq"] },
+  { id: "trend", ic: "📈", t: "الترند والمتوسطات", d: "خطوط الترند و MA 200 · 370 · 500", ls: ["trend", "ma"] },
+  { id: "pat", ic: "📐", t: "الأشكال الفنية", d: "القاع المزدوج، الرأس والكتفين… والأهداف الخمسة", ls: ["pat", "t5"] },
+  { id: "harm", ic: "🦈", t: "الهارمونيك", d: "جارتلي، الخفاش، الفراشة — ومنطقة D", ls: ["harm"] },
+  { id: "ind", ic: "📊", t: "المؤشرات", d: "RSI · MACD · ADX وعلامة الانعكاس", ls: ["ind"] },
+  { id: "mtf", ic: "🏛️", t: "الفريمات من فوق لتحت", d: "شلون نوصل للدخول بالضبط", ls: ["mtf"] },
+  { id: "basics", ic: "💡", t: "أساسيات التداول", d: "قراءة التوصية، إدارة رأس المال، الأخطاء", ls: [] },
+  { id: "calc", ic: "🧮", t: "حاسبة اللوت", d: "حجم الصفقة المناسب لرصيدك", ls: [] },
+];
+const lCatOf = id => LCATS.find(c => c.ls.includes(id));
+const lDisc = () => h("p", { class: "muted", style: "font-size:.78rem" }, "التداول فيه مخاطرة، وممكن تخسر جزء من رأس مالك أو كله. لا تتداول بفلوس ما تقدر تتحمل خسارتها.");
 function Learn() {
   const hp = location.hash.slice(1).split("/"), id = hp[0] === "learn" ? hp[1] : hp[2];
   const L = TOOL_LESSONS.find(x => x.id === id);
   if (L) return LessonPage(L);
-  const box = h("div", { class: "screen" });
-  //--- 📚 الدروس · 🧮 حاسبة اللوت
-  const seg = h("div", { class: "seg" });
-  [["", "📚 الدروس"], ["calc", "🧮 حاسبة اللوت"]].forEach(([k, t]) => seg.append(h("button", { type: "button", "aria-pressed": String((id || "") === k), onclick: () => location.hash = "#learn" + (k ? "/" + k : "") }, t)));
-  box.append(seg);
-  if (id === "calc") { box.append(h("h2", { class: "h1", style: "margin:0" }, "🧮 حاسبة اللوت"), h("p", { class: "muted", style: "font-size:.88rem;margin:0" }, "اعرف حجم الصفقة المناسب لرصيدك قبل ما تدخل"), LotCalc()); return box; }
-  const done = lDone(), n = TOOL_LESSONS.filter(x => done.includes(x.id)).length;
-  box.append(h("div", null, h("h2", { class: "h1", style: "margin:0" }, "📚 تعلّم الأدوات"), h("p", { class: "muted", style: "font-size:.88rem;margin:4px 0 0" }, "كل أداة يستخدمها البوت — بكلام بسيط ورسمة، وتشوفها على الشارت")));
+  const C = LCATS.find(c => "c-" + c.id === id || (c.id === "calc" && id === "calc"));
+  const done = lDone(), box = h("div", { class: "screen" });
+  if (C) {   //--- 📂 صفحة القسم
+    box.append(h("small", { class: "muted" }, h("a", { href: "#learn" }, "📚 تعلّم"), " › " + C.t), h("h2", { class: "h1", style: "margin:0" }, C.ic + " " + C.t), h("p", { class: "muted", style: "font-size:.88rem;margin:0" }, C.d));
+    if (C.id === "calc") { box.append(LotCalc()); return box; }
+    if (C.id === "basics") { LESSONS.forEach(([t, b], i) => box.append(h("details", { class: "card lesson" }, h("summary", null, h("span", { class: "pill wait num" }, i + 1), h("b", null, t)), ...b.split("\n").map(x => h("p", null, x))))); box.append(lDisc()); return box; }
+    C.ls.map(k => TOOL_LESSONS.find(x => x.id === k)).forEach(x => { const ok = done.includes(x.id);
+      box.append(h("a", { class: "lcard" + (ok ? " ok" : ""), href: "#learn/" + x.id }, h("div", null, h("b", null, x.ic + " " + x.t), h("small", { class: "muted" }, x.sub)),
+        h("span", { class: "llv", style: "color:" + LVLC[x.lvl] + ";background:" + LVLC[x.lvl] + "22" }, (ok ? "✅ " : "") + LVLN[x.lvl]))); });
+    box.append(lDisc()); return box;
+  }
+  //--- 📚 الأقسام: مربعات تختار منها على طول
+  const n = TOOL_LESSONS.filter(x => done.includes(x.id)).length;
+  box.append(h("div", null, h("h2", { class: "h1", style: "margin:0" }, "📚 تعلّم"), h("p", { class: "muted", style: "font-size:.88rem;margin:4px 0 0" }, "اختار الموضوع اللي تبيه — بكلام بسيط ورسمة، وتشوفه على الشارت")));
   box.append(h("div", { class: "lprog" }, h("b", null, "🏅 تقدمك: " + n + " من " + TOOL_LESSONS.length + " دروس" + (n === TOOL_LESSONS.length ? " — 🎉 خلصتها كلها!" : "")), h("div", { class: "lbar" }, h("i", { style: "width:" + (n / TOOL_LESSONS.length * 100).toFixed(0) + "%" }))));
-  TOOL_LESSONS.forEach((x, i) => {
-    const ok = done.includes(x.id);
-    box.append(h("a", { class: "lcard" + (ok ? " ok" : ""), href: "#learn/" + x.id },
-      h("div", null, h("b", null, x.ic + " " + x.t), h("small", { class: "muted" }, x.sub)),
-      h("span", { class: "llv", style: "color:" + LVLC[x.lvl] + ";background:" + LVLC[x.lvl] + "22" }, (ok ? "✅ " : "") + LVLN[x.lvl])));
-  });
-  box.append(h("h3", { style: "margin:14px 0 0" }, "💡 أساسيات التداول"));
-  LESSONS.forEach(([t, b], i) => box.append(h("details", { class: "card lesson" }, h("summary", null, h("span", { class: "pill wait num" }, i + 1), h("b", null, t)), ...b.split("\n").map(x => h("p", null, x)))));
-  box.append(h("p", { class: "muted", style: "font-size:.78rem" }, "التداول فيه مخاطرة، وممكن تخسر جزء من رأس مالك أو كله. لا تتداول بفلوس ما تقدر تتحمل خسارتها."));
+  const grid = h("div", { class: "lgrid" });
+  LCATS.forEach(c => { const tot = c.ls.length, dn = c.ls.filter(k => done.includes(k)).length;
+    grid.append(h("a", { class: "ltile" + (tot && dn === tot ? " ok" : ""), href: c.id === "calc" ? "#learn/calc" : "#learn/c-" + c.id },
+      h("span", { class: "lti" }, c.ic), h("b", null, c.t), h("small", { class: "muted" }, c.d),
+      tot ? h("span", { class: "ltc" }, (dn === tot ? "✅ " : "") + dn + "/" + tot) : h("span", { class: "ltc" }, c.id === "calc" ? "🧮 أداة" : LESSONS.length + " دروس"))); });
+  box.append(grid, lDisc());
   return box;
 }
 
 function LessonPage(L) {
   const i = TOOL_LESSONS.indexOf(L), nx = TOOL_LESSONS[i + 1];
   const box = h("div", { class: "screen lpage" });
-  box.append(h("small", { class: "muted" }, h("a", { href: "#learn" }, "📚 تعلّم الأدوات"), " › الدرس " + (i + 1) + " من " + TOOL_LESSONS.length));
+  const LC = lCatOf(L.id);
+  box.append(h("small", { class: "muted" }, h("a", { href: "#learn" }, "📚 تعلّم"), " › ", LC ? h("a", { href: "#learn/c-" + LC.id }, LC.ic + " " + LC.t) : "", " › الدرس " + (i + 1) + " من " + TOOL_LESSONS.length));
   box.append(h("h2", { class: "h1", style: "margin:2px 0 0" }, L.ic + " " + L.t), h("span", { class: "llv", style: "color:" + LVLC[L.lvl] + ";background:" + LVLC[L.lvl] + "22;justify-self:start" }, LVLN[L.lvl]));
   const fig = h("div", { class: "lfig" }); fig.innerHTML = L.svg(); box.append(fig);
   [["🤔 شنو هي؟", L.what], ["🎯 ليش مهمة؟", L.why], ["🤖 شلون البوت يستخدمها؟", L.bot], ["⚠️ انتبه", L.warn]].forEach(([a, b]) => box.append(h("div", { class: "lsec" }, h("b", null, a), h("p", null, b))));
