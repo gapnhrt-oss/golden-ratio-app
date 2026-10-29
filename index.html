@@ -909,12 +909,15 @@ async function ChartScreen() {
     const W = { M15: 1, H1: 2, H4: 3, D1: 4 }; let ws = 0, wt = 0;
     rows.forEach(([t, x]) => { if (x) { ws += W[t[0]] * x.vote / 4; wt += W[t[0]]; } });
     const g = wt ? ws / wt : 0, gp = Math.round(Math.abs(g) * 100);
-    const gW = !wt ? "—" : g >= 0.7 ? "🟢 صاعد" : g <= -0.7 ? "🔴 هابط" : g >= 0.2 ? "🟢 يميل للصعود" : g <= -0.2 ? "🔴 يميل للنزول" : "➖ محتار";
+    const gW = !wt ? "—" : g >= 0.6 ? "🟢 صاعد" : g <= -0.6 ? "🔴 هابط" : g >= 0.2 ? "🟢 يميل للصعود" : g <= -0.2 ? "🔴 يميل للنزول" : "➖ محتار";
     const gC = g >= 0.2 ? "var(--up)" : g <= -0.2 ? "var(--down)" : "var(--muted)";
     const gBox = h("div", { class: "chx-gen" }, h("div", { class: "between" }, h("b", null, "🧭 الاتجاه العام: " + gW), wt ? h("b", { class: "num", style: "color:" + gC }, gp + "%") : null),
       h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + gp + "%;background:" + gC })),
       h("small", { class: "muted" }, "كل الفريمات مع بعض، والفريم الكبير له وزن أكثر: اليومي ×4، الأربع ساعات ×3، الساعة ×2، الربع ساعة ×1"));
-    mtfBox.append(h("b", null, "📋 كل الفريمات"), gBox, tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
+    const nOk = rows.filter(r => r[1]).length, nUp = ds.filter(v => v > 0).length, nDn = ds.filter(v => v < 0).length, nFlat = nOk - nUp - nDn;
+    const sameTxt = !same ? "⚠️ الفريمات مختلفة — السوق محتار، انتبه" : (ds[0] > 0 ? (nUp === nOk ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ " + nUp + " من " + nOk + " فريمات صاعدة" + (nFlat ? " والباقي محتار" : "") + " — اتجاه واضح")
+      : (nDn === nOk ? "✅ كل الفريمات هابطة — اتجاه واضح" : "✅ " + nDn + " من " + nOk + " فريمات هابطة" + (nFlat ? " والباقي محتار" : "") + " — اتجاه واضح"));
+    mtfBox.append(h("b", null, "📋 كل الفريمات"), gBox, tb, h("small", null, sameTxt));
   }
 
   let sigUps = {}, focusKey = null, openTitle = null, animT0 = 0;
