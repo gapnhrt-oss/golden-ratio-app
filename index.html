@@ -2279,7 +2279,7 @@ const CSVG = (cs, ctx, dir, full) => {
   cs.forEach(c => C.push(c.concat([0])));
   const L = cs[cs.length - 1], d = dir || 1;
   let conf = null;
-  if (full) { const o = L[3], c = d === 1 ? hi0 + 0.9 : lo0 - 0.9; conf = [o, Math.max(o, c) + 0.2, Math.min(o, c) - 0.2, c, 2]; C.push(conf); }
+  if (full && dir) { const o = L[3], c = d === 1 ? hi0 + 0.9 : lo0 - 0.9; conf = [o, Math.max(o, c) + 0.2, Math.min(o, c) - 0.2, c, 2]; C.push(conf); }
   const all = C.flatMap(c => [c[1], c[2]]), mx = Math.max(...all) + 0.6, mn = Math.min(...all) - 0.6, Y = v => 20 + 155 * (mx - v) / (mx - mn);
   const nc = C.filter(c => c[4] === 1).length, np = C.length - nc, sf = Math.min(1, 300 / (nc * 30 + np * 46)), span = (nc * 30 + np * 46) * sf;
   let b = "", x = Math.max(24, (300 - span) / 2 + 20);
@@ -2296,8 +2296,13 @@ const CSVG = (cs, ctx, dir, full) => {
     const ey = Y(d === 1 ? hi0 : lo0), sy = Y(d === 1 ? lo0 - 0.3 : hi0 + 0.3), cx = x - 46 * sf;
     b += '<g class="lga" style="animation-delay:.6s">' + LG.ln(px0, ey, 352, ey, LG.gold, "5 4", 1.6) + LG.pill(318, ey + (d === 1 ? 14 : -14), "✅ الدخول", "rgba(242,183,5,.92)") + LG.tx(cx, Y(conf[d === 1 ? 1 : 2]) + (d === 1 ? -6 : 14), "التأكيد", LG.gold, 10) + "</g>";
     b += '<g class="lga" style="animation-delay:.9s">' + LG.ln(px0, sy, 352, sy, "#FF6B6B", "5 4", 1.4) + LG.pill(Math.min(318, cx + 70), sy + (d === 1 ? 13 : -13), "🛑 الوقف", "rgba(60,20,40,.95)", "#FFB3B3") + "</g>";
-  } else if (full) b += '<g class="lga" style="animation-delay:.4s">' + LG.pill(250, 186, "⚠️ حيرة — ننتظر الشمعة الجاية", "#1d1f55", "#FFE7A3") + "</g>";
-  b += LG.pill((px0 + px1) / 2, dir === -1 ? Math.min(188, Y(lo0) + 24) : Math.max(12, Y(hi0) - 22), "النموذج", LG.g2);
+  } else if (full) {   //--- شمعة حيرة: سيناريوهين — الشمعة الجاية هي اللي تقرر
+    const uy = Y(hi0), dy = Y(lo0);
+    b += '<g class="lga" style="animation-delay:.3s">' + LG.ln(px0, uy, 352, uy, LG.up, "5 4", 1.8) + LG.pill(300, uy - 14, "🟢 تسكر فوق = شراء", "rgba(61,214,140,.92)") + "</g>";
+    b += '<g class="lga" style="animation-delay:.6s">' + LG.ln(px0, dy, 352, dy, LG.dn, "5 4", 1.8) + LG.pill(300, dy + 14, "🔴 تسكر تحت = بيع", "rgba(255,107,107,.92)") + "</g>";
+    b += '<g class="lga" style="animation-delay:.9s">' + LG.tx(290, (uy + dy) / 2 + 4, "⚠️ ننتظر الشمعة الجاية", "#FFE7A3", 10.5) + "</g>";
+  }
+  b += dir === 0 && full ? LG.pill(px0 - 34, (Y(hi0) + Y(lo0)) / 2, "النموذج", LG.g2) : LG.pill((px0 + px1) / 2, dir === -1 ? Math.min(188, Y(lo0) + 24) : Math.max(12, Y(hi0) - 22), "النموذج", LG.g2);
   return LG.wrap(b);
 };
 //--- [id, الاسم, وصف, مستوى, المجموعة, الاتجاه قبل, 1 شراء / -1 بيع / 0 حيرة, الشموع [o,h,l,c], شكلها, وين تكون قوية, متى تضعف]
