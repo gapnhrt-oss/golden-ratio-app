@@ -1463,7 +1463,7 @@ async function ChartScreen() {
 }
 
 /* ================== التوجيه ================== */
-const SCREENS = { posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin, vip: Vip, learn: async () => Learn() };
+const SCREENS = { ea: EaPage, posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin, vip: Vip, learn: async () => Learn() };
 let renderToken = 0;
 async function route() {
   let r = (location.hash || "#chart").slice(1).split("/")[0];
@@ -1809,6 +1809,7 @@ async function Home() {
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
+  root.append(h("a", { class: "vlink", href: "#ea" }, h("b", null, "🤖 نتائج الاكسبيرت"), h("small", { class: "muted" }, "نمو الحساب · الأرباح شهر بشهر · لايف ←")));
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
   const lives = openSigs.map(s => liveCard(s, ups));
@@ -3087,6 +3088,59 @@ function installHint() {
   return c;
 }
 
+/* ================== 🤖 نتائج الاكسبيرت (من GR_Results.mq5) ================== */
+async function EaPage() {
+  const root = h("div", { class: "screen" });
+  const { data: row } = await sb.from("ea_snap").select("data,updated_at").eq("id", 1).maybeSingle();
+  const d = (row && row.data) || {};
+  root.append(h("div", null, h("p", { class: "eyebrow" }, "GOLDEN RATIO · EA"), h("h1", { class: "h1" }, "🤖 نتائج الاكسبيرت" + (d.name ? " · " + d.name : ""))));
+  if (d.balance == null) { root.append(h("div", { class: "empty" }, "النتائج بتطلع هني أول ما يتصل الاكسبيرت بالموقع 🚀")); return root; }
+  const usd = v => (v < 0 ? "-" : "") + "$" + fmt(Math.abs(Math.round(v * 100) / 100));
+  const sg = v => (v > 0 ? "+" : "") + usd(v);
+  const stale = Date.now() - new Date(row.updated_at) > 30 * 60e3;
+  root.append(h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" },
+    h("span", { class: "pill " + (d.demo ? "wait" : "on") }, d.demo ? "🧪 حساب تجريبي (ديمو)" : "✅ حساب حقيقي"),
+    h("span", { class: "pill " + (stale ? "gray" : "on") }, stale ? "⏸️ آخر تحديث " + ago(row.updated_at) : "🟢 لايف · " + ago(row.updated_at)),
+    d.start ? h("small", { class: "muted" }, "من " + kwDate(d.start * 1000) + (d.days ? " · " + d.days + " يوم" : "")) : null));
+  //--- 💼 الكرت الرئيسي + المنحنى
+  const up = (d.growth || 0) >= 0, col = up ? "#F2B705" : "#FF6B6B";
+  const pts = (d.curve || []).filter(r => r[1] != null);
+  const g = h("div", { class: "grw" });
+  if (pts.length >= 2) {
+    const W = 300, H = 100, t0 = pts[0][0], t1 = pts[pts.length - 1][0], lo = Math.min(...pts.map(p => p[1])), hi = Math.max(...pts.map(p => p[1])), sp = (hi - lo) || 1, ts = (t1 - t0) || 1;
+    const xy = pts.map(p => [Math.round((p[0] - t0) / ts * W * 10) / 10, Math.round((H - 6 - (p[1] - lo) / sp * (H - 14)) * 10) / 10]);
+    const ln = "M" + xy.map(p => p.join(",")).join(" L");
+    g.innerHTML = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none"><defs><linearGradient id="eaw" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".42"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs><path d="' + ln + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="url(#eaw)"/><path d="' + ln + '" fill="none" stroke="' + col + '" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
+  }
+  root.append(h("div", { class: "card gold", style: "gap:6px" },
+    h("div", { class: "between" }, h("small", { class: "muted" }, "📈 نمو الحساب"), h("span", { class: "pill " + (up ? "on" : "off"), dir: "ltr" }, (up ? "+" : "") + fmt(d.growth) + "%")),
+    h("div", { class: "between" }, h("b", { class: "num", style: "font-size:1.7rem", dir: "ltr" }, usd(d.balance)), h("small", { class: "muted num" }, "البداية " + usd(d.deposit || 0))),
+    h("div", { class: "between" }, h("small", { class: "muted" }, "💰 صافي الربح"), h("b", { class: "num " + ((d.profit || 0) >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(d.profit || 0))),
+    pts.length >= 2 ? g : null));
+  //--- 📊 الأرقام
+  const kp = (lb, v, cls, sub) => h("div", { class: "card soft kp" }, h("small", { class: "muted" }, lb), h("b", { class: "num " + (cls || ""), dir: "ltr" }, v), sub ? h("small", { class: "muted" }, sub) : null);
+  root.append(h("div", { class: "grid2" },
+    kp("🧺 السلات الرابحة", fmt(d.bwin || 0) + "%", "pos", (d.baskets || 0) + " سلة مسكّرة"),
+    kp("🔁 الصفقات", String(d.trades || 0), "", "رابحة " + fmt(d.win || 0) + "%"),
+    kp("📉 أكبر خسارة مفتوحة", usd(-(d.dd_max || 0)), "neg", d.dd_max_pct ? "تقريباً " + fmt(d.dd_max_pct) + "% من الحساب" : "قبل ما تسكّر السلة"),
+    kp("🏆 أفضل سلة", sg(d.best || 0), "pos", d.worst < 0 ? "أسوأ سلة " + usd(d.worst) : "ما في سلة خسرانة")));
+  //--- ⏱️ الحين
+  if (d.open_n != null) root.append(h("div", { class: "card soft", style: "gap:6px" }, h("b", null, "⏱️ الحين"),
+    d.open_n ? h("div", { class: "between" }, h("span", null, d.open_n + " صفقة مفتوحة · " + fmt(d.open_lots || 0) + " لوت"), h("b", { class: "num " + ((d.open_pl || 0) >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(d.open_pl || 0))) : h("span", { class: "muted" }, "ما في صفقات مفتوحة، ينتظر الفرصة الجاية"),
+    h("small", { class: "muted" }, "الاكسبيرت يسكّر كل الصفقات مع بعض لمن تصير السلة رابحة")));
+  //--- 📅 شهر بشهر
+  const M = (d.months || []).slice().reverse();
+  if (M.length) {
+    const tb = h("table", { class: "mtab" }, h("tr", null, h("th", null, "الشهر"), h("th", null, "صفقات"), h("th", null, "الربح"), h("th", null, "%")));
+    M.forEach(m => { const [y, mo] = m.m.split("-").map(Number); tb.append(h("tr", null, h("td", null, new Date(Date.UTC(y, mo - 1, 15)).toLocaleString("ar-KW-u-nu-latn", { month: "long", year: "numeric" })), h("td", { class: "num" }, String(m.n || 0)),
+      h("td", { class: "num " + ((m.p || 0) >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(m.p || 0)), h("td", { class: "num " + ((m.pct || 0) >= 0 ? "pos" : "neg"), dir: "ltr" }, ((m.pct || 0) > 0 ? "+" : "") + fmt(m.pct || 0) + "%"))); });
+    root.append(h("h2", { class: "h2" }, "📅 شهر بشهر"), h("div", { class: "card soft", style: "padding:10px 12px" }, tb));
+  }
+  root.append(h("div", { class: "card soft" }, h("small", { class: "muted", style: "line-height:1.8" }, "⚠️ هذي نتائج الحساب كما هي من MT5 بشكل تلقائي. النتائج السابقة ما تضمن نتائج المستقبل، والتداول فيه مخاطرة ممكن تخسر فيها جزء من رأس مالك.")),
+    h("a", { class: "btn primary", href: "#sub" }, "🔁 انسخ صفقات الاكسبيرت على حسابك"));
+  return root;
+}
+
 /* ================== التوصيات ================== */
 function howSheet() {
   openSheet(h("div", { class: "screen" },
@@ -3321,7 +3375,7 @@ function paySheet(plan) {
 }
 
 function copyCard(reqs) {
-  const c = h("div", { class: "card" }, h("b", null, "نسخ الصفقات"), h("p", { class: "muted", style: "font-size:.9rem" }, "تربط حسابك MT5 وصفقات الاكسبيرت تنفتح عندك تلقائيًا. المحاسبة 30% من صافي الربح الشهري بس."));
+  const c = h("div", { class: "card" }, h("b", null, "نسخ الصفقات"), h("p", { class: "muted", style: "font-size:.9rem" }, "تربط حسابك MT5 وصفقات الاكسبيرت تنفتح عندك تلقائيًا. المحاسبة 30% من صافي الربح الشهري بس."), h("a", { class: "btn ghost sm", href: "#ea", style: "align-self:flex-start" }, "🤖 شوف نتائج الاكسبيرت"));
   const last = reqs[0];
   if (last) { const st = { pending: ["قيد المراجعة", "wait"], active: ["فعّال", "on"], stopped: ["متوقف", "gray"], rejected: ["مرفوض", "off"] }[last.status] || [last.status, "gray"]; c.append(h("div", { class: "between" }, h("span", { class: "num" }, "MT5 " + last.mt5_login), h("span", { class: "pill " + st[1] }, st[0]))); }
   if (!last || last.status === "rejected" || last.status === "stopped") {
