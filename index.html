@@ -1827,7 +1827,6 @@ async function Home() {
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), fold("gp", "💰 سعر الذهب لايف", goldPrice()));
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
-  root.append(eaMini());
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
   const lives = openSigs.map(s => liveCard(s, ups));
@@ -1857,11 +1856,11 @@ async function Home() {
   add(root, launch);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), sigBox, fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+    add(root, renewCard(), sigBox, eaMini(), fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
       closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, sigBox, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
+    add(root, sigBox, eaMini(), signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
       fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
