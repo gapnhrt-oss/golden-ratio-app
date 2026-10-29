@@ -758,8 +758,8 @@ async function ChartScreen() {
       timeScale: { visible: false, rightOffset: 24 }, handleScroll: false, handleScale: false, crosshair: { mode: 0 }, localization: { locale: "en-US", priceFormatter: fmt } });
     const p = { el, w, c, lab, tip, title }; PN.push(p); return p;
   };
-  const indSum = h("div", { class: "chx-sum" }); indBox.append(indSum);
   const pR = mkPane("RSI 14", v => v.toFixed(0)), pM = mkPane("MACD 12·26·9", v => v.toFixed(1)), pA = mkPane("ADX 14", v => v.toFixed(0));
+  const indSum = h("div", { class: "chx-sum" }); indBox.append(indSum);   //--- 🧭 الاتجاه تحت RSI · MACD · ADX
   const rsiS = pR.c.addLineSeries({ color: "#F2B705", lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
   [70, 30].forEach(v => rsiS.createPriceLine({ price: v, color: "rgba(158,163,214,.5)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" }));
   const mH = pM.c.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false }), mL = pM.c.addLineSeries({ color: "#4EA8FF", lineWidth: 2, priceLineVisible: false, lastValueVisible: false }), mS = pM.c.addLineSeries({ color: "#FF9F43", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
