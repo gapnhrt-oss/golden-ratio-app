@@ -1019,12 +1019,15 @@ async function ChartScreen() {
       const FIB5 = [0.382, 0.618, 1, 1.272, 1.618], FIBN = ["38%", "62%", "100% · هدف الكتاب", "127%", "162%"];
       const tps5 = (base, len, d) => FIB5.map(f => base + d * len * f);
       //--- وين وصل السعر بعد الاختراق: كم هدف تحقق + هل ضرب الوقف
-      const journey = (t0, tps, sl, bull) => {
-        let i = data.findIndex(c => c.time >= t0), n = 0, stop = 0; if (i < 0) return { n, stop };
+      //--- رحلة الأهداف + 🔒 الوقف المتحرك: بعد 🎯1 الوقف على الدخول، بعد 🎯2 على 🎯1 … ولو السعر رجع للوقف = الشكل خلص ويختفي
+      const journey = (t0, tps, sl, bull, e) => {
+        let i = data.findIndex(c => c.time >= t0), n = 0, stop = 0, csl = sl; if (i < 0) return { n, stop, csl };
         for (i = i + 1; i < data.length; i++) { const c = data[i];
-          if (bull ? c.low <= sl : c.high >= sl) { stop = n ? 2 : 1; break; }
-          while (n < 5 && (bull ? c.high >= tps[n] : c.low <= tps[n])) n++; if (n >= 5) break; }
-        return { n, stop };
+          if (bull ? c.low <= csl : c.high >= csl) { stop = n ? 2 : 1; break; }
+          while (n < 5 && (bull ? c.high >= tps[n] : c.low <= tps[n])) n++;
+          if (n >= 1 && e != null) csl = n === 1 ? e : tps[n - 2];
+          if (n >= 5) break; }
+        return { n, stop, csl };
       };
       const axis = (v, t, c) => isFinite(v) && v && plines.push(cs.createPriceLine({ price: v, color: c, lineVisible: false, axisLabelVisible: true, title: t }));
       const tfStars = tf => tf === "D1" || tf === "يومي" ? 5 : tf === "H4" ? 4 : 3;
@@ -1043,15 +1046,16 @@ async function ChartScreen() {
         shCard.hidden = false;
       };
       //--- رسمة الأهداف: مخروط ذهبي من نقطة الانطلاق + 5 خطوط + الطريق المتوقع + الوقف + الاحتفالية
-      const goldTargets = (o, tps, sl, J, bull, lab) => {
+      const goldTargets = (o, tps, sl0, J, bull, lab) => {
+        const sl = J.csl != null ? J.csl : sl0; if (J.n >= 1) lab = J.n === 1 ? "🔒 الوقف على الدخول" : "🔒 الوقف على 🎯" + (J.n - 1);
         focusRange = [Math.min(sl, ...tps) - 2, Math.max(sl, ...tps) + 2]; cs.applyOptions({ autoscaleInfoProvider: autoFR });
         //--- 🎯 خط قصير لكل هدف + كبسولة (رقم الهدف · النسبة · السعر) — بدون خطوط مايلة ولا مخروط
         tps.forEach((t, k) => polys.push({ t: "tick", p: { lg: 3, value: t }, txt: (k < J.n ? "✅" : "🎯") + (k + 1) + " · " + ["38%", "62%", "100%", "127%", "162%"][k] + " · " + Math.round(t), hit: k < J.n, an: 3 }));
         if (J.stop !== 1 && J.n < 5) { const lastC = data[data.length - 1], nx = tps[J.n];
           polys.push({ t: "ghost", a: { time: lastC.time, value: lastC.close }, b: { lg: 18, value: nx }, txt: "✨ الطريق المتوقع", an: 3 }); }
         polys.push({ t: "seg", a: { time: o.time, value: sl }, b: { lg: 20, value: sl }, c: "#FF6B6B", w: 1.4, dash: "6 5", an: 3 });
-        polys.push({ t: "label", p: { lg: 9, value: sl }, txt: "🛑 " + lab, up: !bull, off: 13, bg: "rgba(60,20,40,.9)", fg: "#FFB3B3", an: 3 });
-        axis(sl, "🛑 وقف", "#FF6B6B");
+        polys.push({ t: "label", p: { lg: J.n >= 1 ? -6 : 9, value: sl }, txt: (J.n >= 1 ? "" : "🛑 ") + lab, up: !bull, off: J.n >= 1 ? 26 : 13, bg: "rgba(60,20,40,.9)", fg: "#FFB3B3", an: 3 });
+        axis(sl, J.n >= 1 ? "🔒 وقف" : "🛑 وقف", "#FF6B6B");
         if (J.n >= 3) polys.push({ t: "label", p: { lg: 12, value: tps[2] }, off: 18, txt: "🎉 الشكل حقق هدفه", up: bull, bg: "rgba(242,183,5,.95)", an: 3 });
       };
       //--- بس H1 / H4 / اليومي، والأشكال بالصيغة الجديدة (فيها نقاط) — القديمة ما تطلع
@@ -1068,7 +1072,7 @@ async function ChartScreen() {
           //--- نقطة الانطلاق: D (اكتمل) أو نص منطقة D (قريب)
           const o = s.done ? last : { time: endT(), value: (s.lo + s.hi) / 2 };
           const tps = s.tps && s.tps.length === 5 ? s.tps : tps5(o.value, Math.abs((s.tp1 - o.value) / 0.382), dd);
-          const J = s.done ? journey(last.time, tps, s.sl, bull) : { n: 0, stop: data.some(c => c.time > last.time && (bull ? c.low <= s.sl : c.high >= s.sl)) ? 1 : 0 };
+          const J = s.done ? journey(last.time, tps, s.sl, bull, last.value) : { n: 0, stop: data.some(c => c.time > last.time && (bull ? c.low <= s.sl : c.high >= s.sl)) ? 1 : 0 };
           if (J.stop) return;   //--- 🛑 ضرب الوقف: النموذج فشل — يختفي من الشارت والقائمة
           if (full) {
             const T = P.concat(s.done ? [] : [o]);
@@ -1094,7 +1098,7 @@ async function ChartScreen() {
           const Z = (s.zz || []).map(p => ({ time: snap(p[0]), value: p[1], lb: p[2] })).filter(p => p.time != null);
           const brk = s.brk ? { time: snap(s.brk[0]), value: s.brk[1] } : null;
           const hgt = Math.abs(s.tp1 - s.lv), tps = s.tps && s.tps.length === 5 ? s.tps : tps5(s.lv, hgt, dd);
-          const J = brk && brk.time != null ? journey(brk.time, tps, s.sl, bull) : { n: 0, stop: 0 };
+          const J = brk && brk.time != null ? journey(brk.time, tps, s.sl, bull, s.lv) : { n: 0, stop: 0 };
           if (J.stop) return;   //--- 🛑 ضرب الوقف: الشكل فشل — يختفي من الشارت والقائمة
           if (full && Z.length >= 2) {
             //--- 1) التظليل الذهبي تحت الشكل + الخط الذهبي اللي يرسم نفسه
