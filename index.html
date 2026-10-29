@@ -332,6 +332,12 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-dd .chx-tfs button small{opacity:.7;font-size:12px}.chx-tfs .tfd{display:none}.chx-dd .chx-tfs .tfd{display:inline}
 .chx-ddw:nth-child(2) .chx-dd{inset-inline:0}
 .chx-alw{margin-inline-start:auto;display:flex;align-items:center;gap:6px}
+.chx-card .chx-ctl{position:absolute;top:8px;inset-inline-start:8px;inset-inline-end:60px;z-index:20;gap:6px;pointer-events:none}
+.chx-card .chx-ctl>*{pointer-events:auto}
+.chx-card .chx-ddb{background:rgba(16,18,58,.86);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:6px 10px;font-size:13px;border-radius:10px}
+.chx-card .chx-alb{background:rgba(16,18,58,.86);padding:5px 9px;font-size:15px;border-radius:10px}
+.chx-card .chx-dd{max-height:min(330px,calc(46vh - 60px));overflow:auto}.chx-card .chx-ddw:nth-child(2) .chx-dd{inset-inline-end:-52px}
+.chx-card.fs .chx-ctl .chx-ddw:first-child{display:none}.chx-card.fs .chx-ctl{inset-inline-end:8px;top:calc(env(safe-area-inset-top,0px) + 8px)}
 
 .chx-top img{width:40px;height:40px;border-radius:50%;box-shadow:0 0 0 2px rgba(242,183,5,.55)}
 .chx-pxw{margin-inline-start:auto;text-align:left;direction:ltr;font-family:var(--latin)}
@@ -740,11 +746,13 @@ async function ChartScreen() {
   tfBar.addEventListener("click", e => { if (e.target.closest("button")) { setTimeout(paintCtl, 0); if (tfPop.contains(tfBar)) ddClose(); } });
   optBar.addEventListener("click", e => { if (e.target.closest("button")) setTimeout(paintCtl, 0); });
   const ctlRow = h("div", { class: "chx-ctl" }, h("div", { class: "chx-ddw" }, tfBtn, tfPop), h("div", { class: "chx-ddw" }, toolBtn, toolPop),
-    h("span", { class: "chx-alw" }, h("small", { class: "muted" }, "تنبيه سعر"), alBtn));
+    h("span", { class: "chx-alw" }, alBtn));
+  ctlRow.addEventListener("click", e => e.stopPropagation()); ctlRow.addEventListener("pointerdown", e => e.stopPropagation());
+  card.append(ctlRow);   //--- داخل الشارت فوق
   const root = h("div", { class: "screen" },
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
     h("div", { class: "chx-stack" }, goldPrice(), card), shCard,
-    ctlRow, h("div", { class: "chx-ind" }),
+    h("div", { class: "chx-ind" }),
     whyBar, leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
