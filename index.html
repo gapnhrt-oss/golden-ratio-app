@@ -409,6 +409,26 @@ body.chx-fson{overflow:hidden}body.chx-fson .tabs,body.chx-fson .top{visibility:
 .chx-ex summary{cursor:pointer;font-weight:600;font-size:14px}
 .chx-ex details div{font-size:13px;color:var(--muted);padding-top:4px}
 .chx-note{font-size:12px;color:var(--muted);text-align:center}
+.faq{border-bottom:1px solid var(--line);padding:4px 0 10px}.faq:last-of-type{border-bottom:0}
+.faq summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:10px;padding:6px 0}
+.faq summary::-webkit-details-marker{display:none}.faq summary::after{content:"+";color:var(--gold);font-weight:700}.faq[open] summary::after{content:"−"}
+.faq p{white-space:pre-line;line-height:1.8;font-size:.9rem;margin:2px 0 8px}
+.grw{margin:2px -4px 0}.grw svg{display:block}
+.mtab{width:100%;border-collapse:collapse;font-size:.85rem}.mtab th{color:var(--muted);font-weight:400;padding:6px 2px;border-bottom:1px solid var(--line)}.mtab td{padding:7px 2px;border-bottom:1px solid var(--line);text-align:center}.mtab tr:last-child td{border-bottom:0}
+.lnch{align-items:center;text-align:center}
+.cdwn{display:flex;gap:8px;justify-content:center}.cdwn>div{background:var(--bg2);border:1px solid var(--gold2);border-radius:12px;min-width:62px;padding:8px 4px;display:flex;flex-direction:column;align-items:center}
+.cdwn b{font-family:var(--latin);font-size:1.5rem;color:var(--gold);line-height:1.2}.cdwn small{color:var(--muted);font-size:.7rem}
+.sw{width:44px;height:26px;border-radius:99px;border:0;background:var(--line);position:relative;flex:0 0 auto;cursor:pointer;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:right .2s}
+.sw[aria-checked="true"]{background:var(--up)}.sw[aria-checked="true"]::after{right:21px}
+.nrow{padding:4px 0;font-size:.92rem}
+.okbox{background:color-mix(in srgb,var(--up) 12%,var(--bg2));border:1px solid color-mix(in srgb,var(--up) 35%,transparent);border-radius:12px;padding:10px 12px;font-size:.88rem}
+.alrow{padding:4px 0}
+.kp{gap:4px}.kp b{font-size:1.45rem;white-space:nowrap}.kp b.gold{color:var(--gold)}
+.pbar{height:8px;border-radius:9px;background:var(--bg2);overflow:hidden}.pbar i{display:block;height:100%;background:var(--gold);border-radius:9px}
+.bars7{display:flex;align-items:flex-end;gap:6px;justify-content:space-between;margin-top:6px}.bars7>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.bars7 i{display:block;width:100%;max-width:26px;background:linear-gradient(var(--gold),var(--gold2));border-radius:6px 6px 2px 2px}.bars7 small{font-size:.68rem}
+.chx-alb{border:1px solid var(--line);background:var(--bg2);color:var(--fg);border-radius:12px;padding:6px 10px;font-size:1rem;cursor:pointer;flex:0 0 auto}
 </style>
 </head>
 <body>
@@ -682,8 +702,9 @@ async function ChartScreen() {
   const whyBar = h("div", { class: "chx-whybar", hidden: true }), whyDet = h("div", { class: "chx-whydet", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑"), h("a", { href: "#vip", style: "color:#FFD54A;font-weight:700;margin-top:6px" }, "شنو بتحصل في VIP؟")));
+  const alBtn = h("button", { class: "chx-alb", type: "button", "aria-label": "تنبيه سعر", title: "تنبيه سعر" }, "🔔");
   const root = h("div", { class: "screen" },
-    h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl)),
+    h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl), alBtn),
     tfBar, optBar, ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "", shCard, card, whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
@@ -697,6 +718,18 @@ async function ChartScreen() {
     handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: true }, handleScale: { axisPressedMouseMove: true, mouseWheel: true, pinch: true },
   });
   const cs = chart.addCandlestickSeries({ upColor: "#3DD68C", downColor: "#FF6B6B", borderVisible: false, wickUpColor: "#3DD68C", wickDownColor: "#FF6B6B" });
+  //--- 🔔 تنبيهاتي كخط منقّط على الشارت
+  let alLines = [];
+  const paintAlerts = async () => {
+    try {
+      alLines.forEach(l => { try { cs.removePriceLine(l); } catch (_) {} }); alLines = [];
+      if (!S.session || !cs.createPriceLine) return;
+      const { data } = await sb.from("price_alerts").select("price").is("hit_at", null);
+      (data || []).forEach(a => alLines.push(cs.createPriceLine({ price: Number(a.price), color: "#F2B705", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "🔔" })));
+    } catch (_) {}
+  };
+  alBtn.onclick = e => { e.stopPropagation(); alertSheet(paintAlerts, Number(String(pxEl.textContent).replace(/,/g, "")) || null); };
+  paintAlerts();
   //--- لمن تفتح شكل: الشارت يوسع علشان تبين الأهداف الخمسة والوقف
   let focusRange = null;
   const autoFR = orig => { const r = orig(); if (r && r.priceRange && focusRange) { r.priceRange.minValue = Math.min(r.priceRange.minValue, focusRange[0]); r.priceRange.maxValue = Math.max(r.priceRange.maxValue, focusRange[1]); } return r; };
@@ -1707,9 +1740,10 @@ async function Home() {
   }
   const signup = !S.session ? h("div", { class: "card" }, h("b", null, "سوّ حسابك ببلاش"), h("p", { class: "muted" }, "عشان تشترك وتتابع توصياتك وتكلمنا من داخل التطبيق."),
     h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "عندي حساب"))) : null;
-  const [freeW, news, poll, lead] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null)]);
+  const [freeW, news, poll, lead, launch] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null), launchCard().catch(() => null)]);
 
   const tm = todayMorning(ps).map(p => p.id), feedPs = ps.filter(p => !tm.includes(p.id));   // قراءة اليوم لها كرت، فما تتكرر بالمنشورات
+  add(root, launch);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
     add(root, welcomeCard(ps), renewCard(), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
@@ -3060,6 +3094,7 @@ async function Signals() {
   // ملخص النتائج: تبويبات الفترة + 4 خانات
   if (closed.length) {
     root.append(statsPanel(closed, ups));
+    add(root, growthCard(closed));
     if (S.admin) root.append(h("button", { class: "btn primary", type: "button", onclick: () => shareMonthImage(closed) }, "📸 صورة نتائج الشهر للنشر"));
     root.append(h("h2", { class: "h2" }, "الأرشيف (" + closed.length + ")"));
     closed.forEach(s => root.append(signalCard(s, ups)));
@@ -3102,7 +3137,7 @@ async function Sub() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "اشتراكي"));
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
   if (!S.session) {
-    root.append(plansCard(null), h("div", { class: "card" }, h("b", null, "سجّل دخول عشان تشترك"), h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "دخول"))));
+    root.append(plansCard(null), h("div", { class: "card" }, h("b", null, "سجّل دخول عشان تشترك"), h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "دخول"))), faqCard());
     return root;
   }
   const uid = S.session.user.id;
@@ -3126,7 +3161,9 @@ async function Sub() {
   root.append(plansCard(active));
   add(root, await referralCard());
   root.append(copyCard(copies.data || []));
+  add(root, notifCard());
   root.append(h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, (S.profile && S.profile.name) || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, (S.profile && S.profile.phone) || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))));
+  root.append(faqCard());
   return root;
 }
 
@@ -3237,13 +3274,13 @@ async function chatThread(threadUser, root) {
 
 /* ================== الإدارة ================== */
 async function Admin() {
-  const sub = (location.hash.split("/")[1]) || "req";
-  const tabs = [["req", "الطلبات"], ["members", "المشتركين"], ["sig", "التوصيات"], ["post", "منشور"], ["msgs", "الرسائل"], ["copy", "النسخ"]];
+  const sub = (location.hash.split("/")[1]) || "stats";
+  const tabs = [["stats", "📊 الأرقام"], ["req", "الطلبات"], ["members", "المشتركين"], ["sig", "التوصيات"], ["post", "منشور"], ["msgs", "الرسائل"], ["copy", "النسخ"]];
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "الإدارة"));
   const seg = h("div", { class: "seg" });
   tabs.forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#admin/" + t[0] }, t[1])));
   root.append(seg);
-  const fn = { req: AdmReq, members: AdmMembers, sig: AdmSig, post: AdmPost, msgs: AdmMsgs, copy: AdmCopy }[sub] || AdmReq;
+  const fn = { stats: AdmStats, req: AdmReq, members: AdmMembers, sig: AdmSig, post: AdmPost, msgs: AdmMsgs, copy: AdmCopy }[sub] || AdmReq;
   root.append(await fn());
   return root;
 }
@@ -3554,9 +3591,247 @@ function subscribeLive() {
     .subscribe();
 }
 
+/* ================== ❓ أسئلة شائعة ================== */
+const FAQ = [
+  ["شلون أشترك؟", "سوّ حساب ببلاش ← من «اشتراكي» اختار الباقة ← حوّل المبلغ وارفع صورة الإيصال ← نراجع الدفع ونفعّل اشتراكك، ويوصلك إشعار أول ما يتفعّل."],
+  ["شنو الفرق بين المجاني و VIP؟", "المجاني: توصية مجانية بالأسبوع، قراءة الصبح، الأخبار والأجندة، السوق، والتعليم.\nVIP: كل التوصيات لايف بالدخول والوقف والأهداف، المتابعة لحظة بلحظة (الأهداف وتحريك الوقف)، الشارت الذهبي بالمناطق والأشكال والهارمونيك، والأفكار."],
+  ["كم توصية باليوم؟", "ما في عدد ثابت. نشتغل على صفقة وحدة بكل مرة، وما تنزل توصية جديدة إلا بعد ما تسكّر اللي قبلها. نفضّل الجودة على الكثرة."],
+  ["شنو اللوت المناسب لحسابي؟", "نتائجنا محسوبة على صفقتين 0.01 + 0.01 لكل 1000$. لا تخاطر بأكثر من 1–2% من حسابك بالصفقة الوحدة، واستخدم حاسبة اللوت بقسم «تعلّم» عشان تعرف اللوت بالضبط.", "#learn/calc", "🧮 حاسبة اللوت"],
+  ["إذا ضرب الوقف شصير؟", "الخسارة محددة من البداية بالوقف، فتعرف كم أقصى شي ممكن تخسر قبل لا تدخل. وأول ما يتحقق الهدف الأول ننقل الوقف للدخول، فالصفقة بعدها ما تخسر."],
+  ["أقدر ألغي اشتراكي؟", "الاشتراك بمدة محددة ويخلص بروحه بنهاية المدة، ما في تجديد تلقائي ولا نسحب من حسابك شي. ويوصلك تذكير قبل لا يخلص بـ 3 أيام."],
+  ["وين توصلني التوصيات؟", "هني بالموقع لايف، مع إشعار على تلفونك أول ما تنزل توصية أو يتحقق هدف. ركّب الموقع على شاشة تلفونك وفعّل التنبيهات."],
+  ["الأرباح مضمونة؟", "لا. التداول فيه مخاطرة، وممكن تربح وممكن تخسر. نتائجنا كلها معروضة بشفافية، ربح أو خسارة، بصفحة التوصيات."],
+];
+function faqCard() {
+  const box = h("div", { class: "card" }, h("b", null, "❓ أسئلة شائعة"));
+  FAQ.forEach(([q, a, href, lbl]) => {
+    const d = h("details", { class: "faq" }, h("summary", null, q), h("p", { class: "muted" }, a));
+    if (href) d.append(h("a", { class: "btn ghost sm", href, style: "align-self:flex-start" }, lbl));
+    box.append(d);
+  });
+  box.append(h("a", { class: "btn ghost", href: "#chat" }, "💬 ما لقيت جوابك؟ كلّمنا"));
+  return box;
+}
+
+/* ================== 📈 نمو الحساب شهر بشهر ================== */
+function growthCard(closed) {
+  const L = closed.filter(s => s.closed_at).slice().sort((a, b) => new Date(a.closed_at) - new Date(b.closed_at));
+  if (!L.length) return null;
+  let bal = CAPITAL; const pts = [CAPITAL]; const M = new Map();
+  L.forEach(s => {
+    const t = legs(s).tot; bal = r2(bal + t); pts.push(bal);
+    const k = new Date(new Date(s.closed_at).toLocaleString("en-US", { timeZone: "Asia/Kuwait" }));
+    const key = k.getFullYear() * 100 + k.getMonth();
+    if (!M.has(key)) M.set(key, { y: k.getFullYear(), m: k.getMonth(), n: 0, ok: 0, p: 0 });
+    const g = M.get(key); g.n++; if (outcome(s) !== "l") g.ok++; g.p = r2(g.p + t);
+  });
+  const W = 300, H = 90, lo = Math.min(...pts), hi = Math.max(...pts), sp = (hi - lo) || 1;
+  const xy = pts.map((v, i) => [Math.round(i / (pts.length - 1) * W * 10) / 10, Math.round((H - 6 - (v - lo) / sp * (H - 14)) * 10) / 10]);
+  const line = "M" + xy.map(p => p.join(",")).join(" L");
+  const up = bal >= CAPITAL, col = up ? "#F2B705" : "#FF6B6B";
+  const svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none"><defs><linearGradient id="grw" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".42"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs>' +
+    '<path d="' + line + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="url(#grw)"/><path d="' + line + '" fill="none" stroke="' + col + '" stroke-width="2.4" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
+  const g = h("div", { class: "grw" }); g.innerHTML = svg;
+  const curY = new Date().getFullYear();
+  const mName = x => new Date(Date.UTC(x.y, x.m, 15)).toLocaleString("ar-KW-u-nu-latn", { month: "long" }) + (x.y !== curY ? " " + x.y : "");
+  const rows = [...M.values()].reverse();
+  const tb = h("table", { class: "mtab" }, h("tr", null, h("th", null, "الشهر"), h("th", null, "صفقات"), h("th", null, "ما خسرت"), h("th", null, "الربح"), h("th", null, "%")));
+  rows.forEach(x => tb.append(h("tr", null, h("td", null, mName(x)), h("td", { class: "num" }, String(x.n)), h("td", { class: "num" }, Math.round(x.ok / x.n * 100) + "%"),
+    h("td", { class: "num " + (x.p >= 0 ? "pos" : "neg"), dir: "ltr" }, money(x.p)), h("td", { class: "num " + (x.p >= 0 ? "pos" : "neg"), dir: "ltr" }, pctCap(x.p)))));
+  return h("div", { class: "screen", style: "gap:10px" },
+    h("h2", { class: "h2" }, "📈 نمو الحساب شهر بشهر"),
+    h("div", { class: "card gold", style: "gap:6px" },
+      h("div", { class: "between" }, h("small", { class: "muted" }, "💼 الحساب من أول توصية"), h("span", { class: "pill " + (up ? "on" : "off"), dir: "ltr" }, pctCap(bal - CAPITAL))),
+      h("div", { class: "between" }, h("b", { class: "num", style: "font-size:1.6rem", dir: "ltr" }, "$" + fmt(bal)), h("small", { class: "muted num" }, "البداية $" + fmt(CAPITAL))), g,
+      h("small", { class: "muted" }, "صفقتين 0.01 + 0.01 على حساب " + CAPITAL + "$ · كل توصية مسكّرة محسوبة")),
+    h("div", { class: "card soft", style: "padding:10px 12px" }, tb));
+}
+
+/* ================== 🔔 تنبيه السعر ================== */
+async function askNotif() {
+  if (!("Notification" in window)) return "none";
+  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone;
+  if (ios && !standalone) return "ios";
+  if (Notification.permission === "default") { try { await Notification.requestPermission(); } catch (_) {} }
+  if (Notification.permission === "granted") { await ensurePush(); return "ok"; }
+  return Notification.permission;
+}
+const notifWhy = r => r === "ios" ? "📲 ركّب الموقع على شاشة الآيفون (مشاركة ⬆️ ← إضافة إلى الشاشة الرئيسية) عشان يوصلك الإشعار" : r === "denied" ? "🔕 الإشعارات مسكّرة من إعدادات التلفون، فعّلها عشان يوصلك التنبيه" : r === "none" ? "جهازك ما يدعم الإشعارات" : "";
+async function alertSheet(after, fb) {
+  if (!S.session) { authSheet("signup"); toast("سوّ حساب ببلاش عشان تحط تنبيه سعر"); return; }
+  const now = (await livePrice()) || fb || null;
+  const f2 = v => Number(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const inp = h("input", { type: "number", step: "0.01", inputmode: "decimal", dir: "ltr", placeholder: now ? now.toFixed(2) : "4000.00", style: "font-size:1.2rem;text-align:left" });
+  const hint = h("small", { class: "muted" }, "اكتب السعر اللي تبي ننبهك عنده");
+  inp.oninput = () => { const v = Number(inp.value); hint.textContent = !v || !now ? "اكتب السعر اللي تبي ننبهك عنده" : v > now ? "⬆️ ننبهك لمن الذهب يطلع لـ " + f2(v) + " (فوق السعر الحين بـ " + f2(v - now) + "$)" : "⬇️ ننبهك لمن الذهب ينزل لـ " + f2(v) + " (تحت السعر الحين بـ " + f2(now - v) + "$)"; };
+  const list = h("div", { class: "screen", style: "gap:6px" }), warn = h("div", { class: "okbox", hidden: true });
+  const load = async () => {
+    list.textContent = "";
+    const { data } = await sb.from("price_alerts").select("*").is("hit_at", null).order("price", { ascending: false });
+    const A = data || [];
+    list.append(h("b", null, "تنبيهاتي (" + A.length + " من 3)"));
+    if (!A.length) list.append(h("small", { class: "muted" }, "ما عندك تنبيهات الحين."));
+    A.forEach(a => list.append(h("div", { class: "between alrow" }, h("b", { class: "num", dir: "ltr" }, (a.dir === "up" ? "⬆️ " : "⬇️ ") + f2(a.price)),
+      h("button", { class: "btn ghost sm", type: "button", onclick: async () => { await sb.from("price_alerts").delete().eq("id", a.id); await load(); if (after) after(); } }, "✕ شيل"))));
+  };
+  const go = h("button", { class: "btn primary block", type: "submit" }, "➕ حط التنبيه");
+  const form = h("form", { class: "screen", onsubmit: async e => {
+    e.preventDefault();
+    const v = Number(inp.value), p = (await livePrice()) || now;
+    if (!v || v <= 0) { toast("اكتب السعر", true); return; }
+    if (!p) { toast("ما قدرنا نجيب سعر الذهب الحين، جرّب بعد شوي", true); return; }
+    if (Math.abs(v - p) < 0.3) { toast("هالسعر نفس السعر الحين تقريباً", true); return; }
+    go.disabled = true;
+    const { error } = await sb.from("price_alerts").insert({ price: r2(v), dir: v > p ? "up" : "down" });
+    go.disabled = false;
+    if (error) { toast(/max 3/.test(error.message || "") ? "عندك 3 تنبيهات، شيل وحدة أول" : errText(error), true); return; }
+    inp.value = ""; inp.oninput();
+    toast("تم ✅ بنرسلك إشعار لمن يوصل الذهب " + f2(v));
+    const r = await askNotif(); const w = notifWhy(r); warn.hidden = !w; warn.textContent = w;
+    await load(); if (after) after();
+  } }, h("label", null, "نبهني لمن يوصل الذهب:"), inp, hint, go);
+  openSheet(h("div", { class: "screen" },
+    h("div", { class: "between" }, h("h2", { class: "h1" }, "🔔 تنبيه سعر"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    h("div", { class: "card soft" }, h("div", { class: "between" }, h("span", { class: "muted" }, "سعر الذهب الحين"), h("b", { class: "num", style: "font-size:1.3rem;color:var(--gold)", dir: "ltr" }, now ? f2(now) : "—")), form),
+    warn, h("div", { class: "card soft" }, list),
+    h("small", { class: "muted" }, "📲 يوصلك إشعار على التلفون أول ما يوصل السعر، والتنبيه يشتغل مرة وحدة وبعدها ينشال.")));
+  await load();
+}
+
+/* ================== ⏳ عدّاد الانطلاقة ================== */
+async function launchCfg() { try { const { data } = await sb.from("app_config").select("value").eq("key", "launch").maybeSingle(); return (data && data.value) || {}; } catch (_) { return {}; } }
+async function launchCard() {
+  const c = await launchCfg();
+  if (!c.on || !c.at || new Date(c.at) <= new Date()) return null;
+  const at = new Date(c.at);
+  let n = null; try { const r = await sb.rpc("waiting_count"); n = r.data; } catch (_) {}
+  const cell = lb => { const b = h("b", null, "00"); return [h("div", null, b, h("small", null, lb)), b]; };
+  const [dE, dB] = cell("يوم"), [hE, hB] = cell("ساعة"), [mE, mB] = cell("دقيقة"), [sE, sB] = cell("ثانية");
+  const pad = v => String(v).padStart(2, "0");
+  const when = kw(at, { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+  const btn = h("button", { class: "btn primary block", type: "button" }, "🔔 ذكّرني يوم الانطلاقة");
+  const box = h("div", { class: "card gold lnch" },
+    h("b", { style: "font-size:1.08rem" }, "🚀 انطلاقة توصيات GOLDEN RATIO"), h("small", { class: "muted" }, when + " · بتوقيت الكويت"),
+    h("div", { class: "cdwn", dir: "ltr" }, dE, hE, mE, sE), btn, n ? h("small", { class: "muted num" }, "👥 " + n + " مسجّل ينتظرون") : null);
+  btn.onclick = async () => {
+    if (!S.session) { authSheet("signup"); toast("سوّ حساب ببلاش وبنذكّرك يوم الانطلاقة"); return; }
+    const r = await askNotif();
+    if (r === "ok") { toast("✅ بنذكّرك بإشعار أول ما نطلق"); btn.textContent = "✅ بنذكّرك"; btn.disabled = true; } else toast(notifWhy(r) || "ما تفعّلت التنبيهات", true);
+  };
+  if (S.session && "Notification" in window && Notification.permission === "granted") { btn.textContent = "✅ بنذكّرك بإشعار يوم الانطلاقة"; btn.disabled = true; }
+  const tick = () => {
+    if (!document.body.contains(box) && box._t) { clearInterval(box._t); return; }
+    let s = Math.max(0, Math.floor((at - Date.now()) / 1000));
+    if (s <= 0) { clearInterval(box._t); box.replaceChildren(h("b", { style: "font-size:1.1rem" }, "🚀 انطلقنا!"), h("a", { class: "btn primary", href: "#signals" }, "شوف التوصيات")); return; }
+    dB.textContent = pad(Math.floor(s / 86400)); s %= 86400; hB.textContent = pad(Math.floor(s / 3600)); s %= 3600; mB.textContent = pad(Math.floor(s / 60)); sB.textContent = pad(s % 60);
+  };
+  tick(); box._t = setInterval(tick, 1000);
+  return box;
+}
+
+/* ================== ⚙️ اختيار التنبيهات ================== */
+const NCATS = [["signal", "📢 توصية جديدة و«ادخل الآن»"], ["update", "🎯 الأهداف وتحريك الوقف والإغلاق"], ["idea", "💡 الأفكار (مناطق نراقبها)"], ["morning", "☀️ قراءة الصبح"], ["post", "📰 المنشورات والأخبار"], ["poll", "🗳️ التصويت اليومي"], ["alert", "🔔 تنبيهات السعر حقتي"]];
+function notifCard() {
+  if (!S.session || !S.profile) return null;
+  const cur = Object.assign({}, S.profile.notif || {});
+  const box = h("div", { class: "card" }, h("b", null, "⚙️ التنبيهات"), h("small", { class: "muted" }, "اختار شنو يوصلك إشعار على التلفون:"));
+  if ("Notification" in window && Notification.permission !== "granted") {
+    const b = h("button", { class: "btn primary sm", type: "button", style: "align-self:flex-start" }, "🔔 فعّل الإشعارات على هالجهاز");
+    b.onclick = async () => { const r = await askNotif(); if (r === "ok") { toast("تفعّلت التنبيهات ✅"); b.remove(); } else toast(notifWhy(r) || "ما تفعّلت التنبيهات", true); };
+    box.append(b);
+  }
+  NCATS.forEach(([k, lb]) => {
+    const sw = h("button", { class: "sw", type: "button", role: "switch", "aria-checked": String(cur[k] !== false), "aria-label": lb });
+    sw.onclick = async () => {
+      const on = sw.getAttribute("aria-checked") !== "true";
+      sw.setAttribute("aria-checked", String(on)); cur[k] = on; sw.disabled = true;
+      const { error } = await sb.from("profiles").update({ notif: cur }).eq("id", S.session.user.id);
+      sw.disabled = false;
+      if (error) { sw.setAttribute("aria-checked", String(!on)); cur[k] = !on; toast(errText(error), true); return; }
+      S.profile.notif = Object.assign({}, cur);
+    };
+    box.append(h("div", { class: "between nrow" }, h("span", null, lb), sw));
+  });
+  box.append(h("small", { class: "muted" }, "💬 ردود الدعم وتفعيل الاشتراك توصلك دايماً."));
+  return box;
+}
+
+/* ================== 👀 زوار اليوم (للأرقام) ================== */
+function trackVisit() {
+  try {
+    if (S.admin) return;
+    const d = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuwait" });
+    if (localStorage.getItem("gr-vd") === d) return;
+    let v = localStorage.getItem("gr-vid");
+    if (!v) { v = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gr-vid", v); }
+    sb.from("site_visits").insert({ vid: v }).then(() => { try { localStorage.setItem("gr-vd", d); } catch (_) {} });
+  } catch (_) {}
+}
+
+/* ================== 📊 أرقام المدير ================== */
+async function AdmStats() {
+  const box = h("div", { class: "screen" });
+  const { data: st, error } = await sb.rpc("admin_stats");
+  if (error) throw error;
+  const kp = (lb, v, cls, sub) => h("div", { class: "card soft kp" }, h("small", { class: "muted" }, lb), h("b", { class: "num " + (cls || "") }, v), sub ? h("small", { class: "muted" }, sub) : null);
+  box.append(h("div", { class: "grid2" },
+    kp("👤 سجّلوا اليوم", (st.signups_today ? "+" : "") + st.signups_today, st.signups_today ? "pos" : "", "الكل " + st.users),
+    kp("👑 مشتركين فعّالين", String(st.members), "gold", "منهم " + st.paid_members + " دافعين"),
+    kp("👀 زوار اليوم", String(st.visits_today), "", "آخر 7 أيام " + st.visits_7),
+    kp("💰 دخل الشهر", fmt(Number(st.income_month)) + " د.ك", Number(st.income_month) ? "pos" : "", "الاشتراكات المدفوعة")));
+  const conv = st.users ? Math.round(st.members / st.users * 100) : 0;
+  box.append(h("div", { class: "card soft", style: "gap:8px" }, h("div", { class: "between" }, h("small", { class: "muted" }, "من سجّل ← اشترك"), h("b", { class: "num" }, conv + "%")), h("div", { class: "pbar" }, h("i", { style: "width:" + Math.min(100, conv) + "%" }))));
+  //--- التسجيل آخر 7 أيام
+  const s7 = st.signups_7 || [], mx = Math.max(1, ...s7);
+  const bars = h("div", { class: "bars7" });
+  s7.forEach((n, i) => { const d = new Date(Date.now() - (6 - i) * 864e5); bars.append(h("div", null, h("small", { class: "num" }, n ? String(n) : ""), h("i", { style: "height:" + Math.max(4, Math.round(n / mx * 60)) + "px" }), h("small", { class: "muted" }, d.toLocaleDateString("ar-KW-u-nu-latn", { weekday: "short", timeZone: "Asia/Kuwait" })))); });
+  box.append(h("div", { class: "card soft" }, h("small", { class: "muted" }, "📅 التسجيل آخر 7 أيام"), bars));
+  if (st.pending) box.append(h("a", { class: "vlink", href: "#admin/req" }, h("b", null, "💳 عندك " + st.pending + " طلب اشتراك ينتظر"), h("small", { class: "muted" }, "راجعها ←")));
+  //--- اشتراكات تخلص قريب
+  const ex = st.expiring || [];
+  const exc = h("div", { class: "card" }, h("b", null, "⏰ اشتراكات تخلص خلال 5 أيام"));
+  if (!ex.length) exc.append(h("small", { class: "muted" }, "ما فيه أحد اشتراكه قرب يخلص 👌"));
+  ex.forEach(u => {
+    const d = Math.max(1, Math.ceil((new Date(u.ends) - Date.now()) / 864e5));
+    const ph = String(u.phone || "").replace(/\D/g, "");
+    exc.append(h("div", { class: "between" }, h("span", null, u.name || "—"),
+      h("div", { class: "row", style: "gap:6px" }, h("span", { class: "pill " + (d <= 2 ? "off" : "wait") }, "باقي " + d + (d === 1 ? " يوم" : " أيام")),
+        ph ? h("a", { class: "btn ghost sm", href: "https://wa.me/" + ph + "?text=" + encodeURIComponent("هلا " + (u.name || "") + " 👋 اشتراكك في GOLDEN RATIO باقي له " + d + " يوم، تقدر تجدد من التطبيق: " + APP_URL + "#sub"), target: "_blank", rel: "noopener" }, "💬") : null)));
+  });
+  if (ex.length) {
+    const rb = h("button", { class: "btn primary sm", type: "button" }, "🔔 ذكّرهم كلهم بإشعار");
+    rb.onclick = async ev => { if (!confirmInline(ev)) return; rb.disabled = true; const { data: n, error: e } = await sb.rpc("admin_remind_expiring"); rb.disabled = false; if (e) { toast(errText(e), true); return; } toast("انرسل التذكير لـ " + (n || 0) + " ✅"); };
+    exc.append(rb);
+  }
+  box.append(exc);
+  if (st.alerts) box.append(h("small", { class: "muted" }, "🔔 تنبيهات سعر شغالة عند المسجلين: " + st.alerts));
+  box.append(await launchAdmin());
+  return box;
+}
+async function launchAdmin() {
+  const c = await launchCfg();
+  const toLocal = iso => new Date(+new Date(iso) + 3 * 3600e3).toISOString().slice(0, 16);
+  const inp = h("input", { type: "datetime-local", dir: "ltr", value: c.at ? toLocal(c.at) : "" });
+  const state = h("small", { class: "muted" });
+  const paint = () => { state.textContent = c.on && c.at ? (new Date(c.at) > new Date() ? "✅ العدّاد ظاهر بالرئيسية لين " + kw(c.at) : "🚀 الموعد مرّ" + (c.sent ? " وانرسل الإشعار للكل" : "")) : "العدّاد مخفي"; };
+  paint();
+  const save = async on => {
+    let at = c.at;
+    if (on) { if (!inp.value) { toast("اختار التاريخ والساعة", true); return; } at = new Date(inp.value + ":00+03:00").toISOString(); if (new Date(at) <= new Date()) { toast("الموعد لازم يكون بالمستقبل", true); return; } }
+    const v = { at, on, sent: on ? false : !!c.sent };
+    const { error } = await sb.from("app_config").upsert({ key: "launch", value: v, updated_at: new Date().toISOString() });
+    if (error) { toast(errText(error), true); return; }
+    Object.assign(c, v); paint(); toast(on ? "✅ العدّاد ظهر بالرئيسية" : "انشال العدّاد");
+  };
+  return h("div", { class: "card soft" }, h("b", null, "⏳ عدّاد الانطلاقة"),
+    h("small", { class: "muted" }, "اختار موعد الانطلاق (بتوقيت الكويت). يطلع عدّاد بالرئيسية للكل، ولمن يجي الموعد يوصل إشعار للكل تلقائياً."),
+    inp, h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", onclick: () => save(true) }, "حفظ وإظهار"), c.on ? h("button", { class: "btn ghost sm", type: "button", onclick: () => save(false) }, "إخفاء العدّاد") : null), state);
+}
+
 /* ================== التشغيل ================== */
 async function boot() {
   await loadUser();
+  trackVisit();
   subscribeLive();
   joinPresence();
   route();
