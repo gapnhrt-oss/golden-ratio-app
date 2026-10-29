@@ -379,6 +379,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-card.fs .chx-ch{flex:1;height:auto;min-height:0;order:2}
 .chx-fsbar{position:fixed;z-index:2147483000;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(11,12,40,.96);border-top:1px solid rgba(242,183,5,.45);-webkit-transform:translateZ(0);transform:translateZ(0)}
 .chx-fsbar .chx-bar{flex:1;flex-wrap:nowrap;gap:5px;min-width:0}.chx-fsbar .chx-bar button{flex:1;min-width:0;padding:8px 2px;font-size:13px}
+.chx-act{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:999px;background:rgba(242,183,5,.18);border:1px solid rgba(242,183,5,.6);color:#FFD54A;font-size:11px;font-weight:800;vertical-align:middle}
 .chx-fsshp{flex:none;height:40px;min-width:48px;padding:0 10px;border-radius:999px;border:1px solid rgba(242,183,5,.6);background:rgba(242,183,5,.14);color:#FFD54A;font:700 13px "Readex Pro",Tahoma,sans-serif;cursor:pointer;white-space:nowrap}
 .chx-fspop{position:fixed;z-index:2147483001;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));max-height:45vh;overflow:auto;display:grid;gap:6px;padding:10px;background:rgba(15,18,56,.98);border:1px solid rgba(242,183,5,.5);border-radius:14px;box-shadow:0 -6px 24px rgba(0,0,0,.5)}
 .chx-fspop>b{font-size:13px;color:#FFD54A}
@@ -1206,7 +1207,7 @@ async function ChartScreen() {
       //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
       const parts = g.z.h.split(" · "), m = parts[0].match(/^(.*?)\s([\d,]+\.\d+.*)$/);
       const ttl = (m ? m[1] : parts[0]), sub = [m ? m[2] : ""].concat(parts.slice(1)).filter(Boolean).join(" · ");
-      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl + (g.ck ? " " + "✅".repeat(g.ck) : "")), h("small", null, sub));
+      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl, g.ck ? h("span", { class: "chx-act" }, "متفعل") : "", g.ck > 1 ? " " + "✅".repeat(g.ck - 1) : ""), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
         if (g.key) { focusKey = open ? null : g.key; openTitle = open ? null : g.z.h; if (!open) animT0 = Date.now(); draw(); return; }   // 📐🦈 الشكل: التفاصيل الكاملة على الشارت
