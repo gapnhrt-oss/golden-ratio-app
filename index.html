@@ -425,7 +425,7 @@ body.chx-fson{overflow:hidden}body.chx-fson .tabs,body.chx-fson .top{visibility:
 .nrow{padding:4px 0;font-size:.92rem}
 .okbox{background:color-mix(in srgb,var(--up) 12%,var(--bg2));border:1px solid color-mix(in srgb,var(--up) 35%,transparent);border-radius:12px;padding:10px 12px;font-size:.88rem}
 .alrow{padding:4px 0}
-.kp{gap:4px}.kp b{font-size:1.45rem;white-space:nowrap}.kp b.gold{color:var(--gold)}
+.kp{gap:4px}.kp.tap{cursor:pointer}.kp small.gold{color:var(--gold)}.kp b{font-size:1.45rem;white-space:nowrap}.kp b.gold{color:var(--gold)}
 .pbar{height:8px;border-radius:9px;background:var(--bg2);overflow:hidden}.pbar i{display:block;height:100%;background:var(--gold);border-radius:9px}
 .bars7{display:flex;align-items:flex-end;gap:6px;justify-content:space-between;margin-top:6px}.bars7>div{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
 .bars7 i{display:block;width:100%;max-width:26px;background:linear-gradient(var(--gold),var(--gold2));border-radius:6px 6px 2px 2px}.bars7 small{font-size:.68rem}
@@ -3772,12 +3772,28 @@ function settingsSheet() {
 function trackVisit() {
   try {
     if (S.admin) return;
-    const d = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kuwait" });
-    if (localStorage.getItem("gr-vd") === d) return;
+    const uid = S.session ? S.session.user.id : "-", last = (localStorage.getItem("gr-vt") || "").split("|");
+    if (last[0] === uid && Date.now() - Number(last[1] || 0) < 10 * 60e3) return;   // مرة كل 10 دقايق بالكثير
     let v = localStorage.getItem("gr-vid");
     if (!v) { v = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gr-vid", v); }
-    sb.from("site_visits").insert({ vid: v }).then(() => { try { localStorage.setItem("gr-vd", d); } catch (_) {} });
+    sb.rpc("log_visit", { vid: v }).then(r => { if (!r.error) try { localStorage.setItem("gr-vt", uid + "|" + Date.now()); } catch (_) {} });
   } catch (_) {}
+}
+async function visitorsSheet() {
+  const body = h("div", { class: "screen", style: "gap:8px" }, h("div", { class: "empty" }, "..."));
+  openSheet(h("div", { class: "screen" }, h("div", { class: "between" }, h("h2", { class: "h1" }, "👤 مين زار اليوم"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")), body));
+  const { data, error } = await sb.rpc("admin_visitors");
+  body.textContent = "";
+  if (error) { body.append(h("div", { class: "empty" }, errText(error))); return; }
+  if (!(data || []).length) { body.append(h("div", { class: "empty" }, "ما دخل أحد من المسجلين اليوم لين الحين.")); return; }
+  const t = d => kw(d, { hour: "numeric", minute: "2-digit" });
+  data.forEach(u => {
+    const ph = String(u.phone || "").replace(/\D/g, "");
+    body.append(h("div", { class: "card soft", style: "gap:4px;padding:10px 12px" },
+      h("div", { class: "between" }, h("b", null, (u.name || "—") + (u.member ? " 👑" : "")), ph ? h("a", { class: "btn ghost sm", href: "https://wa.me/" + ph, target: "_blank", rel: "noopener" }, "💬") : null),
+      u.phone ? h("small", { class: "muted num", dir: "ltr", style: "text-align:end" }, u.phone) : null,
+      h("small", { class: "muted" }, "🕐 آخر دخول ", h("bdi", null, t(u.last_at)), u.n > 1 ? " · " + u.n + " مرات" : "", u.first_at && t(u.first_at) !== t(u.last_at) ? h("span", null, " · أول دخول ", h("bdi", null, t(u.first_at))) : "")));
+  });
 }
 
 /* ================== 📊 أرقام المدير ================== */
@@ -3786,10 +3802,12 @@ async function AdmStats() {
   const { data: st, error } = await sb.rpc("admin_stats");
   if (error) throw error;
   const kp = (lb, v, cls, sub) => h("div", { class: "card soft kp" }, h("small", { class: "muted" }, lb), h("b", { class: "num " + (cls || "") }, v), sub ? h("small", { class: "muted" }, sub) : null);
+  const visK = kp("👀 زوار اليوم", String(st.visits_today), "", "👤 " + (st.visits_users || 0) + " مسجلين · 👻 " + (st.visits_anon || 0) + " بدون حساب");
+  visK.classList.add("tap"); visK.append(h("small", { class: "gold" }, "اضغط وشوف المسجلين ←")); visK.onclick = visitorsSheet;
   box.append(h("div", { class: "grid2" },
     kp("👤 سجّلوا اليوم", (st.signups_today ? "+" : "") + st.signups_today, st.signups_today ? "pos" : "", "الكل " + st.users),
     kp("👑 مشتركين فعّالين", String(st.members), "gold", "منهم " + st.paid_members + " دافعين"),
-    kp("👀 زوار اليوم", String(st.visits_today), "", "آخر 7 أيام " + st.visits_7),
+    visK,
     kp("💰 دخل الشهر", fmt(Number(st.income_month)) + " د.ك", Number(st.income_month) ? "pos" : "", "الاشتراكات المدفوعة")));
   const conv = st.users ? Math.round(st.members / st.users * 100) : 0;
   box.append(h("div", { class: "card soft", style: "gap:8px" }, h("div", { class: "between" }, h("small", { class: "muted" }, "من سجّل ← اشترك"), h("b", { class: "num" }, conv + "%")), h("div", { class: "pbar" }, h("i", { style: "width:" + Math.min(100, conv) + "%" }))));
@@ -3853,7 +3871,7 @@ let lastUid = undefined;
 sb.auth.onAuthStateChange((ev, session) => {
   const uid = session ? session.user.id : null;
   if (lastUid === undefined) { lastUid = uid; return; }
-  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); ensurePush(); }); }
+  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); ensurePush(); trackVisit(); }); }
 });
 // لمّا يرجع التطبيق من الخلفية نجدد الجلسة (الآيفون يوقف التجديد التلقائي)
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.session) sb.auth.refreshSession().then(() => loadUser()).then(() => route()).catch(() => {}); });
