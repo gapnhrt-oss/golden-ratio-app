@@ -1483,21 +1483,17 @@ async function ChartScreen() {
   //--- 📰 الأخبار القوية تحت الشارت: تطلع قبلها بيوم، وتختفي بعد ما ينزل الخبر بنص ساعة
   let nsHide = {}; try { nsHide = JSON.parse(sessionStorage.getItem("gr-nsh") || "{}"); } catch (_) {}
   const paintNews = async () => {
+    //--- نفس كرت «الأخبار القوية القادمة» حق صفحة الأخبار
+    let card = null; try { card = await nextNewsCard(); } catch (_) {}
     let list = null; try { list = await getCal(); } catch (_) {}
-    if (!list) { nsFold.hidden = true; return; }
+    if (!card) { nsFold.hidden = true; return; }
+    nsEl.replaceChildren(card); nsEl.hidden = false; nsFold.hidden = false;
     const now = Date.now(), big = e => e.importance === 1 && ["US", "EU", "CN"].includes(e.country);
-    const L2 = dedupeCal(list.filter(e => { const t = +new Date(e.date); return big(e) && t > now - 30 * 60e3 && t - now < 24 * 3600e3 && !nsHide[e.id]; }).sort((a, b) => new Date(a.date) - new Date(b.date))).slice(0, 4);
-    nsEl.textContent = ""; nsEl.hidden = false; nsFold.hidden = !L2.length; if (!L2.length) return;
-    const n0 = L2[0], d0 = +new Date(n0.date) - Date.now();
+    const n0 = (list ? dedupeCal(list.filter(e => big(e) && +new Date(e.date) > now - 30 * 60e3 && +new Date(e.date) - now < 8 * 864e5).sort((a, b) => new Date(a.date) - new Date(b.date))) : [])[0];
+    if (!n0) { nsFold.classList.remove("near"); nsFold.querySelector(".fold-h b").textContent = "📰 الأخبار القوية"; return; }
+    const d0 = +new Date(n0.date) - now, m0 = Math.max(1, Math.round(d0 / 60e3));
     nsFold.classList.toggle("near", d0 > -30 * 60e3 && d0 < 60 * 60e3);   //--- 🟡 الخبر قرب (ساعة أو أقل)
-    nsFold.querySelector(".fold-h b").textContent = "📰 الأخبار القوية · " + (arTitle(n0.title) || n0.title) + (d0 > 0 ? " بعد " + (Math.round(d0 / 60e3) >= 60 ? Math.floor(d0 / 3600e3) + "س" : Math.max(1, Math.round(d0 / 60e3)) + "د") : " نزل");
-    const dur = ms => { const m = Math.max(1, Math.round(ms / 60e3)), hh = Math.floor(m / 60); return hh ? hh + "س" + (m % 60 ? " " + (m % 60) + "د" : "") : m + " دقيقة"; };
-    L2.forEach(e => {
-      const dt = +new Date(e.date) - now, done = dt <= 0, near = !done && dt < 15 * 60e3;
-      const tx = done ? (e.actual != null ? "نزل · الفعلي " + calVal(e.actual, e) + (noFc(e.forecast) ? "" : " · المتوقع " + calVal(e.forecast, e)) : "ينزل الحين ⏳") : (near ? "⚠️ بعد " + dur(dt) : "بعد " + dur(dt));
-      const x = h("button", { class: "chx-nsx", type: "button", "aria-label": "إخفاء", onclick: ev => { ev.stopPropagation(); nsHide[e.id] = 1; try { sessionStorage.setItem("gr-nsh", JSON.stringify(nsHide)); } catch (_) {} paintNews(); } }, "✕");
-      nsEl.append(h("a", { class: "chx-ns" + (near ? " near" : done ? " done" : ""), href: "#market/cal" }, h("span", null, "🔴 " + (FLAG[e.country] || "") + " "), h("b", null, arTitle(e.title) || e.title), h("small", null, " · " + tx), x));
-    });
+    nsFold.querySelector(".fold-h b").textContent = "📰 الأخبار القوية" + (d0 <= 0 ? " · نزل الخبر" : " · بعد " + (m0 >= 1440 ? Math.floor(m0 / 1440) + " يوم" : m0 >= 60 ? Math.floor(m0 / 60) + "س" : m0 + "د"));
   };
   paintNews(); timers.push(setInterval(paintNews, 30000));
 
