@@ -322,6 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.chx-gen{display:flex;flex-direction:column;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0}.chx-gen .chx-bar2.big{width:100%;flex:none}
 .chx-ctl{display:flex;align-items:center;gap:8px;position:relative}
 .chx-ddw{position:static}
 .chx-ddb{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font:inherit;font-size:14px;color:var(--fg);cursor:pointer}
@@ -864,7 +865,7 @@ async function ChartScreen() {
     indSum.append(h("b", null, "🧭 الاتجاه: " + dirT), h("small", null, " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
       X ? h("div", { class: "chx-meter" }, h("span", null, "قوة الحركة"), h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + X.score + "%;background:" + (X.dir > 0 ? "var(--up)" : X.dir < 0 ? "var(--down)" : "var(--muted)") })), h("b", null, X.score + " — " + X.word)) : null,
       X ? h("div", { class: "chx-whyline" }, h("b", null, "ليش " + X.word.replace(" 💪", "") + "؟ "), X.why.join(" · ")) : null,
-      h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD))), mtfBox);
+      h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD)), h("span", null, "MA 200 " + tag(X ? X.maD : 0))), mtfBox);
     mtf();
     const vr = chart.timeScale().getVisibleLogicalRange(); if (vr) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(vr));
   }
@@ -877,19 +878,23 @@ async function ChartScreen() {
     if (f >= 0) ema(M.slice(f).map(v => v ?? 0), 9).forEach((v, j) => Sg[f + j] = v);
     const A = adxArr(d, 14), i = d.length - 1, r = R[i], ad = A.ad[i];
     const rD = r == null ? 0 : r >= 60 ? 1 : r <= 40 ? -1 : 0, mD = M[i] == null || Sg[i] == null ? 0 : M[i] > Sg[i] ? 1 : -1, aD = A.pd[i] == null ? 0 : A.pd[i] > A.nd[i] ? 1 : -1;
-    const vote = rD + mD + aD, dir = vote > 0 ? 1 : vote < 0 ? -1 : 0;
+    //--- 📏 MA 200: الترند الكبير (السعر فوق المتوسط وهو طالع = صاعد · تحته وهو نازل = هابط)
+    const MA = sma(d, 200), ma = MA.length ? MA[MA.length - 1].value : null, ma0 = MA.length > 10 ? MA[MA.length - 11].value : null;
+    const maD = ma == null || ma0 == null ? 0 : C[i] > ma && ma > ma0 ? 1 : C[i] < ma && ma < ma0 ? -1 : 0;
+    const vote = rD + mD + aD + maD, dir = vote > 0 ? 1 : vote < 0 ? -1 : 0;
     const hs = k => (M[i - k] ?? 0) - (Sg[i - k] ?? 0), grow = dir !== 0 && dir * hs(0) > dir * hs(1) && dir * hs(1) > dir * hs(2);
-    const score = Math.round(Math.min(50, (ad || 0)) + Math.abs(vote) / 3 * 30 + (grow ? 20 : dir * hs(0) > 0 ? 10 : 0));
+    const score = Math.round(Math.min(50, (ad || 0)) + Math.abs(vote) / 4 * 30 + (grow ? 20 : dir * hs(0) > 0 ? 10 : 0));
     const sc = Math.max(0, Math.min(100, score)), agree = Math.abs(vote);
     //--- ليش قوية / ليش ضعيفة (بكلام بسيط)
     const why = [
       (ad == null ? "" : ad >= 25 ? "✅ ADX " + ad.toFixed(0) + " = الحركة قوية" : ad < 20 ? "❌ ADX " + ad.toFixed(0) + " = ما في اتجاه واضح" : "➖ ADX " + ad.toFixed(0) + " = حركة متوسطة"),
-      (agree === 3 ? "✅ المؤشرات الثلاثة متفقة" : agree === 2 ? "➖ مؤشرين من ثلاثة متفقين" : "❌ المؤشرات مختلفة"),
+      (agree >= 3 ? "✅ المؤشرات متفقة (" + agree + " من 4)" : agree === 2 ? "➖ المؤشرات شبه متفقة" : "❌ المؤشرات مختلفة"),
+      (ma == null ? "" : maD > 0 ? "✅ فوق MA 200 والترند طالع" : maD < 0 ? "✅ تحت MA 200 والترند نازل" : "➖ MA 200 ما يأكد"),
       (grow ? "✅ الزخم يزيد" : dir !== 0 && dir * hs(0) > 0 ? "➖ الزخم ثابت" : "❌ الزخم يخف"),
       (r == null ? "" : r >= 70 ? "⚠️ RSI تشبع شراء — ممكن يرجع" : r <= 30 ? "⚠️ RSI تشبع بيع — ممكن يرجع" : "")].filter(Boolean);
-    return { r, ad, rD, mD, aD, vote, dir, why, score: sc, word: sc >= 70 ? "قوية 💪" : sc >= 40 ? "متوسطة" : "ضعيفة" };
+    return { r, ad, rD, mD, aD, maD, vote, dir, why, score: sc, word: sc >= 70 ? "قوية 💪" : sc >= 40 ? "متوسطة" : "ضعيفة" };
   }
-  const dirWord = v => v >= 2 ? "🟢 صاعد" : v <= -2 ? "🔴 هابط" : v === 1 ? "🟢 يميل للصعود" : v === -1 ? "🔴 يميل للنزول" : "➖ محتار";
+  const dirWord = v => v >= 3 ? "🟢 صاعد" : v <= -3 ? "🔴 هابط" : v >= 1 ? "🟢 يميل للصعود" : v <= -1 ? "🔴 يميل للنزول" : "➖ محتار";
   //--- 📋 جدول الفريمات: كل الفريمات بنظرة وحدة
   const mtfBox = h("div", { class: "chx-mtf" });
   async function mtf() {
@@ -900,7 +905,16 @@ async function ChartScreen() {
       tb.append(h("tr", { class: t[0] === O.tf ? "on" : "", onclick: () => det.hidden = !det.hidden, style: "cursor:pointer" }, h("td", null, t[1] + " ▾"), h("td", null, x ? dirWord(x.vote) : "—"),
       h("td", null, x ? [h("span", { class: "chx-bar2" }, h("i", { style: "width:" + x.score + "%;background:" + (x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)") })), " " + x.word] : "—"))); tb.append(det); });
     const ds = rows.map(r => r[1] ? r[1].dir : 0).filter(v => v), same = ds.length >= 3 && ds.every(v => v === ds[0]);
-    mtfBox.append(h("b", null, "📋 كل الفريمات"), tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
+    //--- 🧭 الاتجاه العام: كل الفريمات مع بعض، والفريم الكبير وزنه أكثر
+    const W = { M15: 1, H1: 2, H4: 3, D1: 4 }; let ws = 0, wt = 0;
+    rows.forEach(([t, x]) => { if (x) { ws += W[t[0]] * x.vote / 4; wt += W[t[0]]; } });
+    const g = wt ? ws / wt : 0, gp = Math.round(Math.abs(g) * 100);
+    const gW = !wt ? "—" : g >= 0.7 ? "🟢 صاعد" : g <= -0.7 ? "🔴 هابط" : g >= 0.2 ? "🟢 يميل للصعود" : g <= -0.2 ? "🔴 يميل للنزول" : "➖ محتار";
+    const gC = g >= 0.2 ? "var(--up)" : g <= -0.2 ? "var(--down)" : "var(--muted)";
+    const gBox = h("div", { class: "chx-gen" }, h("div", { class: "between" }, h("b", null, "🧭 الاتجاه العام: " + gW), wt ? h("b", { class: "num", style: "color:" + gC }, gp + "%") : null),
+      h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + gp + "%;background:" + gC })),
+      h("small", { class: "muted" }, "كل الفريمات مع بعض، والفريم الكبير له وزن أكثر: اليومي ×4، الأربع ساعات ×3، الساعة ×2، الربع ساعة ×1"));
+    mtfBox.append(h("b", null, "📋 كل الفريمات"), gBox, tb, h("small", null, same ? (ds[0] > 0 ? "✅ كل الفريمات صاعدة — اتجاه واضح" : "✅ كل الفريمات هابطة — اتجاه واضح") : "⚠️ الفريمات مختلفة — السوق محتار، انتبه"));
   }
 
   let sigUps = {}, focusKey = null, openTitle = null, animT0 = 0;
