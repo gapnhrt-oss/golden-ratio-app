@@ -619,11 +619,11 @@ function renderChrome() {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
-  const tabs = [["chart", "الشارت", ICON.chart], ["home", "الأخبار", ICON.news], ["signals", "التوصيات", ICON.sig], ["market", "السوق", ICON.market], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
+  const tabs = [["chart", "الشارت", ICON.chart], ["home", "الأخبار", ICON.news], ["signals", "التوصيات", ICON.sig], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
-    const a = h("a", { href: "#" + t[0], "aria-current": S.route === t[0] || (S.route === "ea" && t[0] === "signals") ? "page" : null }, SVG(t[2]), t[1]);
+    const a = h("a", { href: "#" + t[0], "aria-current": S.route === t[0] || (S.route === "ea" && t[0] === "signals") || (S.route === "market" && t[0] === "home") ? "page" : null }, SVG(t[2]), t[1]);
     nav.append(a);
   });
 }
@@ -1510,7 +1510,7 @@ async function ChartScreen() {
 }
 
 /* ================== التوجيه ================== */
-const SCREENS = { ea: EaPage, posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Market, sub: Sub, chat: Chat, admin: Admin, vip: Vip, learn: async () => Learn() };
+const SCREENS = { ea: EaPage, posts: Posts, home: Home, chart: ChartScreen, signals: Signals, market: Home, sub: Sub, chat: Chat, admin: Admin, vip: Vip, learn: async () => Learn() };
 let renderToken = 0;
 async function route() {
   let r = (location.hash || "#chart").slice(1).split("/")[0];
@@ -1526,7 +1526,7 @@ async function route() {
     if (my !== renderToken) return;
     app.textContent = "";
     // ⬅️ زر الرجوع لأي صفحة غير الرئيسية
-    if (r !== "home" && r !== "chart") {
+    if (r !== "home" && r !== "chart" && r !== "market") {
       const back = h("button", { class: "backbtn", type: "button" }, "→ رجوع");
       back.onclick = () => { if (S.prev && history.length > 1) history.back(); else location.hash = "#chart"; };
       app.append(back);
@@ -1845,6 +1845,17 @@ function fold(key, title, node, def) {
   };
   return h("div", { class: "fold" }, btn, body);
 }
+//--- 📂 قسم يحمّل محتواه أول ما ينفتح (أخبار الذهب والأجندة ما تنحمل إلا لمن تحتاجها)
+function lazyFold(key, title, loader, force) {
+  const ph = h("div", { class: "screen", style: "gap:10px" }, h("div", { class: "spinner" }));
+  const f = fold(key, title, ph); let done = false;
+  const load = async () => { if (done) return; done = true; try { const n = await loader(); ph.replaceChildren(); add(ph, n); } catch (e) { ph.replaceChildren(h("div", { class: "empty" }, errText(e))); } };
+  const btn = f.querySelector(".fold-h"), body = f.querySelector(".fold-b");
+  if (force && body.hidden) btn.click();
+  btn.addEventListener("click", () => { if (!body.hidden) load(); });
+  if (!body.hidden) load();
+  return f;
+}
 async function Home() {
   if (homeTimer) { clearInterval(homeTimer); homeTimer = null; }
   const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
@@ -1867,7 +1878,12 @@ async function Home() {
 
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
-  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode());
+  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
+  //--- 📰 صفحة السوق صارت هني: أخبار الذهب · الأجندة · الجلسات (روابط #market/... تفتح القسم على طول)
+  const msub = S.route === "market" ? ((location.hash.split("/")[1]) || "news") : null;
+  const mkt = [lazyFold("m-news", "📰 أخبار الذهب", () => News(), msub === "news"), lazyFold("m-cal", "📅 الأجندة الاقتصادية", () => Calendar(), msub === "cal"), fold("m-sess", "🕐 أوقات الجلسات", Sessions(), msub === "sess")];
+  if (msub === "sess") { const f = mkt[2]; if (f.querySelector(".fold-b").hidden) f.querySelector(".fold-h").click(); }
+  if (msub) setTimeout(() => { const f = mkt[{ news: 0, cal: 1, sess: 2 }[msub] || 0]; f && f.scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
@@ -1898,12 +1914,12 @@ async function Home() {
   add(root, launch);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+    add(root, renewCard(), fold("news", "📅 الخبر القادم", news), mkt, fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
       closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
     add(root, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
-      fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
+      fold("news", "📅 الخبر القادم", news), mkt, fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
   root.append(fold("contact", "💬 تواصل معنا", contactCard()));
