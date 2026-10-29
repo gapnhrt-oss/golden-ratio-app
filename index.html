@@ -1898,11 +1898,11 @@ async function Home() {
   add(root, launch);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), sigBox, eaMini(), fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+    add(root, renewCard(), fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
       closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, sigBox, eaMini(), signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
+    add(root, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
       fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
@@ -3298,6 +3298,7 @@ function statsPanel(closed, ups) {
   return box;
 }
 
+let sigTimer = null;
 async function Signals() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"), resSeg("signals"));
   const [sig, teaser] = await Promise.all([
@@ -3321,7 +3322,21 @@ async function Signals() {
   } catch (_) {}
 
   if (S.member) {
-    if (open.length) { root.append(h("h2", { class: "h2" }, "المفتوحة")); open.forEach(s => root.append(signalCard(s, ups))); }
+    if (open.length) {
+      //--- 🔴 الصفقة الشغالة لايف (انتقلت من صفحة الأخبار) + التفاصيل تحتها لمن تضغط
+      const ticks = [];
+      open.forEach(s => {
+        const live = liveCard(s, ups), det = signalCard(s, ups); det.hidden = true;
+        const btn = live.querySelector('a.btn[href="#signals"]');
+        if (btn) { btn.removeAttribute("href"); btn.setAttribute("role", "button"); btn.textContent = "التفاصيل والمتابعة ▾"; btn.onclick = e => { e.preventDefault(); det.hidden = !det.hidden; btn.textContent = det.hidden ? "التفاصيل والمتابعة ▾" : "إخفاء التفاصيل ▴"; }; }
+        root.append(live, det); if (live._tick) ticks.push(live);
+      });
+      if (ticks.length) {
+        if (sigTimer) clearInterval(sigTimer);
+        const run = async () => { if (S.route !== "signals" || !document.body.contains(ticks[0])) { clearInterval(sigTimer); sigTimer = null; return; } if (document.hidden) return; const p = await livePrice(); ticks.forEach(c => c._tick(p)); };
+        setTimeout(run, 400); sigTimer = setInterval(run, 15000);
+      }
+    }
     else root.append(h("div", { class: "empty" }, "ما فيه توصية مفتوحة الحين. أول ما تنزل بيوصلك تنبيه."));
   } else {
     const t = (teaser.data || []);
