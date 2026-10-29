@@ -378,13 +378,13 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-card.fs{position:fixed;inset:0;z-index:2147482000;border-radius:0;border:0;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top);padding-bottom:calc(58px + env(safe-area-inset-bottom));background:var(--bg)}
 .chx-card.fs .chx-ch{flex:1;height:auto;min-height:0;order:2}
 .chx-fsbar{position:fixed;z-index:2147483000;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:rgba(11,12,40,.96);border-top:1px solid rgba(242,183,5,.45);-webkit-transform:translateZ(0);transform:translateZ(0)}
-.chx-fsbar .chx-bar{flex:1;flex-wrap:nowrap;overflow-x:auto}
-.chx-fsshp{flex:none;height:40px;padding:0 12px;border-radius:999px;border:1px solid rgba(242,183,5,.6);background:rgba(242,183,5,.14);color:#FFD54A;font:700 13px "Readex Pro",Tahoma,sans-serif;cursor:pointer;white-space:nowrap}
+.chx-fsbar .chx-bar{flex:1;flex-wrap:nowrap;gap:5px;min-width:0}.chx-fsbar .chx-bar button{flex:1;min-width:0;padding:8px 2px;font-size:13px}
+.chx-fsshp{flex:none;height:40px;min-width:48px;padding:0 10px;border-radius:999px;border:1px solid rgba(242,183,5,.6);background:rgba(242,183,5,.14);color:#FFD54A;font:700 13px "Readex Pro",Tahoma,sans-serif;cursor:pointer;white-space:nowrap}
 .chx-fspop{position:fixed;z-index:2147483001;left:10px;right:10px;bottom:calc(66px + env(safe-area-inset-bottom));max-height:45vh;overflow:auto;display:grid;gap:6px;padding:10px;background:rgba(15,18,56,.98);border:1px solid rgba(242,183,5,.5);border-radius:14px;box-shadow:0 -6px 24px rgba(0,0,0,.5)}
 .chx-fspop>b{font-size:13px;color:#FFD54A}
 .chx-fsit{display:grid;gap:2px;text-align:start;background:#0B0C28;border:1px solid var(--line);border-inline-start:4px solid #3DD68C;border-radius:10px;padding:8px 10px;color:inherit;font:700 13px "Readex Pro",Tahoma,sans-serif;cursor:pointer}
 .chx-fsit.sell{border-inline-start-color:#FF6B6B}.chx-fsit.on{background:rgba(242,183,5,.16);border-color:#F2B705}.chx-fsit small{font-weight:400;color:var(--muted);font-size:11px}
-.chx-fsclose{flex:none;height:40px;padding:0 16px;border-radius:999px;border:1px solid #F2B705;background:linear-gradient(135deg,#FFD54A,#E0A30A);color:#0B0C28;font:800 14px "Readex Pro",Tahoma,sans-serif;cursor:pointer}
+.chx-fsclose{flex:none;width:42px;height:40px;padding:0;font-size:18px !important;border-radius:999px;border:1px solid #F2B705;background:linear-gradient(135deg,#FFD54A,#E0A30A);color:#0B0C28;font:800 14px "Readex Pro",Tahoma,sans-serif;cursor:pointer}
 body.chx-fson{overflow:hidden}body.chx-fson .tabs,body.chx-fson .top{visibility:hidden}
 .chx-wm img{width:46%;max-width:300px}
 .chx-lock{position:absolute;inset:auto 0 0 0;padding:16px;background:linear-gradient(transparent,rgba(11,12,40,.96) 35%);text-align:center}
@@ -641,7 +641,7 @@ async function ChartScreen() {
   const fsTop = h("div", { class: "chx-fstop" }), fsBtn = h("button", { class: "chx-fsbtn", type: "button", "aria-label": "كامل الشاشة" }, "⛶");
   card.append(fsBtn, fsTop);
   //--- زر ✕ ثابت فوق كل شي (iPhone: الشارت ينتقل لـ body علشان يغطي الشاشة كلها صح)
-  const fsClose = h("button", { class: "chx-fsclose", type: "button", "aria-label": "صغّر الشارت" }, "✕ تصغير"), fsBar = h("div", { class: "chx-fsbar" });
+  const fsClose = h("button", { class: "chx-fsclose", type: "button", "aria-label": "صغّر الشارت", title: "تصغير" }, "✕"), fsBar = h("div", { class: "chx-fsbar" });
   let fsHome = null;
   const fsSet = on => {
     if (on && !card.classList.contains("fs")) { fsHome = { p: card.parentNode, n: card.nextSibling }; document.body.append(card, fsBar); }
@@ -655,7 +655,7 @@ async function ChartScreen() {
   //--- 📐 كامل الشاشة: تختار الأشكال والهارمونيك اللي تنرسم
   let lastTG = [];
   const fsPop = h("div", { class: "chx-fspop" });
-  const fsShp = h("button", { class: "chx-fsshp", type: "button" }, "📐 الأشكال");
+  const fsShp = h("button", { class: "chx-fsshp", type: "button", "aria-label": "الأشكال والهارمونيك", title: "الأشكال والهارمونيك" }, "📐");
   const fsList = () => {
     fsPop.textContent = "";
     const S = lastTG.filter(g => g.key);
@@ -1192,7 +1192,7 @@ async function ChartScreen() {
   //--- "ليش شراء؟ / ليش بيع؟" صارت أزرار تحت الشارت (ما تغطي الشموع) — تضغطها ويطلع الشرح فوق الشارت
   function tags(TG) {
     lastTG = TG; if (fsPop.isConnected) fsList();
-    { const n = TG.filter(g => g.key).length; fsShp.textContent = "📐 الأشكال" + (n ? " (" + n + ")" : ""); }
+    { const n = TG.filter(g => g.key).length; fsShp.textContent = "📐" + (n ? " " + n : ""); }
     tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
     whyBar.append(h("b", { class: "chx-whyhd" }, "❓ التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
