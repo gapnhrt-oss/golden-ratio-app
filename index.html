@@ -343,6 +343,12 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .gj-st.on i{background:#F2B705;color:#0B0C28}.gj-st small{font-size:10px;color:#9EA3D6;font-family:Montserrat,sans-serif}.gj-st.on small{color:#3DD68C}
 .chx-ind{display:grid;gap:4px}
 .chx-whybar{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.chx-sec{grid-column:1/-1;display:flex;align-items:center;gap:8px;margin-top:6px;padding:7px 12px;border-radius:12px;border-inline-start:4px solid}
+.chx-sec.buy{background:rgba(61,214,140,.1);border-color:#3DD68C}.chx-sec.sell{background:rgba(255,107,107,.1);border-color:#FF6B6B}
+.chx-sec b{font-size:15px}.chx-sec small{color:var(--muted);font-size:12px}.chx-sec.later{opacity:.75}
+.chx-live{margin-inline-start:auto;font-size:11.5px;font-weight:800;color:#FFD54A;background:rgba(242,183,5,.15);border:1px solid rgba(242,183,5,.5);border-radius:999px;padding:2px 9px}
+.chx-later{margin-inline-start:auto;font-size:11.5px;font-weight:700;color:#C9CCF0;background:rgba(158,163,214,.14);border-radius:999px;padding:2px 9px}
+.chx-why.later{opacity:.72}
 .chx-whyhd{grid-column:1/-1;font-size:14px}
 .chx-whydet{grid-column:1/-1;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:8px 12px;font-size:13px;line-height:1.8}
 .chx-whydet div{color:var(--muted)}
@@ -1214,21 +1220,32 @@ async function ChartScreen() {
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
     const pr = g => g.key ? 3 : /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
-    TG.forEach(g => {
+    //--- 🟢 الشراء بروحه · 🔴 البيع بروحه — اللي فيه صفقة شغالة أول، والثاني «⏳ بعد الصفقة»
+    const actS = (sigs.find(x => x.status === "open") || {}).side;
+    const near = sd => { const L = TG.filter(g => g.side === sd); return L.length ? Math.min(...L.map(g => Math.abs(g.p - px0))) : 1e9; };
+    const order = actS ? [actS, actS === "buy" ? "sell" : "buy"] : (near("buy") <= near("sell") ? ["buy", "sell"] : ["sell", "buy"]);
+    const pairPos = b => { const sib = [...whyBar.querySelectorAll('.chx-why[data-sec="' + b.dataset.sec + '"]')], ix = sib.indexOf(b); return ix % 2 === 0 && sib[ix + 1] ? sib[ix + 1] : b; };
+    const LIST = [];
+    order.forEach(sd => { const L = TG.filter(g => g.side === sd); if (!L.length) return;
+      const later = actS && sd !== actS, live = actS === sd;
+      LIST.push({ hd: 1, sd, n: L.length, later, live }); L.forEach(g => LIST.push(Object.assign(g, { _later: later }))); });
+    LIST.forEach(g => {
+      if (g.hd) { whyBar.append(h("div", { class: "chx-sec " + g.sd + (g.later ? " later" : "") }, h("b", null, g.sd === "buy" ? "🟢 الشراء" : "🔴 البيع"), h("small", null, g.n + (g.n === 1 ? " فكرة" : " أفكار")),
+        g.live ? h("span", { class: "chx-live" }, "● شغالة الحين") : g.later ? h("span", { class: "chx-later" }, "⏳ بعد الصفقة") : "")); return; }
       //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
       const parts = g.z.h.split(" · "), m = parts[0].match(/^(.*?)\s([\d,]+\.\d+.*)$/);
       const ttl = (m ? m[1] : parts[0]), sub = [m ? m[2] : ""].concat(parts.slice(1)).filter(Boolean).join(" · ");
-      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl, ...shpBadge(g)), h("small", null, sub));
+      const b = h("button", { class: "chx-why " + g.side + (g._later ? " later" : ""), type: "button", "data-sec": g.side }, h("b", null, ttl, ...shpBadge(g)), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
         if (g.key) { focusKey = open ? null : g.key; openTitle = open ? null : g.z.h; if (!open) animT0 = Date.now(); draw(); return; }   // 📐🦈 الشكل: التفاصيل الكاملة على الشارت
         openTitle = open ? null : g.z.h;
         whyBar.querySelectorAll(".chx-why").forEach(x => x.classList.remove("on")); whyDet.hidden = open;
-        if (open) return; b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w)), lessonLink(lessonFor(g.z.h)) || ""); const all = [...whyBar.querySelectorAll(".chx-why")], ix = all.indexOf(b); (ix % 2 === 0 && all[ix + 1] ? all[ix + 1] : b).after(whyDet); };
+        if (open) return; b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w)), lessonLink(lessonFor(g.z.h)) || ""); pairPos(b).after(whyDet); };
       whyBar.append(b);
       if (openTitle && g.z.h === openTitle) { b.classList.add("on"); whyDet.textContent = ""; whyDet.append(h("b", null, g.z.h), ...g.z.why.map(w => h("div", null, "↳ " + w)), lessonLink(lessonFor(g.z.h)) || ""); whyDet.hidden = false; }
     });
-    { const on = whyBar.querySelector(".chx-why.on"); if (on) { const all = [...whyBar.querySelectorAll(".chx-why")], ix = all.indexOf(on); (ix % 2 === 0 && all[ix + 1] ? all[ix + 1] : on).after(whyDet); } }
+    { const on = whyBar.querySelector(".chx-why.on"); if (on) pairPos(on).after(whyDet); }
     place();
   }
   function place() {
