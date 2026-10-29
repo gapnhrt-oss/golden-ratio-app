@@ -1126,10 +1126,12 @@ async function ChartScreen() {
     if (mem && O.lv) { sigs.forEach(x => ["entry_from", "entry_to", "sl", "tp1", "tp2", "tp3", "tp4", "tp5"].forEach(k => x[k] && used.push(Number(x[k])))); if (L) (L.ideas || []).forEach(z => used.push(z.d === 1 ? z.hi : z.lo)); }
     if (mem && L) {
       //--- 🧱 الدعم والمقاومة: على الشارت 🔥 الأقوى + أقرب 2 فوق وأقرب 2 تحت (الباقي بالشرح تحت)
-      const Zs = L.zones || [], near = side => Zs.filter(z => z.side === side).sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
+      //--- السعر هو الي يحدد: المنطقة فوق السعر = مقاومة، تحت السعر = دعم (حتى لو البوت سماها غير قبل ما يتحرك السعر)
+      const sideOf = z => last < z.lo ? "r" : last > z.hi ? "s" : z.side;
+      const Zs = L.zones || [], near = side => Zs.filter(z => sideOf(z) === side).sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
       const show = new Set([...Zs.filter(z => z.f), ...near("r"), ...near("s")]);
       if (O.sr) Zs.forEach(z => {
-        const r = z.side === "r", e = r ? z.lo : z.hi, c = r ? "#FF6B6B" : "#3DD68C";
+        const r = sideOf(z) === "r", e = r ? z.lo : z.hi, c = r ? "#FF6B6B" : "#3DD68C";
         if (show.has(z)) pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + (r ? "مقاومة " : "دعم ") + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1, !z.f);
         ZN.push({ lo: z.lo - 1, hi: z.hi + 1, c: z.f ? "#FF9F43" : c, h: (z.f ? "🔥 أقوى " : "🧱 ") + (r ? "مقاومة " : "دعم ") + f2(e) + " · " + st(z.s), why: why(z.n) });
       });
