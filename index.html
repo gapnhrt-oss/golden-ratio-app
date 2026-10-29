@@ -71,7 +71,8 @@ p{margin:0}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:430px){.top .wrap{gap:6px}.brand{gap:6px}.brand img{width:30px;height:30px}.brand b,.brand span{font-size:15px}.who{gap:6px}.who .pill{padding:3px 8px;font-size:.72rem}.who .btn.sm{padding-inline:11px}.who .chatbtn{height:36px;width:50px}}
 .chatbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:38px;width:54px;border-radius:999px;text-decoration:none;color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent);border:1px solid transparent;transition:transform .15s,box-shadow .2s}.chatbtn span{display:none}
-.chatbtn.gearbtn{width:40px;cursor:pointer;font:inherit}@media (max-width:430px){.who .chatbtn.gearbtn{width:36px}}
+@media (max-width:360px){.brand b,.brand span{display:none}}
+.chatbtn.gearbtn{width:40px;cursor:pointer;font:inherit}.chatbtn.langbtn{width:40px;cursor:pointer;font:700 13px var(--latin);letter-spacing:.5px}@media (max-width:430px){.who .chatbtn.langbtn{width:34px}}@media (max-width:430px){.who .chatbtn.gearbtn{width:36px}}
 .chatbtn:active{transform:scale(.94)}.chatbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .chatbtn[aria-current="page"]{border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
 .chatbtn .dotbadge{top:-6px;inset-inline-end:-6px;box-shadow:0 0 0 2px var(--bg)}.chatbtn.has{animation:chatGlow 1.6s ease-in-out infinite}@keyframes chatGlow{50%{box-shadow:0 0 0 5px rgba(242,183,5,.18)}}
@@ -616,11 +617,13 @@ function renderChrome() {
   const chatA = h("a", { class: "chatbtn" + (S.unread ? " has" : ""), href: "#chat", "aria-label": "تواصل", "aria-current": S.route === "chat" ? "page" : null }, SVG(ICON.chat), h("span", null, "تواصل"));
   if (S.unread) chatA.append(h("span", { class: "dotbadge" }, S.unread));
   who.append(chatA);
+  //--- 🌐 اللغة: EN ↔ ع
+  who.append(h("button", { class: "chatbtn langbtn", type: "button", "data-noen": "1", "aria-label": LANG === "en" ? "العربية" : "English", onclick: () => setLang(LANG === "en" ? "ar" : "en") }, LANG === "en" ? "ع" : "EN"));
   //--- ⚙️ الإعدادات (التنبيهات)
   if (S.session) who.append(h("button", { class: "chatbtn gearbtn", type: "button", "aria-label": "الإعدادات", title: "الإعدادات", onclick: settingsSheet }, SVG(ICON.gear)));
   if (S.session) {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
-      h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
+      null);   //--- خروج صار داخل ⚙️ الإعدادات (الشريط فوق كان يطلع برا الشاشة)
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
   const tabs = [["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["home", "الأخبار", ICON.news], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
@@ -4083,7 +4086,9 @@ function settingsSheet() {
     h("div", { class: "between" }, h("h2", { class: "h1" }, "⚙️ الإعدادات"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
     nc || h("div", { class: "empty" }, "سجّل دخول عشان تختار التنبيهات"),
     S.profile ? h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, S.profile.name || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, S.profile.phone || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))) : null,
-    h("a", { class: "btn ghost", href: "#sub", onclick: closeSheet }, "💳 اشتراكي")));
+    h("a", { class: "btn ghost", href: "#sub", onclick: closeSheet }, "💳 اشتراكي"),
+    h("button", { class: "btn ghost", type: "button", onclick: () => { closeSheet(); setLang(LANG === "en" ? "ar" : "en"); } }, LANG === "en" ? "🌐 العربية" : "🌐 English"),
+    S.session ? h("button", { class: "btn ghost", type: "button", style: "color:var(--down)", onclick: () => { closeSheet(); logout(); } }, "🚪 تسجيل خروج") : null));
 }
 /* ================== 🎁 أسبوع تجربة مجاني (مرة وحدة لكل رقم وجهاز) ================== */
 async function trialCard() {
@@ -4236,8 +4241,85 @@ async function launchAdmin() {
     inp, h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", onclick: () => save(true) }, "حفظ وإظهار"), c.on ? h("button", { class: "btn ghost sm", type: "button", onclick: () => save(false) }, "إخفاء العدّاد") : null), state);
 }
 
+/* ================== 🌐 English: ترجمة الموقع كامل (قاموس للكلمات الأساسية + ترجمة تلقائية للباقي مع حفظ) ================== */
+const LANG = (() => { try { return localStorage.getItem("gr-lang") === "en" ? "en" : "ar"; } catch (_) { return "ar"; } })();
+const EN = {
+  "الشارت": "Chart", "التوصيات": "Signals", "الأخبار": "News", "تعلّم": "Learn", "اشتراكي": "My plan", "الإدارة": "Admin",
+  "خروج": "Logout", "دخول": "Login", "مدير": "Admin", "رجوع": "Back", "→ رجوع": "← Back", "إغلاق": "Close", "حفظ": "Save", "تم": "Done",
+  "📈 التوصيات": "📈 Signals", "🤖 الاكسبيرت": "🤖 EA", "📰 أخبار الذهب": "📰 Gold news", "📅 الأجندة": "📅 Calendar", "🕐 الجلسات": "🕐 Sessions",
+  "الذهب · مباشر": "Gold · Live", "أعلى اليوم": "Day high", "أدنى اليوم": "Day low",
+  "الصفقة الشغالة": "Live trade", "الدخول": "Entry", "الوقف": "Stop", "القوة": "Strength", "السعر": "Price", "الربح الحين (حركة الذهب)": "Profit now (gold move)",
+  "التفاصيل والمتابعة": "Details & updates", "التفاصيل والمتابعة ▾": "Details & updates ▾", "إخفاء التفاصيل ▴": "Hide details ▴",
+  "منطقة الدخول": "Entry zone", "وقف الخسارة": "Stop loss", "شراء": "Buy", "بيع": "Sell", "مجانية": "Free",
+  "اشترك الحين": "Subscribe now", "اشترك وادفع": "Subscribe & pay", "اختر باقتك": "Choose your plan", "جدد أو مدّد اشتراكك": "Renew or extend your plan",
+  "أسبوع": "Week", "شهري": "Monthly", "شهر": "Month", "3 شهور": "3 months", "سنوي": "Yearly", "⭐ الأكثر طلباً": "⭐ Most popular",
+  "📋 التوصيات والأفكار": "📋 Signals & ideas", "📰 الأخبار القوية": "📰 High-impact news", "🧭 الاتجاه وقوة الحركة": "🧭 Trend & strength",
+  "📊 رسومات المؤشرات": "📊 Indicator charts", "🎨 شرح الألوان والخطوط": "🎨 Colors & lines", "📖 شرح المناطق": "📖 Zones explained",
+  "📐 الأدوات": "📐 Tools", "الأدوات": "Tools", "المتوسطات": "MAs", "المؤشرات": "Indicators", "دعم ومقاومة": "S/R", "السيولة": "Liquidity", "الترند": "Trend", "الأشكال": "Patterns", "يومي": "Daily",
+  "مقاومة": "Resistance", "دعم": "Support", "اعرض ▾": "Show ▾", "إخفاء ▴": "Hide ▴", "اشرح ▾": "Explain ▾",
+  "📊 النتائج · اليوم · الأسبوع · الشهر": "📊 Results · Day · Week · Month", "📈 نمو الحساب شهر بشهر": "📈 Monthly growth", "اليوم": "Today", "الأسبوع": "Week", "الكل": "All",
+  "صافي الربح": "Net profit", "💰 صافي الربح": "💰 Net profit", "ربح": "Win", "خسارة": "Loss", "تعادل": "Breakeven",
+  "📅 الخبر القادم": "📅 Next news", "☀️ قراءة اليوم": "☀️ Today's outlook", "📝 المنشورات": "📝 Posts", "🎉 الإعلانات": "🎉 Announcements",
+  "📊 نتائج التوصيات": "📊 Signal results", "🏦 الوسيط": "🏦 Broker", "💬 تواصل معنا": "💬 Contact us", "⚙️ الإعدادات": "⚙️ Settings", "حسابي": "My account",
+  "الاسم": "Name", "الواتساب": "WhatsApp", "الإيميل": "Email", "حساب جديد": "Sign up", "عندي حساب": "I have an account",
+  "🔔 التنبيهات": "🔔 Notifications", "الفعلي": "Actual", "المتوقع": "Forecast", "السابق": "Previous",
+  "👑 شنو بتحصل في VIP؟": "👑 What do you get with VIP?", "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←": "Live signals · Golden chart · Reversal zones →",
+};
+const AR_RE = /[؀-ۿ]/;
+let enMem = {}; try { enMem = JSON.parse(localStorage.getItem("gr-en") || "{}"); } catch (_) {}
+const enNorm = t => { const n = []; const k = t.replace(/[0-9٠-٩][0-9٠-٩.,:%]*/g, m => { n.push(m); return "@" + (n.length - 1) + "@"; }); return [k, n]; };
+const enDen = (t, n) => { let ok = true; const r = t.replace(/@\s*(\d+)\s*@/g, (m, i) => n[+i] !== undefined ? n[+i] : (ok = false, m)); return ok && !/@\d+@/.test(r) ? r : null; };
+const enQ = new Map(); let enBusy = false, enTimer = 0;
+function enApply(node, attr, lead, core, trail) {
+  const [k, n] = enNorm(core), tr = EN[k] || EN[core] || enMem[k];
+  if (tr) { const v = EN[core] || enDen(tr, n); if (v) { const full = lead + v + trail; if (attr) node.setAttribute(attr, full); else node.nodeValue = full; return true; } }
+  return false;
+}
+function enScan(root) {
+  if (LANG !== "en" || !root) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: n => AR_RE.test(n.nodeValue) && !(n.parentElement && n.parentElement.closest("script,style,textarea,[data-noen]")) ? 1 : 3 });
+  let n; while ((n = w.nextNode())) {
+    const t = n.nodeValue, core = t.trim(); if (!core) continue;
+    const lead = t.slice(0, t.indexOf(core)), trail = t.slice(t.indexOf(core) + core.length);
+    if (!enApply(n, null, lead, core, trail)) { const k = enNorm(core)[0]; if (!enQ.has(k)) enQ.set(k, []); enQ.get(k).push([n, null, lead, core, trail]); }
+  }
+  root.querySelectorAll && root.querySelectorAll("[placeholder],[title],[aria-label]").forEach(el => ["placeholder", "title", "aria-label"].forEach(a => {
+    const v = el.getAttribute(a); if (!v || !AR_RE.test(v)) return; const c = v.trim();
+    if (!enApply(el, a, "", c, "")) { const k = enNorm(c)[0]; if (!enQ.has(k)) enQ.set(k, []); enQ.get(k).push([el, a, "", c, ""]); }
+  }));
+  enFlush();
+}
+async function enFlush() {
+  if (enBusy || !enQ.size) return; enBusy = true;
+  try {
+    while (enQ.size) {
+      const keys = []; let len = 0;
+      for (const k of enQ.keys()) { if (keys.length >= 40 || len + k.length > 1500) break; keys.push(k); len += k.length + 1; }
+      let outs = null;
+      try {
+        const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=" + encodeURIComponent(keys.join("\n")));
+        const j = await r.json(); const all = (j[0] || []).map(p => p[0]).join(""); outs = all.split("\n").map(x => x.trim());
+      } catch (_) {}
+      if (!outs || outs.length !== keys.length) {   //--- ما رجعت بنفس العدد: نترجم وحدة وحدة
+        outs = [];
+        for (const k of keys) { try { const r = await fetch("https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=en&dt=t&q=" + encodeURIComponent(k)); const j = await r.json(); outs.push((j[0] || []).map(p => p[0]).join("").trim()); } catch (_) { outs.push(""); } }
+      }
+      keys.forEach((k, i) => { if (outs[i]) enMem[k] = outs[i]; (enQ.get(k) || []).forEach(([node, attr, lead, core, trail]) => { const cur = attr ? node.getAttribute(attr) : node.nodeValue; if (cur && cur.trim() === core) enApply(node, attr, lead, core, trail); }); enQ.delete(k); });
+      try { const ks = Object.keys(enMem); if (ks.length > 3000) ks.slice(0, ks.length - 3000).forEach(k => delete enMem[k]); localStorage.setItem("gr-en", JSON.stringify(enMem)); } catch (_) {}
+    }
+  } finally { enBusy = false; }
+}
+function enStart() {
+  if (LANG !== "en") return;
+  document.documentElement.lang = "en"; document.documentElement.dir = "ltr"; document.body.classList.add("lang-en");
+  enScan(document.body);
+  new MutationObserver(() => { clearTimeout(enTimer); enTimer = setTimeout(() => enScan(document.body), 150); }).observe(document.body, { childList: true, subtree: true, characterData: true });
+}
+function setLang(l) { try { localStorage.setItem("gr-lang", l); } catch (_) {} location.reload(); }
+
 /* ================== التشغيل ================== */
 async function boot() {
+  enStart();
   await loadUser();
   trackVisit(); setWatermark(); startDeviceGuard(false);
   subscribeLive();
