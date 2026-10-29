@@ -516,9 +516,9 @@ function joinPresence() {
 function onlineNode() { const n = h("div", { class: "online", id: "online", hidden: true }); setTimeout(paintOnline, 0); return n; }
 function paintOnline() {
   const el = $("online"); if (!el) return;
-  const show = S.online > 0 && (S.admin || S.online >= ONLINE_PUBLIC_MIN);
+  const show = S.online > 0 && S.admin;   // 🔒 عدد المتصلين للمدير بس
   el.hidden = !show; if (!show) return;
-  el.textContent = ""; add(el, h("i"), h("b", null, S.online), document.createTextNode(S.online === 1 ? " متصل الحين" : " متصلين الحين"), S.admin && S.online < ONLINE_PUBLIC_MIN ? h("small", null, " (يظهر لك بس)") : null);
+  el.textContent = ""; add(el, h("i"), h("b", null, S.online), document.createTextNode(S.online === 1 ? " متصل الحين" : " متصلين الحين"), h("small", null, " (يظهر لك بس)"));
 }
 async function loadViews(list, markSeen) {
   const ids = list.map(s => s.id); if (!ids.length) return;
