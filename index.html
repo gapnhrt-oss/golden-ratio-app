@@ -322,6 +322,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.chx-news{position:absolute;left:8px;right:84px;bottom:34px;z-index:22;display:flex;flex-direction:column;gap:4px;pointer-events:none}.chx-news[hidden]{display:none}
+.chx-ns{pointer-events:auto;display:flex;align-items:center;gap:2px;background:rgba(16,18,58,.9);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(255,107,107,.45);border-radius:10px;padding:5px 8px;font-size:12px;color:var(--fg);text-decoration:none;white-space:nowrap;overflow:hidden}.chx-ns b{font-size:12px;flex:0 0 auto}.chx-ns small{color:var(--muted);overflow:hidden;text-overflow:ellipsis}.chx-ns.near{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,183,5,.25)}.chx-ns.near small{color:var(--gold)}.chx-ns.done{border-color:var(--line)}
+.chx-nsx{margin-inline-start:auto;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;padding:0 2px 0 4px;flex:0 0 auto}
 .chx-zb{position:absolute;left:10px;right:86px;z-index:25;background:rgba(16,18,58,.96);border:1px solid var(--gold2);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.7;box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:60%;overflow:auto}.chx-zb[hidden]{display:none}.chx-zb b{font-size:14px}.chx-zbx{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px}
 body.wmk-on article.sig,body.wmk-on .card.live,body.wmk-on .gj-card{position:relative}
 body.wmk-on article.sig::after,body.wmk-on .card.live::after,body.wmk-on .chx-card::after,body.wmk-on .gj-card::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--wm);background-repeat:repeat;opacity:.07;z-index:6;border-radius:inherit}
@@ -701,8 +704,8 @@ async function ChartScreen() {
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const shCard = h("div", { class: "gj-card", hidden: true });
-  const zBub = h("div", { class: "chx-zb", hidden: true });
-  const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop, zBub);
+  const zBub = h("div", { class: "chx-zb", hidden: true }), nsEl = h("div", { class: "chx-news", hidden: true });
+  const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop, zBub, nsEl);
   //--- ⛶ الشارت على كامل الشاشة (وزر يصغّره)
   const fsTop = h("div", { class: "chx-fstop" }), fsBtn = h("button", { class: "chx-fsbtn", type: "button", "aria-label": "كامل الشاشة" }, "⛶");
   card.append(fsBtn, fsTop);
@@ -1476,6 +1479,23 @@ async function ChartScreen() {
     if (mem && L && O.sr && (L.zones || []).map(z => zSide(z, q.price)).join("") !== srKey) draw();
   }, 4000));
   timers.push(setInterval(() => loadAll(false), 30000));
+  //--- 📰 الأخبار القوية تحت الشارت: تطلع قبلها بيوم، وتختفي بعد ما ينزل الخبر بنص ساعة
+  let nsHide = {}; try { nsHide = JSON.parse(sessionStorage.getItem("gr-nsh") || "{}"); } catch (_) {}
+  const paintNews = async () => {
+    let list = null; try { list = await getCal(); } catch (_) {}
+    if (!list) { nsEl.hidden = true; return; }
+    const now = Date.now(), big = e => e.importance === 1 && ["US", "EU", "CN"].includes(e.country);
+    const L2 = dedupeCal(list.filter(e => { const t = +new Date(e.date); return big(e) && t > now - 30 * 60e3 && t - now < 24 * 3600e3 && !nsHide[e.id]; }).sort((a, b) => new Date(a.date) - new Date(b.date))).slice(0, 2);
+    nsEl.textContent = ""; nsEl.hidden = !L2.length; if (!L2.length) return;
+    const dur = ms => { const m = Math.max(1, Math.round(ms / 60e3)), hh = Math.floor(m / 60); return hh ? hh + "س" + (m % 60 ? " " + (m % 60) + "د" : "") : m + " دقيقة"; };
+    L2.forEach(e => {
+      const dt = +new Date(e.date) - now, done = dt <= 0, near = !done && dt < 15 * 60e3;
+      const tx = done ? (e.actual != null ? "نزل · الفعلي " + calVal(e.actual, e) + (noFc(e.forecast) ? "" : " · المتوقع " + calVal(e.forecast, e)) : "ينزل الحين ⏳") : (near ? "⚠️ بعد " + dur(dt) : "بعد " + dur(dt));
+      const x = h("button", { class: "chx-nsx", type: "button", "aria-label": "إخفاء", onclick: ev => { ev.stopPropagation(); nsHide[e.id] = 1; try { sessionStorage.setItem("gr-nsh", JSON.stringify(nsHide)); } catch (_) {} paintNews(); } }, "✕");
+      nsEl.append(h("a", { class: "chx-ns" + (near ? " near" : done ? " done" : ""), href: "#market/cal" }, h("span", null, "🔴 " + (FLAG[e.country] || "") + " "), h("b", null, arTitle(e.title) || e.title), h("small", null, " · " + tx), x));
+    });
+  };
+  paintNews(); timers.push(setInterval(paintNews, 30000));
 
   //--- الأزرار
   TFS.forEach(([v, n]) => { const D = { M15: "ربع ساعة", H1: "ساعة", H4: "4 ساعات", D1: "يوم" }; tfBar.append(h("button", { type: "button", class: v === O.tf ? "on" : "", onclick: e => { O.tf = v; save(); tfBar.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === e.currentTarget)); loadAll(true); } }, h("b", null, n), h("small", { class: "tfd" }, D[v] || ""))); });
