@@ -1049,7 +1049,8 @@ async function ChartScreen() {
           //--- نقطة الانطلاق: D (اكتمل) أو نص منطقة D (قريب)
           const o = s.done ? last : { time: endT(), value: (s.lo + s.hi) / 2 };
           const tps = s.tps && s.tps.length === 5 ? s.tps : tps5(o.value, Math.abs((s.tp1 - o.value) / 0.382), dd);
-          const J = s.done ? journey(last.time, tps, s.sl, bull) : { n: 0, stop: 0 };
+          const J = s.done ? journey(last.time, tps, s.sl, bull) : { n: 0, stop: data.some(c => c.time > last.time && (bull ? c.low <= s.sl : c.high >= s.sl)) ? 1 : 0 };
+          if (J.stop) return;   //--- 🛑 ضرب الوقف: النموذج فشل — يختفي من الشارت والقائمة
           if (full) {
             const T = P.concat(s.done ? [] : [o]);
             for (let i = 0; i + 2 < T.length; i += 2) polys.push({ pts: [T[i], T[i + 1], T[i + 2]], fill: "url(#gfill)", an: 2 });
@@ -1075,6 +1076,7 @@ async function ChartScreen() {
           const brk = s.brk ? { time: snap(s.brk[0]), value: s.brk[1] } : null;
           const hgt = Math.abs(s.tp1 - s.lv), tps = s.tps && s.tps.length === 5 ? s.tps : tps5(s.lv, hgt, dd);
           const J = brk && brk.time != null ? journey(brk.time, tps, s.sl, bull) : { n: 0, stop: 0 };
+          if (J.stop) return;   //--- 🛑 ضرب الوقف: الشكل فشل — يختفي من الشارت والقائمة
           if (full && Z.length >= 2) {
             //--- 1) التظليل الذهبي تحت الشكل + الخط الذهبي اللي يرسم نفسه
             polys.push({ pts: Z.concat([{ time: Z[Z.length - 1].time, value: s.lv }, { time: Z[0].time, value: s.lv }]), fill: "url(#gfill)", an: 2 });
