@@ -322,7 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
-.chx-news{display:flex;flex-direction:column;gap:6px}.chx-news[hidden]{display:none}
+.chx-news{display:flex;flex-direction:column;gap:6px}.fold.near>.fold-h{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--panel));animation:nsGlow 1.8s ease-in-out infinite}.fold.near>.fold-h b{color:var(--gold)}@keyframes nsGlow{50%{box-shadow:0 0 0 4px rgba(242,183,5,.18)}}.chx-news[hidden]{display:none}
 .chx-ns{display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid rgba(255,107,107,.45);border-radius:12px;padding:9px 12px;font-size:13px;color:var(--fg);text-decoration:none;white-space:nowrap;overflow:hidden}.chx-ns b{font-size:13px;flex:0 0 auto}.chx-ns small{color:var(--muted);overflow:hidden;text-overflow:ellipsis}.chx-ns.near{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,183,5,.25)}.chx-ns.near small{color:var(--gold)}.chx-ns.done{border-color:var(--line)}
 .chx-nsx{margin-inline-start:auto;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;padding:0 2px 0 4px;flex:0 0 auto}
 .chx-zb{position:absolute;left:10px;right:86px;z-index:25;background:rgba(16,18,58,.96);border:1px solid var(--gold2);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.7;box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:60%;overflow:auto}.chx-zb[hidden]{display:none}.chx-zb b{font-size:14px}.chx-zbx{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px}
@@ -768,9 +768,9 @@ async function ChartScreen() {
   card.append(ctlRow);   //--- داخل الشارت فوق
   const root = h("div", { class: "screen" },
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
-    h("div", { class: "chx-stack" }, goldPrice(), card), shCard,
+    h("div", { class: "chx-stack" }, goldPrice(), card), nsFold, shCard,
     h("div", { class: "chx-ind" }),
-    whyFold, nsFold, legFold, ex, srcNote);
+    whyFold, legFold, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
@@ -1489,6 +1489,7 @@ async function ChartScreen() {
     const L2 = dedupeCal(list.filter(e => { const t = +new Date(e.date); return big(e) && t > now - 30 * 60e3 && t - now < 24 * 3600e3 && !nsHide[e.id]; }).sort((a, b) => new Date(a.date) - new Date(b.date))).slice(0, 4);
     nsEl.textContent = ""; nsEl.hidden = false; nsFold.hidden = !L2.length; if (!L2.length) return;
     const n0 = L2[0], d0 = +new Date(n0.date) - Date.now();
+    nsFold.classList.toggle("near", d0 > -30 * 60e3 && d0 < 60 * 60e3);   //--- 🟡 الخبر قرب (ساعة أو أقل)
     nsFold.querySelector(".fold-h b").textContent = "📰 الأخبار القوية · " + (arTitle(n0.title) || n0.title) + (d0 > 0 ? " بعد " + (Math.round(d0 / 60e3) >= 60 ? Math.floor(d0 / 3600e3) + "س" : Math.max(1, Math.round(d0 / 60e3)) + "د") : " نزل");
     const dur = ms => { const m = Math.max(1, Math.round(ms / 60e3)), hh = Math.floor(m / 60); return hh ? hh + "س" + (m % 60 ? " " + (m % 60) + "د" : "") : m + " دقيقة"; };
     L2.forEach(e => {
