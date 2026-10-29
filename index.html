@@ -323,6 +323,8 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.lotw{display:flex;flex-direction:column;gap:8px}.lotb{display:flex;flex-direction:column;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.lotb label{display:flex;flex-direction:column;gap:4px}.lotout{display:flex;flex-direction:column;gap:4px}.lotout b.gold{color:var(--gold)}
+.segsv{display:block;font-size:.68rem;color:var(--up);font-weight:700}
 .chx-news{display:flex;flex-direction:column;gap:6px}.fold.near>.fold-h{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--panel));animation:nsGlow 1.8s ease-in-out infinite}.fold.near>.fold-h b{color:var(--gold)}@keyframes nsGlow{50%{box-shadow:0 0 0 4px rgba(242,183,5,.18)}}.chx-news[hidden]{display:none}
 .chx-ns{display:flex;align-items:center;gap:2px;background:var(--panel);border:1px solid rgba(255,107,107,.45);border-radius:12px;padding:9px 12px;font-size:13px;color:var(--fg);text-decoration:none;white-space:nowrap;overflow:hidden}.chx-ns b{font-size:13px;flex:0 0 auto}.chx-ns small{color:var(--muted);overflow:hidden;text-overflow:ellipsis}.chx-ns.near{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,183,5,.25)}.chx-ns.near small{color:var(--gold)}.chx-ns.done{border-color:var(--line)}
 .chx-nsx{margin-inline-start:auto;background:none;border:0;color:var(--muted);font-size:13px;cursor:pointer;padding:0 2px 0 4px;flex:0 0 auto}
@@ -1542,6 +1544,28 @@ function refreshIf(...routes) { if (routes.includes(S.route)) route(); }
 
 /* ================== بطاقة التوصية ================== */
 function strengthBar(n) { const s = h("span", { class: "strength", title: n + "/10" }); for (let i = 1; i <= 10; i++) s.append(h("b", { class: i <= n ? "f" : "" })); return s; }
+//--- 🧮 حاسبة اللوت لهالتوصية: رصيدك × المخاطرة ÷ (المسافة للوقف × 100) — الذهب: اللوت الكامل = 100 أونصة
+function lotBox(s) {
+  let st = { b: 1000, r: 1 }; try { st = Object.assign(st, JSON.parse(localStorage.getItem("gr-lot") || "{}")); } catch (_) {}
+  const e = s.entry_to ? (Number(s.entry_from) + Number(s.entry_to)) / 2 : Number(s.entry_from), d = Math.abs(e - Number(s.sl));
+  const bal = h("input", { type: "number", inputmode: "decimal", dir: "ltr", value: st.b, min: "1" }), rk = h("input", { type: "number", inputmode: "decimal", dir: "ltr", value: st.r, step: "0.5", min: "0.1" });
+  const out = h("div", { class: "lotout" });
+  const calc = () => {
+    const b = Number(bal.value) || 0, r = Number(rk.value) || 0, risk = b * r / 100;
+    try { localStorage.setItem("gr-lot", JSON.stringify({ b, r })); } catch (_) {}
+    if (!b || !r || !d) { out.textContent = "اكتب رصيدك ونسبة المخاطرة"; return; }
+    const lot = Math.floor(risk / (d * 100) * 100) / 100;
+    out.replaceChildren(
+      h("div", { class: "between" }, h("span", { class: "muted" }, "اللوت المناسب"), h("b", { class: "num gold", dir: "ltr", style: "font-size:1.35rem" }, lot >= 0.01 ? lot.toFixed(2) : "0.01")),
+      h("small", { class: "muted" }, lot >= 0.01 ? "لو ضرب الوقف تخسر تقريباً " : "رصيدك صغير على هالوقف، أقل لوت 0.01 يخسر تقريباً ", h("bdi", { class: "num", dir: "ltr" }, "$" + fmt(Math.round((lot >= 0.01 ? lot : 0.01) * d * 100 * 100) / 100)), " · المسافة للوقف " + fmt(Math.round(d * 100) / 100) + "$"));
+  };
+  bal.oninput = calc; rk.oninput = calc;
+  const body = h("div", { class: "lotb", hidden: true }, h("div", { class: "grid2" }, h("label", null, h("small", { class: "muted" }, "رصيدك ($)"), bal), h("label", null, h("small", { class: "muted" }, "المخاطرة (%)"), rk)), out,
+    h("small", { class: "muted", style: "font-size:.78rem" }, "💡 لا تخاطر بأكثر من 1–2% من حسابك بالصفقة الوحدة. إذا الدخول منطقة، الحسبة من نصها."));
+  const btn = h("button", { class: "btn ghost sm", type: "button", style: "align-self:flex-start" }, "🧮 احسب اللوت لهالتوصية");
+  btn.onclick = e => { e.stopPropagation(); body.hidden = !body.hidden; if (!body.hidden) calc(); };
+  return h("div", { class: "lotw" }, btn, body);
+}
 function signalCard(s, updates) {
   const open = s.status === "open" || s.status === "idea";
   const lv = h("dl", { class: "levels" });
@@ -1570,6 +1594,7 @@ function signalCard(s, updates) {
     if (s.status === "closed") body.append(starsRow(s));
     if (S.admin && s.status === "closed") body.append(h("button", { class: "btn primary sm", type: "button", onclick: () => shareSignalImage(s) }, "📸 صورة للنشر"));
   }
+  if (open && s.sl != null && s.entry_from != null) body.append(lotBox(s));
   const ups = (updates || []).filter(u => u.signal_id === s.id);
   if (ups.length) {
     const tl = h("div", { class: "timeline" });
@@ -1656,6 +1681,7 @@ function liveCard(s, ups) {
   }
   const last = mine[mine.length - 1];
   if (last) c.append(h("small", { class: "muted" }, "آخر تحديث: " + (KIND[last.kind] || last.kind) + " · " + ago(last.created_at)));
+  if (s.status === "open" && s.sl != null && s.entry_from != null) c.append(lotBox(s));
   c.append(h("a", { class: "btn primary sm", href: "#signals" }, "التفاصيل والمتابعة"));
   return c;
 }
@@ -3465,12 +3491,17 @@ function plansCard(active) {
   const box = h("div", { class: "card" }, h("b", null, active ? "جدد أو مدّد اشتراكك" : "اختر باقتك"));
   const seg = h("div", { class: "seg" });
   const price = h("div", { class: "between" });
+  //--- 💸 كم يوفّر مقارنة بالشهري
+  const mon = sigPlans.find(p => p.days >= 28 && p.days <= 31);
+  const save = p => mon && p.price_kwd && mon.price_kwd && p.days > 31 ? Math.round((1 - (p.price_kwd / p.days) / (mon.price_kwd / mon.days)) * 100) : 0;
+  const best = sigPlans.reduce((a, p) => save(p) > save(a || p) ? p : a, null);
   function paint() {
     seg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.id === chosen.id)));
     price.textContent = "";
-    price.append(h("span", { class: "muted" }, chosen.days + " يوم"), h("div", { style: "text-align:end" }, h("b", { class: "num", style: "font-size:1.6rem" }, priceMain(chosen)), priceAlt(chosen) ? h("small", { class: "muted num", style: "display:block" }, priceAlt(chosen)) : null));
+    const sv = save(chosen);
+    price.append(h("div", null, h("span", { class: "muted" }, chosen.days + " يوم"), sv > 0 ? h("span", { class: "pill on", style: "margin-inline-start:8px" }, "وفّر " + sv + "%") : null, chosen.id === "sig-3m" ? h("span", { class: "pill wait", style: "margin-inline-start:6px" }, "⭐ الأكثر طلباً") : null), h("div", { style: "text-align:end" }, h("b", { class: "num", style: "font-size:1.6rem" }, priceMain(chosen)), priceAlt(chosen) ? h("small", { class: "muted num", style: "display:block" }, priceAlt(chosen)) : null));
   }
-  sigPlans.forEach(p => seg.append(h("button", { type: "button", "data-id": p.id, onclick: () => { chosen = p; paint(); } }, p.name_ar.replace("توصيات - ", ""))));
+  sigPlans.forEach(p => seg.append(h("button", { type: "button", "data-id": p.id, onclick: () => { chosen = p; paint(); } }, p.name_ar.replace("توصيات - ", ""), save(p) > 0 ? h("small", { class: "segsv" }, "-" + save(p) + "%") : null)));
   paint();
   box.append(seg, price, h("button", { class: "btn primary block", onclick: () => S.session ? paySheet(chosen) : authSheet("signup") }, "اشترك وادفع"));
   return box;
