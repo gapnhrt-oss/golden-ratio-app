@@ -1091,7 +1091,7 @@ async function ChartScreen() {
             goldTargets(o, tps, s.sl, J, bull, "الوقف تحت D");
             shapeCard(s, P, tps, J, bull, s.done ? (J.stop === 1 ? "🛑 فشل" : "✅ اكتمل عند D") : "⏳ قريب من D");
           }
-          TG.push({ side: bull ? "buy" : "sell", p: last.value, key, z: { h: (bull ? "🟢" : "🔴") + " 🦈 " + s.n + " " + (bull ? "صاعد" : "هابط") + " " + s.tf + " · 🎯 " + f2(tps[0]), why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 الأهداف (من موجة AD): " + tps.map((t, k) => (k + 1) + ") " + f2(t)).join(" · "), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل النموذج من الشارت" : "👆 اضغط علشان يطلع النموذج كامل على الشارت"].filter(Boolean) } });
+          TG.push({ side: bull ? "buy" : "sell", p: last.value, key, ck: s.done ? 1 + J.n : 0, z: { h: (bull ? "🟢" : "🔴") + " 🦈 " + s.n + " " + (bull ? "صاعد" : "هابط") + " " + s.tf + " · 🎯 " + f2(tps[0]), why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 الأهداف (من موجة AD): " + tps.map((t, k) => (k + 1) + ") " + f2(t)).join(" · "), "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل النموذج من الشارت" : "👆 اضغط علشان يطلع النموذج كامل على الشارت"].filter(Boolean) } });
           if (!full) marks.push({ time: last.time, position: bull ? "belowBar" : "aboveBar", color: "#F2B705", shape: bull ? "arrowUp" : "arrowDown", text: (s.done ? (bull ? "⬆️ اكتمال " : "⬇️ اكتمال ") : "⏳ قريب من D · ") + s.n + " " + s.tf });
           ZN.push({ lo: Math.min(s.sl, tps[0]) - 2, hi: Math.max(s.sl, tps[4]) + 2, c: "#F2B705", h: "🦈 هارمونيك " + s.n + " " + (bull ? "صاعد" : "هابط") + " · " + s.tf, why: [(s.done ? "✅ النموذج اكتمل عند D والارتداد بدأ" : "⏳ السعر يقرب من منطقة D (" + f2(s.lo) + " – " + f2(s.hi) + ")"), "📏 الخطوط النقط = نسب فيبوناتشي اللي تثبت النموذج", "🎯 5 أهداف: 38% · 62% · 100% · 127% · 162% من موجة AD", "🛑 النموذج يفشل إذا " + (bull ? "كسر " : "اخترق ") + f2(s.sl)] });
         } else if (s.k === "pat") {
@@ -1122,7 +1122,7 @@ async function ChartScreen() {
             goldTargets(o, tps, s.sl, J, bull, bull ? "الوقف تحت آخر قاع" : "الوقف فوق آخر قمة");
             shapeCard(s, Z.length >= 2 ? Z : [o, o], tps, J, bull, J.stop === 1 ? "🛑 فشل" : bull ? "✅ اخترق" : "✅ كسر");
           }
-          TG.push({ side: bull ? "buy" : "sell", p: s.lv, key, z: { h: (bull ? "🟢" : "🔴") + " 📐 " + s.n + " " + s.tf + " · 🎯 " + f2(tps[2]), why: [(bull ? "📍 الاختراق صار عند " : "📍 الكسر صار عند ") + f2(s.lv), "📏 طول الشكل = " + hgt.toFixed(1) + "$ — والأهداف نسب من هالطول من نقطة الكسر", "🎯 الأهداف: " + tps.map((t, k) => (k + 1) + ") " + f2(t)).join(" · "), "🎯3 = 100% هدف الكتاب", "🛑 الشكل يفشل إذا " + (bull ? "نزل تحت " : "صعد فوق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل الشكل من الشارت" : "👆 اضغط علشان يطلع الشكل كامل على الشارت"] } });
+          TG.push({ side: bull ? "buy" : "sell", p: s.lv, key, ck: brk && brk.time != null ? 1 + J.n : 0, z: { h: (bull ? "🟢" : "🔴") + " 📐 " + s.n + " " + s.tf + " · 🎯 " + f2(tps[2]), why: [(bull ? "📍 الاختراق صار عند " : "📍 الكسر صار عند ") + f2(s.lv), "📏 طول الشكل = " + hgt.toFixed(1) + "$ — والأهداف نسب من هالطول من نقطة الكسر", "🎯 الأهداف: " + tps.map((t, k) => (k + 1) + ") " + f2(t)).join(" · "), "🎯3 = 100% هدف الكتاب", "🛑 الشكل يفشل إذا " + (bull ? "نزل تحت " : "صعد فوق ") + f2(s.sl), full ? "👆 اضغط مرة ثانية علشان تشيل الشكل من الشارت" : "👆 اضغط علشان يطلع الشكل كامل على الشارت"] } });
           if (!full) marks.push({ time: (brk && brk.time) || snap(s.t2) || endT(), position: bull ? "belowBar" : "aboveBar", color: "#F2B705", shape: bull ? "arrowUp" : "arrowDown", text: (bull ? "⬆️ اختراق " : "⬇️ كسر ") + s.n + " " + s.tf });
           ZN.push({ lo: s.lv - 3, hi: s.lv + 3, c: "#F2B705", h: "📐 " + s.n + " · " + s.tf, why: [(bull ? "📍 مستوى الاختراق: " : "📍 مستوى الكسر: ") + f2(s.lv), s.e1 ? "🟢 الدخول الأول: عند آخر قاع/قمة بالشكل · الدخول الثاني: بعد الكسر" : "🟢 الدخول بعد " + (bull ? "الاختراق" : "الكسر") + " وإغلاق الشمعة", "🟡 المنطقة الذهبية عند الكسر = أفضل دخول ثاني لو رجع السعر", "🎯 5 أهداف: 38% · 62% · 100% (هدف الكتاب) · 127% · 162% من طول الشكل", "🛑 الوقف: " + f2(s.sl)] });
         }
@@ -1198,7 +1198,7 @@ async function ChartScreen() {
     lastTG = TG; if (fsPop.isConnected) fsList();
     { const n = TG.filter(g => g.key).length; fsShp.textContent = "📐" + (n ? " " + n : ""); }
     tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
-    whyBar.append(h("b", { class: "chx-whyhd" }, "❓ التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
+    whyBar.append(h("b", { class: "chx-whyhd" }, "📋 التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
     const pr = g => g.key ? 3 : /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
@@ -1206,7 +1206,7 @@ async function ChartScreen() {
       //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
       const parts = g.z.h.split(" · "), m = parts[0].match(/^(.*?)\s([\d,]+\.\d+.*)$/);
       const ttl = (m ? m[1] : parts[0]), sub = [m ? m[2] : ""].concat(parts.slice(1)).filter(Boolean).join(" · ");
-      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl + " ❓"), h("small", null, sub));
+      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl + (g.ck ? " " + "✅".repeat(g.ck) : "")), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
         if (g.key) { focusKey = open ? null : g.key; openTitle = open ? null : g.z.h; if (!open) animT0 = Date.now(); draw(); return; }   // 📐🦈 الشكل: التفاصيل الكاملة على الشارت
