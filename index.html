@@ -1852,13 +1852,13 @@ async function Home() {
   const tm = todayMorning(ps).map(p => p.id), feedPs = ps.filter(p => !tm.includes(p.id));   // قراءة اليوم لها كرت، فما تتكرر بالمنشورات
   add(root, launch);
   if (S.member) {
-    // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), sigBox, fold("news", "📅 الخبر الجاي", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+    // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
+    add(root, renewCard(), sigBox, fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
       closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
     add(root, sigBox, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
-      fold("news", "📅 الخبر الجاي", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
+      fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
   root.append(fold("contact", "💬 تواصل معنا", contactCard()));
