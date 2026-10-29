@@ -3094,6 +3094,13 @@ function resSeg(cur) {
   return h("div", { class: "seg" }, h("button", { type: "button", "aria-pressed": String(cur === "signals"), onclick: () => location.hash = "#signals" }, "📈 التوصيات"),
     h("button", { type: "button", "aria-pressed": String(cur === "ea"), onclick: () => location.hash = "#ea" }, "🤖 الاكسبيرت"));
 }
+//--- 📅 ربح اليوم والأسبوع من منحنى الرصيد (الأوقات بتوقيت سيرفر الوسيط)
+function eaPeriods(d) {
+  const all = (d.curve || []).filter(r => r[1] != null); if (all.length < 2 || d.balance == null) return null;
+  const now = all[all.length - 1][0], pts = all.slice().sort((a, b) => a[0] - b[0]), day0 = now - now % 86400, dow = (Math.floor(day0 / 86400) + 4) % 7, wk0 = day0 - ((dow + 6) % 7) * 86400;
+  const before = t => { let v = pts[0][1]; for (const p of pts) { if (p[0] < t) v = p[1]; else break; } return v; };
+  return { day: Math.round((d.balance - before(day0)) * 100) / 100, week: Math.round((d.balance - before(wk0)) * 100) / 100 };
+}
 function eaSpark(pts, W, H, col, id) {
   if (!pts || pts.length < 2) return "";
   const t0 = pts[0][0], ts = (pts[pts.length - 1][0] - t0) || 1, lo = Math.min(...pts.map(p => p[1])), sp = (Math.max(...pts.map(p => p[1])) - lo) || 1;
@@ -3109,6 +3116,8 @@ function eaMini() {
     const up = (d.growth || 0) >= 0, sp = h("div", { class: "grw" }); sp.innerHTML = eaSpark((d.curve || []).filter(r => r[1] != null), 300, 46, up ? "#F2B705" : "#FF6B6B", "eam");
     box.append(h("div", { class: "between" }, h("b", { class: "num " + (up ? "pos" : "neg"), style: "font-size:1.5rem", dir: "ltr" }, (up ? "+" : "") + fmt(d.growth) + "%"),
       h("small", { class: "muted" }, (d.days ? d.days + " يوم" : "") + (d.demo ? " · 🧪 ديمو" : " · ✅ حقيقي"))), sp);
+    const PR = eaPeriods(d);
+    if (PR) box.append(h("small", { class: "muted" }, "📅 اليوم ", h("b", { class: "num " + (PR.day >= 0 ? "pos" : "neg"), dir: "ltr" }, (PR.day >= 0 ? "+$" : "-$") + fmt(Math.abs(PR.day))), " · 📆 الأسبوع ", h("b", { class: "num " + (PR.week >= 0 ? "pos" : "neg"), dir: "ltr" }, (PR.week >= 0 ? "+$" : "-$") + fmt(Math.abs(PR.week)))));
   }).catch(() => {});
   return box;
 }
@@ -3140,6 +3149,10 @@ async function EaPage() {
     h("div", { class: "between" }, h("b", { class: "num", style: "font-size:1.7rem", dir: "ltr" }, usd(d.balance)), h("small", { class: "muted num" }, "البداية " + usd(d.deposit || 0))),
     h("div", { class: "between" }, h("small", { class: "muted" }, "💰 صافي الربح"), h("b", { class: "num " + ((d.profit || 0) >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(d.profit || 0))),
     pts.length >= 2 ? g : null));
+  const PR = eaPeriods(d);
+  if (PR) root.append(h("div", { class: "grid2" },
+    h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "📅 ربح اليوم"), h("b", { class: "num " + (PR.day >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(PR.day)), h("small", { class: "muted" }, d.balance ? (PR.day >= 0 ? "+" : "") + fmt(Math.round(PR.day / (d.balance - PR.day) * 1000) / 10) + "% من الحساب" : "")),
+    h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "📆 ربح هالأسبوع"), h("b", { class: "num " + (PR.week >= 0 ? "pos" : "neg"), dir: "ltr" }, sg(PR.week)), h("small", { class: "muted" }, d.balance ? (PR.week >= 0 ? "+" : "") + fmt(Math.round(PR.week / (d.balance - PR.week) * 1000) / 10) + "% · من الاثنين" : ""))));
   //--- 📊 الأرقام
   const kp = (lb, v, cls, sub) => h("div", { class: "card soft kp" }, h("small", { class: "muted" }, lb), h("b", { class: "num " + (cls || ""), dir: "ltr" }, v), sub ? h("small", { class: "muted" }, sub) : null);
   root.append(h("div", { class: "grid2" },
