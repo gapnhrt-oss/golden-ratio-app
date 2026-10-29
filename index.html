@@ -1867,7 +1867,7 @@ async function Home() {
 
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
-  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), fold("gp", "💰 سعر الذهب لايف", goldPrice()));
+  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode());
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
@@ -3300,7 +3300,7 @@ function statsPanel(closed, ups) {
 
 let sigTimer = null;
 async function Signals() {
-  const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"), resSeg("signals"));
+  const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"), resSeg("signals"), goldPrice());
   const [sig, teaser] = await Promise.all([
     sb.from("signals").select("*").gte("created_at", RESET_AT).order("created_at", { ascending: false }).limit(60),
     sb.rpc("open_signals_teaser")
