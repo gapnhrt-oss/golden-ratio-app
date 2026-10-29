@@ -322,6 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.chx-zb{position:absolute;left:10px;right:86px;z-index:25;background:rgba(16,18,58,.96);border:1px solid var(--gold2);border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.7;box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:60%;overflow:auto}.chx-zb[hidden]{display:none}.chx-zb b{font-size:14px}.chx-zbx{background:none;border:0;color:var(--muted);font-size:16px;cursor:pointer;padding:0 4px}
 body.wmk-on article.sig,body.wmk-on .card.live,body.wmk-on .gj-card{position:relative}
 body.wmk-on article.sig::after,body.wmk-on .card.live::after,body.wmk-on .chx-card::after,body.wmk-on .gj-card::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--wm);background-repeat:repeat;opacity:.07;z-index:6;border-radius:inherit}
 
@@ -700,7 +701,8 @@ async function ChartScreen() {
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const shCard = h("div", { class: "gj-card", hidden: true });
-  const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop);
+  const zBub = h("div", { class: "chx-zb", hidden: true });
+  const card = h("div", { class: "chx-card" }, box, svg, h("div", { class: "chx-wm" }, h("img", { src: "icon-512.png", alt: "" })), tagsEl, pop, zBub);
   //--- ⛶ الشارت على كامل الشاشة (وزر يصغّره)
   const fsTop = h("div", { class: "chx-fstop" }), fsBtn = h("button", { class: "chx-fsbtn", type: "button", "aria-label": "كامل الشاشة" }, "⛶");
   card.append(fsBtn, fsTop);
@@ -1409,10 +1411,16 @@ async function ChartScreen() {
   chart.subscribeClick(p => {
     if (!p || !p.point || !mem) return;
     const y = cs.coordinateToPrice(p.point.y); if (y == null) return;
-    const i = ZN.findIndex(z => y >= z.lo - 3 && y <= z.hi + 3); if (i < 0) return;
-    ex.querySelectorAll("details").forEach(d => d.open = false);
-    if (!exOpen) { const b = ex.querySelector(".chx-exb"); if (b) b.click(); }
-    const d = document.getElementById("chz" + i); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+    const i = ZN.findIndex(z => y >= z.lo - 3 && y <= z.hi + 3); if (i < 0) { zBub.hidden = true; return; }
+    //--- 💬 فقاعة الشرح على الشارت نفسه (بدون ما ينزل للشرح تحت)
+    const z = ZN[i];
+    zBub.replaceChildren(h("div", { class: "between" }, h("b", { style: "color:" + z.c }, z.h), h("button", { class: "chx-zbx", type: "button", "aria-label": "إغلاق", onclick: e => { e.stopPropagation(); zBub.hidden = true; } }, "✕")),
+      ...(z.why || []).map(w => h("div", { class: "muted" }, "↳ " + w)));
+    zBub.hidden = false;
+    const H = box.clientHeight, bh = Math.min(zBub.offsetHeight || 120, H - 20);
+    let top = p.point.y + 16; if (top + bh > H - 8) top = Math.max(8, p.point.y - bh - 16);
+    zBub.style.top = top + "px";
+    clearTimeout(zBub._t); zBub._t = setTimeout(() => { zBub.hidden = true; }, 9000);
   });
   function legend() {
     leg.textContent = "";
