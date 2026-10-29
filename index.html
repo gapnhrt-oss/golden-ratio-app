@@ -261,8 +261,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .empty{text-align:center;color:var(--muted);padding:26px 10px;border:1px dashed var(--line);border-radius:16px}
 .toast{position:fixed;z-index:50;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:var(--up);color:#04210F;font-weight:600;padding:10px 18px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:calc(100% - 32px);text-align:center}
 .toast.bad{background:var(--down);color:#2A0505}
-.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(5,6,20,.75);display:flex;align-items:flex-end;justify-content:center;padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom))}
-.sheet{width:100%;max-width:520px;max-height:88vh;overflow-y:auto;background:var(--panel);border:1px solid var(--gold2);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px}
+.sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(5,6,20,.75);display:flex;align-items:flex-end;justify-content:center;padding:12px;padding-top:calc(12px + env(safe-area-inset-top));padding-bottom:calc(12px + env(safe-area-inset-bottom))}
+.sheet>.screen>.between:first-child{position:sticky;top:-18px;z-index:3;background:var(--panel);margin:-18px -18px 0;padding:14px 18px 10px;border-bottom:1px solid var(--line)}
+.sheet{width:100%;max-width:520px;max-height:calc(100vh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;background:var(--panel);border:1px solid var(--gold2);border-radius:22px;padding:18px;display:flex;flex-direction:column;gap:12px}
 .install{display:flex;gap:10px;align-items:center}
 .install img{width:44px;height:44px;border-radius:10px}
 .spinner{width:22px;height:22px;border:3px solid var(--line);border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:30px auto}
@@ -541,7 +542,7 @@ function copyBtn(text) {
     (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(() => { b.textContent = "تم النسخ"; setTimeout(() => b.textContent = "نسخ", 1500); }).catch(() => toast("حدّد النص وانسخه", true));
   } }, "نسخ");
 }
-function openSheet(content) { const b = $("sheetBody"); b.textContent = ""; b.append(content); $("sheet").hidden = false; }
+function openSheet(content) { const b = $("sheetBody"); b.textContent = ""; b.append(content); $("sheet").hidden = false; b.scrollTop = 0; }
 function closeSheet() { $("sheet").hidden = true; }
 $("sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
 async function signed(bucket, path) { if (!path) return null; const { data } = await sb.storage.from(bucket).createSignedUrl(path, 3600); return data && data.signedUrl; }
