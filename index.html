@@ -741,7 +741,7 @@ async function ChartScreen() {
   const whyBar = h("div", { class: "chx-whybar", hidden: true }), whyDet = h("div", { class: "chx-whydet", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
   //--- 📂 نفس فكرة الأخبار: الأقسام مسكّرة وتنفتح لمن تضغطها
-  const whyFold = fold("ch-why", "📋 التوصيات والأفكار", whyBar), legFold = fold("ch-leg", "🎨 شرح الألوان والخطوط", leg);
+  const whyFold = fold("ch-why", "📋 التوصيات والأفكار", whyBar, true), legFold = fold("ch-leg", "🎨 شرح الألوان والخطوط", leg);
   whyFold.hidden = true;
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑"), h("a", { href: "#vip", style: "color:#FFD54A;font-weight:700;margin-top:6px" }, "شنو بتحصل في VIP؟")));
   const alBtn = h("button", { class: "chx-alb", type: "button", "aria-label": "تنبيه سعر", title: "تنبيه سعر" }, "🔔");
@@ -768,9 +768,9 @@ async function ChartScreen() {
   card.append(ctlRow);   //--- داخل الشارت فوق
   const root = h("div", { class: "screen" },
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
-    h("div", { class: "chx-stack" }, goldPrice(), card), nsFold, shCard,
+    h("div", { class: "chx-stack" }, goldPrice(), card), shCard, whyFold, nsFold,
     h("div", { class: "chx-ind" }),
-    whyFold, legFold, ex, srcNote);
+    legFold, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
@@ -1833,14 +1833,15 @@ function postsFeed(ps, limit) {
 }
 
 //--- 📂 كل قسم بالأخبار مسكّر، يفتح لمن تضغطه (والموقع يتذكر الي فتحته)
-function fold(key, title, node) {
+function fold(key, title, node, def) {
   if (!node || (Array.isArray(node) && !node.length)) return null;
   let open = {}; try { open = JSON.parse(localStorage.getItem("gr-fold") || "{}"); } catch (_) {}
+  if (!(key in open)) open[key] = def ? 1 : 0;
   const body = h("div", { class: "fold-b", hidden: !open[key] }); add(body, node);
   const btn = h("button", { class: "chx-exb fold-h", type: "button", "aria-expanded": String(!!open[key]) }, h("b", null, title), h("span", { class: "chx-exg" }, open[key] ? "▴" : "▾"));
   btn.onclick = () => {
     const on = body.hidden; body.hidden = !on; btn.setAttribute("aria-expanded", String(on)); btn.lastChild.textContent = on ? "▴" : "▾";
-    try { const o = JSON.parse(localStorage.getItem("gr-fold") || "{}"); if (on) o[key] = 1; else delete o[key]; localStorage.setItem("gr-fold", JSON.stringify(o)); } catch (_) {}
+    try { const o = JSON.parse(localStorage.getItem("gr-fold") || "{}"); o[key] = on ? 1 : 0; localStorage.setItem("gr-fold", JSON.stringify(o)); } catch (_) {}
   };
   return h("div", { class: "fold" }, btn, body);
 }
