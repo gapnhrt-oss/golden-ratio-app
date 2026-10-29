@@ -709,7 +709,8 @@ async function ChartScreen() {
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑"), h("a", { href: "#vip", style: "color:#FFD54A;font-weight:700;margin-top:6px" }, "شنو بتحصل في VIP؟")));
   const alBtn = h("button", { class: "chx-alb", type: "button", "aria-label": "تنبيه سعر", title: "تنبيه سعر" }, "🔔");
   const root = h("div", { class: "screen" },
-    h("div", { class: "chx-top" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("b", { class: "latin" }, "GOLDEN RATIO"), h("div", { class: "muted", style: "font-size:13px" }, "📈 الشارت · XAUUSD")), h("div", { class: "chx-pxw" }, pxEl, chgEl), alBtn),
+    goldPrice(),
+    h("div", { class: "chx-top" }, h("b", null, "📈 الشارت"), h("span", { class: "muted", style: "font-size:13px" }, "XAUUSD"), h("span", { style: "margin-inline-start:auto;display:flex;align-items:center;gap:6px" }, h("small", { class: "muted" }, "تنبيه سعر"), alBtn)),
     tfBar, optBar, ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "", shCard, card, whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
