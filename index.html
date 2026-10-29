@@ -3388,6 +3388,7 @@ async function AdmSig() {
     box.append(signalCard(s, ups));
     box.append(h("div", { class: "row" },
       h("button", { class: "btn ghost sm", onclick: () => updateSheet(s) }, "+ تحديث"),
+      h("button", { class: "btn ghost sm", onclick: () => editSignalSheet(s) }, "✏️ تعديل"),
       h("button", { class: "btn green sm", onclick: () => closeSignalSheet(s) }, "إغلاق التوصية"),
       h("button", { class: "btn red sm", onclick: async ev => { if (!confirmInline(ev)) return; await sb.from("signals").update({ status: "cancelled", closed_at: new Date().toISOString() }).eq("id", s.id); await sb.from("signal_updates").insert({ signal_id: s.id, kind: "cancel" }); toast("انلغت"); route(); } }, "إلغاء")));
   });
@@ -3429,6 +3430,26 @@ function newSignalSheet() {
     go));
 }
 
+//--- ✏️ تعديل الدخول/الوقف/الأهداف — المنفّذ يطبقه على الصفقات المفتوحة على طول
+function editSignalSheet(s) {
+  const K = ["entry_from", "sl", "tp1", "tp2", "tp3", "tp4", "tp5"], L = ["الدخول", "الوقف", "الهدف 1", "الهدف 2", "الهدف 3", "الهدف 4", "الهدف 5"];
+  const F = {}; K.forEach(k => { F[k] = numInput("e-" + k); if (s[k] != null) F[k].value = s[k]; });
+  const go = h("button", { class: "btn primary block" }, "💾 احفظ التعديل");
+  const N = el => el.value.trim() === "" ? null : Number(el.value);
+  openSheet(h("form", { class: "screen", onsubmit: async e => {
+    e.preventDefault(); if (N(F.entry_from) === null || N(F.sl) === null) { toast("لازم الدخول والوقف", true); return; }
+    const up = {}, ch = []; K.forEach((k, i) => { const v = N(F[k]); if (v !== (s[k] == null ? null : Number(s[k]))) { up[k] = v; ch.push(L[i] + " " + (v == null ? "—" : fmt(v))); } });
+    if (!ch.length) { closeSheet(); return; }
+    go.disabled = true;
+    const { error } = await sb.from("signals").update(up).eq("id", s.id);
+    if (error) { toast(errText(error), true); go.disabled = false; return; }
+    await sb.from("signal_updates").insert({ signal_id: s.id, kind: "note", body: "✏️ تعديل: " + ch.join(" · ") });
+    closeSheet(); toast("انحفظ ✅ — المنفّذ بيطبقه خلال ثواني"); route();
+  } }, h("div", { class: "between" }, h("h2", { class: "h1" }, "✏️ تعديل التوصية"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    h("p", { class: "muted", style: "font-size:.85rem" }, "أي تعديل هني ينطبق على صفقات المنفّذ المفتوحة (الوقف والأهداف)، ويطلع للمشتركين كتحديث."),
+    h("div", { class: "grid2" }, ...K.slice(0, 2).map((k, i) => h("div", { class: "field" }, h("label", { for: "e-" + k }, L[i]), F[k]))),
+    h("div", { class: "grid2" }, ...K.slice(2).map((k, i) => h("div", { class: "field" }, h("label", { for: "e-" + k }, L[i + 2]), F[k]))), go));
+}
 function updateSheet(s) {
   const kind = h("select", { id: "u-kind" }); ["enter", "tp1", "tp2", "tp3", "tp4", "tp5", "partial", "be", "note"].forEach(k => kind.append(h("option", { value: k }, KIND[k])));
   const price = numInput("u-price", "اختياري"); const body = h("textarea", { id: "u-body", placeholder: "اختياري" });
