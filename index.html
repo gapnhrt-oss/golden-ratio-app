@@ -731,6 +731,9 @@ async function ChartScreen() {
   window.addEventListener("hashchange", () => { if (card.classList.contains("fs")) fsSet(false); }, { once: true });
   const whyBar = h("div", { class: "chx-whybar", hidden: true }), whyDet = h("div", { class: "chx-whydet", hidden: true });
   const leg = h("div", { class: "chx-leg" }), ex = h("div", { class: "chx-ex" }), srcNote = h("div", { class: "chx-note" });
+  //--- 📂 نفس فكرة الأخبار: الأقسام مسكّرة وتنفتح لمن تضغطها
+  const whyFold = fold("ch-why", "📋 التوصيات والأفكار", whyBar), legFold = fold("ch-leg", "🎨 شرح الألوان والخطوط", leg);
+  whyFold.hidden = true;
   if (!mem) card.append(h("div", { class: "chx-lock" }, "🔒 ", h("b", null, "التوصيات والمناطق والأشكال للمشتركين بس"), h("div", { class: "muted", style: "font-size:13px" }, "اشترك وشوف الدخول والوقف والأهداف والهارمونيك على الشارت لايف"), h("a", { class: "btn primary", href: "#sub", style: "margin-top:8px" }, "اشترك الحين 👑"), h("a", { href: "#vip", style: "color:#FFD54A;font-weight:700;margin-top:6px" }, "شنو بتحصل في VIP؟")));
   const alBtn = h("button", { class: "chx-alb", type: "button", "aria-label": "تنبيه سعر", title: "تنبيه سعر" }, "🔔");
   //--- ⏱️ قائمة الفريمات + 📐 قائمة الأدوات (كل شي داخل زر واحد)
@@ -758,7 +761,7 @@ async function ChartScreen() {
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
     h("div", { class: "chx-stack" }, goldPrice(), card), shCard,
     h("div", { class: "chx-ind" }),
-    whyBar, leg, ex, srcNote);
+    whyFold, legFold, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
@@ -808,7 +811,7 @@ async function ChartScreen() {
     const p = { el, w, c, lab, tip, title }; PN.push(p); return p;
   };
   const pR = mkPane("RSI 14", v => v.toFixed(0)), pM = mkPane("MACD 12·26·9", v => v.toFixed(1)), pA = mkPane("ADX 14", v => v.toFixed(0));
-  const indSum = h("div", { class: "chx-sum" }); indBox.append(indSum);   //--- 🧭 الاتجاه تحت RSI · MACD · ADX
+  const indSum = h("div", { class: "chx-sum" }); indBox.append(fold("ch-trend", "🧭 الاتجاه وقوة الحركة", indSum));   //--- 🧭 الاتجاه تحت RSI · MACD · ADX
   const rsiS = pR.c.addLineSeries({ color: "#F2B705", lineWidth: 2, priceLineVisible: false, lastValueVisible: true });
   [70, 30].forEach(v => rsiS.createPriceLine({ price: v, color: "rgba(158,163,214,.5)", lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: "" }));
   const mH = pM.c.addHistogramSeries({ priceLineVisible: false, lastValueVisible: false }), mL = pM.c.addLineSeries({ color: "#4EA8FF", lineWidth: 2, priceLineVisible: false, lastValueVisible: false }), mS = pM.c.addLineSeries({ color: "#FF9F43", lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
@@ -1332,8 +1335,9 @@ async function ChartScreen() {
   function tags(TG) {
     lastTG = TG; if (fsPop.isConnected) fsList();
     { const n = TG.filter(g => g.key).length; fsShp.textContent = "📐" + (n ? " " + n : ""); }
-    tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length;
-    whyBar.append(h("b", { class: "chx-whyhd" }, "📋 التوصيات والأفكار ", h("small", { class: "muted" }, "(اضغط وتعرف ليش)")));
+    tagsEl.textContent = ""; whyBar.textContent = ""; whyDet.hidden = true; pop.hidden = true; whyBar.hidden = !TG.length; whyFold.hidden = !TG.length;
+    whyFold.querySelector(".fold-h b").textContent = "📋 التوصيات والأفكار (" + TG.length + ")";
+    whyBar.append(h("small", { class: "muted", style: "flex-basis:100%;grid-column:1/-1;width:100%" }, "اضغط على أي وحدة وتعرف ليش"));
     //--- الترتيب: التوصية الشغالة أول، بعدها اللي تنتظر، بعدها الأفكار (الأقرب للسعر أول)
     const pr = g => g.key ? 3 : /شغال/.test(g.z.h) ? 0 : /ينتظر/.test(g.z.h) ? 1 : 2, px0 = data.length ? data[data.length - 1].close : 0;
     TG.sort((a, b) => pr(a) - pr(b) || Math.abs(a.p - px0) - Math.abs(b.p - px0));
