@@ -1879,21 +1879,25 @@ async function Home() {
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode());
+  const mktSlot = h("div"); root.append(mktSlot);
   //--- 📰 صفحة السوق صارت هني: أخبار الذهب · الأجندة · الجلسات (روابط #market/... تفتح القسم على طول)
   const msub = S.route === "market" ? ((location.hash.split("/")[1]) || "news") : null;
   //--- نفس أزرار صفحة السوق القديمة: 📰 أخبار الذهب · 📅 الأجندة · 🕐 الجلسات
+  //--- الأزرار فوق، والمحتوى مخفي: تضغط زر يطلع، وتضغطه مرة ثانية يختفي
   let mcur = ["news", "cal", "sess"].includes(msub) ? msub : null;
-  if (!mcur) { try { mcur = sessionStorage.getItem("gr-mtab") || "news"; } catch (_) { mcur = "news"; } }
   const mseg = h("div", { class: "seg" }), mbody = h("div", { class: "screen", style: "gap:10px" }), mcache = {};
   const mshow = async k => {
-    mcur = k; try { sessionStorage.setItem("gr-mtab", k); } catch (_) {}
+    if (k === mcur && mbody.childNodes.length) { mcur = null; mbody.replaceChildren(); mbody.hidden = true; mseg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false")); return; }
+    mcur = k; mbody.hidden = false;
     mseg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.k === k)));
     if (!mcache[k]) { mbody.replaceChildren(h("div", { class: "spinner" })); try { mcache[k] = k === "cal" ? await Calendar() : k === "sess" ? Sessions() : await News(); } catch (e) { mcache[k] = h("div", { class: "empty" }, errText(e)); } }
     if (mcur === k) mbody.replaceChildren(mcache[k]);
   };
   [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["sess", "🕐 الجلسات"]].forEach(([k, t]) => mseg.append(h("button", { type: "button", "data-k": k, onclick: () => mshow(k) }, t)));
-  const mkt = h("div", { class: "screen", style: "gap:10px" }, mseg, mbody); mshow(mcur);
-  if (msub) setTimeout(() => mkt.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+  const mkt = h("div", { class: "screen", style: "gap:10px" }, mseg, mbody); mbody.hidden = true;
+  mseg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
+  if (mcur) { const k = mcur; mcur = null; mshow(k); }
+  mktSlot.replaceWith(mkt);
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
   const lives = openSigs.map(s => liveCard(s, ups));
@@ -1931,7 +1935,7 @@ async function Home() {
       fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
-  root.append(fold("contact", "💬 تواصل معنا", contactCard()), mkt);   //--- 📰 آخر الأخبار (أخبار الذهب · الأجندة · الجلسات) آخر الصفحة
+  root.append(fold("contact", "💬 تواصل معنا", contactCard()));
 
   // ⏱️ تحديث السعر والربح كل 15 ثانية
   const ticks = lives.filter(c => c._tick);
