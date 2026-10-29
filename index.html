@@ -3376,6 +3376,7 @@ async function Signals() {
     c.append(h("p", { class: "muted" }, "المشتركين يشوفون الدخول والوقف والأهداف وصورة الشارت والمتابعة لحظة بلحظة."), h("a", { class: "btn primary", href: "#sub" }, "اشترك الحين"));
     root.append(c);
     open.filter(s => s.is_free).forEach(s => root.append(signalCard(s, ups)));
+    add(root, await trialCard().catch(() => null));
     root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
   }
 
@@ -3423,6 +3424,7 @@ function Vip() {
 
 async function Sub() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "اشتراكي"));
+  add(root, await trialCard().catch(() => null));
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
   if (!S.session) {
     root.append(plansCard(null), h("div", { class: "card" }, h("b", null, "سجّل دخول عشان تشترك"), h("div", { class: "row" }, h("button", { class: "btn primary", onclick: () => authSheet("signup") }, "حساب جديد"), h("button", { class: "btn ghost", onclick: () => authSheet("login") }, "دخول"))), faqCard());
@@ -4052,6 +4054,32 @@ function settingsSheet() {
     S.profile ? h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, S.profile.name || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, S.profile.phone || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))) : null,
     h("a", { class: "btn ghost", href: "#sub", onclick: closeSheet }, "💳 اشتراكي")));
 }
+/* ================== 🎁 أسبوع تجربة مجاني (مرة وحدة لكل رقم وجهاز) ================== */
+async function trialCard() {
+  if (S.member || S.admin) return null;
+  let c = null; try { const r = await sb.rpc("trial_check", { dev: devId() }); c = r.data; } catch (_) {}
+  if (!c) return null;
+  const box = h("div", { class: "card gold" });
+  if (c.why === "prelaunch") { box.append(h("b", null, "🎁 أسبوع توصيات مجاني"), h("p", { class: "muted", style: "font-size:.9rem" }, "بعد الانطلاقة، كل مسجّل جديد يقدر يجرب التوصيات أسبوع كامل ببلاش.")); return box; }
+  if (!c.ok) {
+    if (c.why === "phone") { box.append(h("b", null, "🎁 أسبوع تجربة مجاني"), h("p", { class: "muted", style: "font-size:.9rem" }, "نحتاج رقم الواتساب بحسابك علشان نفعّل لك التجربة."), h("a", { class: "btn ghost sm", href: "#chat" }, "💬 أرسل رقمك")); return box; }
+    return null;
+  }
+  box.append(h("b", { style: "font-size:1.05rem" }, "🎁 جرّب التوصيات أسبوع ببلاش"),
+    h("p", { class: "muted", style: "font-size:.9rem;line-height:1.8" }, "7 أيام كاملة: التوصيات لايف بالدخول والوقف والأهداف، والمتابعة لحظة بلحظة، والشارت الذهبي. بدون دفع، ومرة وحدة لكل رقم."));
+  const go = h("button", { class: "btn primary block", type: "button" }, S.session ? "🎁 ابدأ أسبوعك المجاني" : "سجّل وابدأ أسبوعك المجاني");
+  go.onclick = async () => {
+    if (!S.session) { authSheet("signup"); return; }
+    go.disabled = true; go.textContent = "...";
+    const { data, error } = await sb.rpc("start_trial", { dev: devId() });
+    if (error) { go.disabled = false; go.textContent = "🎁 ابدأ أسبوعك المجاني"; toast(/eligible/.test(error.message || "") ? "التجربة المجانية مستخدمة قبل على هالرقم أو الجهاز" : errText(error), true); return; }
+    toast("🎉 تفعّل أسبوعك المجاني لين " + kwDate(data));
+    await loadUser(); setWatermark(); startDeviceGuard(true); location.hash = "#signals"; route();
+  };
+  box.append(go);
+  return box;
+}
+
 /* ================== 🛡️ الحماية: علامة مائية + جهاز واحد لكل اشتراك ================== */
 function devId() { try { let v = localStorage.getItem("gr-vid"); if (!v) { v = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gr-vid", v); } return v; } catch (_) { return null; } }
 //--- 💧 اسم المشترك ورقمه خفيف على التوصيات والشارت (إذا صوّرها وأرسلها، تبين منو)
