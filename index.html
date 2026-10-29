@@ -1881,9 +1881,19 @@ async function Home() {
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
   //--- 📰 صفحة السوق صارت هني: أخبار الذهب · الأجندة · الجلسات (روابط #market/... تفتح القسم على طول)
   const msub = S.route === "market" ? ((location.hash.split("/")[1]) || "news") : null;
-  const mkt = [lazyFold("m-news", "📰 أخبار الذهب", () => News(), msub === "news"), lazyFold("m-cal", "📅 الأجندة الاقتصادية", () => Calendar(), msub === "cal"), fold("m-sess", "🕐 أوقات الجلسات", Sessions(), msub === "sess")];
-  if (msub === "sess") { const f = mkt[2]; if (f.querySelector(".fold-b").hidden) f.querySelector(".fold-h").click(); }
-  if (msub) setTimeout(() => { const f = mkt[{ news: 0, cal: 1, sess: 2 }[msub] || 0]; f && f.scrollIntoView({ behavior: "smooth", block: "start" }); }, 300);
+  //--- نفس أزرار صفحة السوق القديمة: 📰 أخبار الذهب · 📅 الأجندة · 🕐 الجلسات
+  let mcur = ["news", "cal", "sess"].includes(msub) ? msub : null;
+  if (!mcur) { try { mcur = sessionStorage.getItem("gr-mtab") || "news"; } catch (_) { mcur = "news"; } }
+  const mseg = h("div", { class: "seg" }), mbody = h("div", { class: "screen", style: "gap:10px" }), mcache = {};
+  const mshow = async k => {
+    mcur = k; try { sessionStorage.setItem("gr-mtab", k); } catch (_) {}
+    mseg.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.k === k)));
+    if (!mcache[k]) { mbody.replaceChildren(h("div", { class: "spinner" })); try { mcache[k] = k === "cal" ? await Calendar() : k === "sess" ? Sessions() : await News(); } catch (e) { mcache[k] = h("div", { class: "empty" }, errText(e)); } }
+    if (mcur === k) mbody.replaceChildren(mcache[k]);
+  };
+  [["news", "📰 أخبار الذهب"], ["cal", "📅 الأجندة"], ["sess", "🕐 الجلسات"]].forEach(([k, t]) => mseg.append(h("button", { type: "button", "data-k": k, onclick: () => mshow(k) }, t)));
+  const mkt = h("div", { class: "screen", style: "gap:10px" }, mseg, mbody); mshow(mcur);
+  if (msub) setTimeout(() => mkt.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
@@ -1911,15 +1921,15 @@ async function Home() {
   const [freeW, news, poll, lead, launch] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null), launchCard().catch(() => null)]);
 
   const tm = todayMorning(ps).map(p => p.id), feedPs = ps.filter(p => !tm.includes(p.id));   // قراءة اليوم لها كرت، فما تتكرر بالمنشورات
-  add(root, launch);
+  add(root, launch, mkt);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
-    add(root, renewCard(), fold("news", "📅 الخبر القادم", news), mkt, fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+    add(root, renewCard(), fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
       closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
     add(root, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
-      fold("news", "📅 الخبر القادم", news), mkt, fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
+      fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
   root.append(fold("contact", "💬 تواصل معنا", contactCard()));
