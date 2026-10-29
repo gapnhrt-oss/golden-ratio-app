@@ -322,6 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.chx-mtrs{display:flex;flex-direction:column;gap:6px;margin:6px 0}.chx-mrow{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;padding:4px 6px;border-radius:8px}.chx-mrow.on{background:rgba(242,183,5,.09);box-shadow:inset 0 0 0 1px rgba(242,183,5,.35)}.chx-mrow .chx-bar2.big{width:100%}.chx-mv{font-size:13px;white-space:nowrap}
 .chx-gen{display:flex;flex-direction:column;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0}.chx-gen .chx-bar2.big{width:100%;flex:none}
 .chx-ctl{display:flex;align-items:center;gap:8px;position:relative}
 .chx-ddw{position:static}
@@ -863,8 +864,8 @@ async function ChartScreen() {
     const X = readTF(data), dirT = X ? dirWord(X.vote) : "—";
     indSum.textContent = "";
     indSum.append(h("b", null, "🧭 الاتجاه: " + dirT), h("small", null, " · على " + (O.tf === "D1" ? "اليومي" : O.tf)),
-      X ? h("div", { class: "chx-meter" }, h("span", null, "قوة الحركة"), h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + X.score + "%;background:" + (X.dir > 0 ? "var(--up)" : X.dir < 0 ? "var(--down)" : "var(--muted)") })), h("b", null, X.score + " — " + X.word)) : null,
-      X ? h("div", { class: "chx-whyline" }, h("b", null, "ليش " + X.word.replace(" 💪", "") + "؟ "), X.why.join(" · ")) : null,
+      mtrBox,
+      X ? h("div", { class: "chx-whyline" }, h("b", null, "ليش " + (O.tf === "D1" ? "اليومي" : O.tf) + " " + X.word.replace(" 💪", "") + "؟ "), X.why.join(" · ")) : null,
       h("div", { class: "chx-chips" }, h("span", null, "RSI " + tag(rD)), h("span", null, "MACD " + tag(mD)), h("span", null, "ADX " + tag(aD)), h("span", null, "MA 200 " + tag(X ? X.maD : 0))), mtfBox);
     mtf();
     const vr = chart.timeScale().getVisibleLogicalRange(); if (vr) PN.forEach(p => p.c.timeScale().setVisibleLogicalRange(vr));
@@ -896,14 +897,22 @@ async function ChartScreen() {
   }
   const dirWord = v => v >= 3 ? "🟢 صاعد" : v <= -3 ? "🔴 هابط" : v >= 1 ? "🟢 يميل للصعود" : v <= -1 ? "🔴 يميل للنزول" : "➖ محتار";
   //--- 📋 جدول الفريمات: كل الفريمات بنظرة وحدة
-  const mtfBox = h("div", { class: "chx-mtf" });
+  const mtfBox = h("div", { class: "chx-mtf" }), mtrBox = h("div", { class: "chx-mtrs" });
   async function mtf() {
     const rows = await Promise.all(TFS.map(async t => [t, t[0] === O.tf && data.length ? readTF(data) : readTF(await botCandles(t[0], 300))]));   // الفريم المختار = نفس شموع الشارت (علشان يطابق الكرت فوق)
     mtfBox.textContent = "";
-    const tb = h("table", null, h("tr", null, h("th", null, "الفريم"), h("th", null, "الاتجاه"), h("th", null, "القوة")));
+    const tb = h("table", null, h("tr", null, h("th", null, "الفريم"), h("th", null, "الاتجاه"), h("th", null, "")));
+    //--- 💪 قوة الحركة لكل الفريمات (فوق)
+    mtrBox.replaceChildren(h("small", { class: "muted" }, "💪 قوة الحركة"));
+    rows.forEach(([t, x]) => {
+      const col = !x ? "var(--muted)" : x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)";
+      mtrBox.append(h("div", { class: "chx-mrow" + (t[0] === O.tf ? " on" : "") }, h("b", { class: "num" }, t[1]),
+        h("span", { class: "chx-bar2 big" }, h("i", { style: "width:" + (x ? x.score : 0) + "%;background:" + col })),
+        h("span", { class: "chx-mv" }, x ? [h("b", { class: "num" }, String(x.score)), " · " + x.word + " ", x.dir > 0 ? "🟢" : x.dir < 0 ? "🔴" : "➖"] : "—")));
+    });
     rows.forEach(([t, x]) => { const det = h("tr", { class: "det", hidden: true }, h("td", { colspan: "3" }, x ? "ليش " + x.word.replace(" 💪", "") + "؟ " + x.why.join(" · ") : ""));
       tb.append(h("tr", { class: t[0] === O.tf ? "on" : "", onclick: () => det.hidden = !det.hidden, style: "cursor:pointer" }, h("td", null, t[1] + " ▾"), h("td", null, x ? dirWord(x.vote) : "—"),
-      h("td", null, x ? [h("span", { class: "chx-bar2" }, h("i", { style: "width:" + x.score + "%;background:" + (x.dir > 0 ? "var(--up)" : x.dir < 0 ? "var(--down)" : "var(--muted)") })), " " + x.word] : "—"))); tb.append(det); });
+      h("td", { class: "muted", style: "font-size:12px" }, "ليش؟"))); tb.append(det); });
     const ds = rows.map(r => r[1] ? r[1].dir : 0).filter(v => v), same = ds.length >= 3 && ds.every(v => v === ds[0]);
     //--- 🧭 الاتجاه العام: كل الفريمات مع بعض، والفريم الكبير وزنه أكثر
     const W = { M15: 1, H1: 2, H4: 3, D1: 4 }; let ws = 0, wt = 0;
