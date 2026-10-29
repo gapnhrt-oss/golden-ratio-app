@@ -768,9 +768,9 @@ async function ChartScreen() {
   card.append(ctlRow);   //--- داخل الشارت فوق
   const root = h("div", { class: "screen" },
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
-    h("div", { class: "chx-stack" }, goldPrice(), card), shCard, nsFold,
+    h("div", { class: "chx-stack" }, goldPrice(), card), shCard,
     h("div", { class: "chx-ind" }),
-    whyFold, legFold, ex, srcNote);
+    whyFold, nsFold, legFold, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
