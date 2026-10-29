@@ -1207,7 +1207,7 @@ async function ChartScreen() {
       //--- العنوان = اسم الفكرة/التوصية نفسها (بدون تكرار "ليش")، وتحته الأسعار
       const parts = g.z.h.split(" · "), m = parts[0].match(/^(.*?)\s([\d,]+\.\d+.*)$/);
       const ttl = (m ? m[1] : parts[0]), sub = [m ? m[2] : ""].concat(parts.slice(1)).filter(Boolean).join(" · ");
-      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl, g.ck ? h("span", { class: "chx-act" }, "متفعل") : "", g.ck > 1 ? " " + "✅".repeat(g.ck - 1) : ""), h("small", null, sub));
+      const b = h("button", { class: "chx-why " + g.side, type: "button" }, h("b", null, ttl, g.ck === 1 ? h("span", { class: "chx-act" }, "متفعل") : "", g.ck > 1 ? " " + "✅".repeat(g.ck - 1) : ""), h("small", null, sub));
       //--- الشرح ينفتح تحت الزر نفسه (مع الأسطر اللي تحت)
       b.onclick = e => { e.stopPropagation(); const open = b.classList.contains("on");
         if (g.key) { focusKey = open ? null : g.key; openTitle = open ? null : g.z.h; if (!open) animT0 = Date.now(); draw(); return; }   // 📐🦈 الشكل: التفاصيل الكاملة على الشارت
