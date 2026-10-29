@@ -1920,7 +1920,7 @@ async function Home() {
   const [freeW, news, poll, lead, launch] = await Promise.all([freeWeekCard().catch(() => null), nextNewsCard().catch(() => null), pollCard().catch(() => null), leaderCard().catch(() => null), launchCard().catch(() => null)]);
 
   const tm = todayMorning(ps).map(p => p.id), feedPs = ps.filter(p => !tm.includes(p.id));   // قراءة اليوم لها كرت، فما تتكرر بالمنشورات
-  add(root, launch, fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), mkt);
+  add(root, launch, fold("news", "📅 الخبر القادم", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)));
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر القادم ← المنشورات ← النتائج والباقي
     add(root, renewCard(), fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
@@ -1931,7 +1931,7 @@ async function Home() {
       fold("posts", "📝 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
-  root.append(fold("contact", "💬 تواصل معنا", contactCard()));
+  root.append(fold("contact", "💬 تواصل معنا", contactCard()), mkt);   //--- 📰 آخر الأخبار (أخبار الذهب · الأجندة · الجلسات) آخر الصفحة
 
   // ⏱️ تحديث السعر والربح كل 15 ثانية
   const ticks = lives.filter(c => c._tick);
