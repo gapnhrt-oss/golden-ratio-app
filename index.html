@@ -328,6 +328,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .chx-chg{display:block;font-size:12px;font-weight:600}
 .chx-bar{display:flex;gap:6px;flex-wrap:wrap}
 .chx-bar button{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 12px;font-size:14px;cursor:pointer}
+.chx-opts{gap:5px}.chx-opts button{padding:4px 9px;font-size:12px;border-radius:8px}
 .chx-bar button.on{background:var(--gold);color:var(--ink);border-color:var(--gold);font-weight:700}
 .chx-card{position:relative;background:var(--bg2);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 .chx-ch{height:62vh;min-height:360px;touch-action:none}
@@ -669,7 +670,7 @@ async function ChartScreen() {
   const st = n => "⭐".repeat(Math.max(1, Math.min(5, n || 1)));
 
   const pxEl = h("div", { class: "chx-px" }, "—"), chgEl = h("small", { class: "chx-chg" });
-  const tfBar = h("div", { class: "chx-bar" }), optBar = h("div", { class: "chx-bar" });
+  const tfBar = h("div", { class: "chx-bar" }), optBar = h("div", { class: "chx-bar chx-opts" });
   const box = h("div", { class: "chx-ch" }), tagsEl = h("div"), pop = h("div", { class: "chx-pop", hidden: true });
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg"); svg.setAttribute("class", "chx-svg");
   const shCard = h("div", { class: "gj-card", hidden: true });
