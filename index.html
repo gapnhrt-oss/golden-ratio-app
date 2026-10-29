@@ -714,9 +714,9 @@ async function ChartScreen() {
   const root = h("div", { class: "screen" },
     ONLY ? h("div", { class: "lonly" }, "📚 تشوف الحين أداة الدرس بس · ", h("a", { href: "#chart" }, "رجّع كل شي"), " · ", h("a", { href: "javascript:history.back()" }, "رجوع للدرس")) : "",
     h("div", { class: "chx-stack" }, goldPrice(), card), shCard,
-    tfBar, optBar,
+    tfBar, optBar, h("div", { class: "chx-ind" }),
     h("div", { class: "chx-top" }, h("span", { class: "muted", style: "font-size:13px" }, "🔔 نبهني لمن يوصل الذهب لسعر معيّن"), h("span", { style: "margin-inline-start:auto;display:flex;align-items:center;gap:6px" }, h("small", { class: "muted" }, "تنبيه سعر"), alBtn)),
-    whyBar, h("div", { class: "chx-ind" }), leg, ex, srcNote);
+    whyBar, leg, ex, srcNote);
   const indBox = root.querySelector(".chx-ind");
 
   await loadLWC();
