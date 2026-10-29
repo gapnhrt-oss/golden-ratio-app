@@ -619,7 +619,7 @@ function renderChrome() {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
   } else who.append(h("button", { class: "btn primary sm", onclick: () => authSheet("login") }, "دخول"));
-  const tabs = [["chart", "الشارت", ICON.chart], ["home", "الأخبار", ICON.news], ["signals", "التوصيات", ICON.sig], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
+  const tabs = [["chart", "الشارت", ICON.chart], ["signals", "التوصيات", ICON.sig], ["home", "الأخبار", ICON.news], ["learn", "تعلّم", ICON.learn], ["sub", "اشتراكي", ICON.sub]];
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
