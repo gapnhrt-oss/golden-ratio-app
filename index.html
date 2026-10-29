@@ -1118,6 +1118,8 @@ async function ChartScreen() {
   };
   const why = s => String(s || "").split(/\n|·/).map(x => x.replace(/^[\s•↳]+/, "").trim()).filter(Boolean);
 
+  let srKey = "";
+  const zSide = (z, p) => p < z.lo ? "r" : p > z.hi ? "s" : z.side;
   function draw() {
     clearX(); ZN = []; const TG = [];
     if (!data.length) return;
@@ -1127,7 +1129,8 @@ async function ChartScreen() {
     if (mem && L) {
       //--- 🧱 الدعم والمقاومة: على الشارت 🔥 الأقوى + أقرب 2 فوق وأقرب 2 تحت (الباقي بالشرح تحت)
       //--- السعر هو الي يحدد: المنطقة فوق السعر = مقاومة، تحت السعر = دعم (حتى لو البوت سماها غير قبل ما يتحرك السعر)
-      const sideOf = z => last < z.lo ? "r" : last > z.hi ? "s" : z.side;
+      const sideOf = z => zSide(z, last);
+      srKey = (L.zones || []).map(z => sideOf(z)).join("");
       const Zs = L.zones || [], near = side => Zs.filter(z => sideOf(z) === side).sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
       const show = new Set([...Zs.filter(z => z.f), ...near("r"), ...near("s")]);
       if (O.sr) Zs.forEach(z => {
@@ -1455,6 +1458,8 @@ async function ChartScreen() {
     if (O.tf !== "D1" && now >= c.time + span) { const t = c.time + Math.floor((now - c.time) / span) * span; data.push({ time: t, open: c.close, high: Math.max(c.close, q.price), low: Math.min(c.close, q.price), close: q.price }); }
     else { c.close = q.price; c.high = Math.max(c.high, q.price); c.low = Math.min(c.low, q.price); }
     cs.update(data[data.length - 1]); px(q);
+    //--- السعر عبر دعم أو مقاومة؟ نعيد الرسم على طول علشان الاسم يتعدل (دعم ↔ مقاومة)
+    if (mem && L && O.sr && (L.zones || []).map(z => zSide(z, q.price)).join("") !== srKey) draw();
   }, 4000));
   timers.push(setInterval(() => loadAll(false), 30000));
 
