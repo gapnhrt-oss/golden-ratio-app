@@ -1815,12 +1815,17 @@ function termsGate(next) {
   box.append(h("div", { class: "card tg-risk" }, h("b", null, "⚠️ تنبيه مهم عن المخاطر"),
     h("p", null, "التداول بالذهب والعملات فيه مخاطرة عالية، وممكن تخسر جزء من فلوسك أو كلها. التوصيات مو ضمان ربح، والنتائج اللي فاتت ما تضمن اللي جاي. لا تتداول بفلوس ما تقدر تتحمل خسارتها.")));
   TERMS.forEach(([t, b]) => box.append(h("div", { class: "card soft" }, h("b", null, t), h("p", { style: "line-height:1.8" }, b))));
-  const chk = h("input", { type: "checkbox", style: "width:auto;margin-top:4px" });
+  const chk = h("input", { type: "checkbox", style: "width:auto;margin-top:4px", disabled: true });
   const go = h("button", { class: "btn primary block", type: "button", disabled: true }, "✅ موافق — كمّل التسجيل");
-  const hint = h("small", { class: "muted", style: "text-align:center" }, "⬇️ انزل لين آخر الشروط وأشّر على الموافقة");
+  const hint = h("small", { class: "muted", style: "text-align:center" }, "⬇️ انزل لين آخر الشروط علشان تقدر توافق");
   chk.onchange = () => { go.disabled = !chk.checked; hint.hidden = chk.checked; };
+  //--- 🔒 الموافقة تنفتح بس لمن يوصل آخر الشروط
+  const end = h("div", { style: "height:1px" });
+  box.append(end);
+  const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) { chk.disabled = false; hint.textContent = "✅ قريت الشروط — أشّر على الموافقة"; io.disconnect(); } });
+  setTimeout(() => io.observe(end), 400);
   go.onclick = () => { if (chk.checked) next(); };
-  box.append(h("label", { class: "row tg-ok", style: "gap:8px;align-items:flex-start;flex-wrap:nowrap" }, chk, h("span", null, "قريت الشروط والأحكام، وفاهم إن التداول فيه مخاطرة، وأنا المسؤول عن قراراتي")), go, hint,
+  box.append(h("label", { class: "row tg-ok", onclick: () => { if (chk.disabled) end.scrollIntoView({ behavior: "smooth" }); }, style: "gap:8px;align-items:flex-start;flex-wrap:nowrap" }, chk, h("span", null, "قريت الشروط والأحكام، وفاهم إن التداول فيه مخاطرة، وأنا المسؤول عن قراراتي")), go, hint,
     h("button", { class: "btn ghost block", type: "button", onclick: closeSheet }, "مو موافق — رجوع"));
   openSheet(box);
 }
