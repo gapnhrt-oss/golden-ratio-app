@@ -427,7 +427,8 @@ body.chx-fson{overflow:hidden}body.chx-fson .tabs,body.chx-fson .top{visibility:
 .chx-pop b{display:block;margin-bottom:4px}.chx-pop .x{position:absolute;left:8px;top:6px;background:none;border:0;color:var(--muted);font-size:18px;cursor:pointer}
 .chx-leg{display:flex;flex-wrap:wrap;gap:8px 14px;font-size:13px;color:var(--muted)}
 .chx-leg i{display:inline-block;width:14px;height:3px;border-radius:2px;vertical-align:middle;margin-inline-end:5px}
-.chx-ex{display:grid;gap:8px}
+.chx-ex{display:grid;gap:8px}.chx-exl{display:grid;gap:8px}.chx-exl[hidden]{display:none}
+.chx-exb{display:flex;align-items:center;gap:4px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;color:var(--fg);cursor:pointer;text-align:start}.chx-exg{margin-inline-start:auto;color:var(--gold);font-weight:700;font-size:13px}
 .chx-ex details{background:var(--bg2);border:1px solid var(--line);border-inline-start:4px solid var(--gold);border-radius:12px;padding:8px 12px}
 .chx-ex summary{cursor:pointer;font-weight:600;font-size:14px}
 .chx-ex details div{font-size:13px;color:var(--muted);padding-top:4px}
@@ -1364,21 +1365,29 @@ async function ChartScreen() {
       const y = Math.max(o.y, last + 36); last = y; o.b.style.display = y > box.clientHeight - 20 ? "none" : ""; o.b.style.top = y + "px"; });
   }
   timers.push(setInterval(place, 300));
+  let exOpen = false;
   function explain() {
     ex.textContent = "";
     if (!mem || !ZN.length) return;
-    ex.append(h("div", null, h("b", null, "📖 شرح المناطق "), h("small", { class: "muted" }, "(اضغط على المنطقة بالشارت أو هني)")));
-    if (O.ind && (O.tf === "H4" || O.tf === "D1")) ex.append(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس على " + (O.tf === "H4" ? "4 ساعات" : "اليومي") + (RVM.length ? " · آخر " + RVM.length : " · ما في علامات قريبة")),
+    //--- 📖 الشرح مخفي، يطلع لمن تضغط «اشرح»
+    const exList = h("div", { class: "chx-exl", hidden: !exOpen });
+    const exBtn = h("button", { class: "chx-exb", type: "button", "aria-expanded": String(exOpen) }, h("b", null, "📖 شرح المناطق"), h("small", { class: "muted" }, " (" + ZN.length + ")"), h("span", { class: "chx-exg" }, exOpen ? "إخفاء ▴" : "اشرح ▾"));
+    exBtn.onclick = () => { exOpen = !exOpen; exList.hidden = !exOpen; exBtn.setAttribute("aria-expanded", String(exOpen)); exBtn.lastChild.textContent = exOpen ? "إخفاء ▴" : "اشرح ▾"; };
+    ex.append(exBtn, exList);
+    const exAdd = n => exList.append(n);
+    exAdd(h("small", { class: "muted" }, "اضغط على أي منطقة بالشارت أو هني وتنفتح لك"));
+    if (O.ind && (O.tf === "H4" || O.tf === "D1")) exAdd(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس على " + (O.tf === "H4" ? "4 ساعات" : "اليومي") + (RVM.length ? " · آخر " + RVM.length : " · ما في علامات قريبة")),
       h("div", null, "↳ السهم يطلع على RSI إذا اجتمعت علامتين أو أكثر بنفس الشمعة (نفس طريقة البوت تقريباً)"),
       ...RVM.map(m => h("div", null, (m.d === 1 ? "🔺 " : "🔻 ") + kw(new Date((data[m.i].time - KW) * 1000), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) + " — " + m.w.join(" · ")))));
-    else if (O.ind) ex.append(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس"), h("div", null, "↳ تطلع على فريم H4 واليومي — حوّل الفريم وتشوف الأسهم على RSI")));
-    ZN.forEach((z, i) => { const d = h("details", { id: "chz" + i, style: "border-inline-start-color:" + z.c }, h("summary", null, z.h), ...z.why.map(w => h("div", null, "↳ " + w))); ex.append(d); });
+    else if (O.ind) exAdd(h("details", { style: "border-inline-start-color:#B388FF" }, h("summary", null, "🔄 علامات الانعكاس"), h("div", null, "↳ تطلع على فريم H4 واليومي — حوّل الفريم وتشوف الأسهم على RSI")));
+    ZN.forEach((z, i) => { const d = h("details", { id: "chz" + i, style: "border-inline-start-color:" + z.c }, h("summary", null, z.h), ...z.why.map(w => h("div", null, "↳ " + w))); exAdd(d); });
   }
   chart.subscribeClick(p => {
     if (!p || !p.point || !mem) return;
     const y = cs.coordinateToPrice(p.point.y); if (y == null) return;
     const i = ZN.findIndex(z => y >= z.lo - 3 && y <= z.hi + 3); if (i < 0) return;
     ex.querySelectorAll("details").forEach(d => d.open = false);
+    if (!exOpen) { const b = ex.querySelector(".chx-exb"); if (b) b.click(); }
     const d = document.getElementById("chz" + i); if (d) { d.open = true; d.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
   });
   function legend() {
