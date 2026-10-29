@@ -322,6 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.eamini{text-decoration:none;color:inherit;gap:6px;border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}.eamini .grw{margin:0 -4px}
 .chx-mtrs{display:flex;flex-direction:column;gap:6px;margin:6px 0}.chx-mrow{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;padding:4px 6px;border-radius:8px}.chx-mrow.on{background:rgba(242,183,5,.09);box-shadow:inset 0 0 0 1px rgba(242,183,5,.35)}.chx-mrow .chx-bar2.big{width:100%}.chx-mv{font-size:13px;white-space:nowrap}
 .chx-gen{display:flex;flex-direction:column;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0}.chx-gen .chx-bar2.big{width:100%;flex:none}
 .chx-ctl{display:flex;align-items:center;gap:8px;position:relative}
@@ -614,7 +615,7 @@ function renderChrome() {
   if (S.admin) tabs.push(["admin", "الإدارة", ICON.admin]);
   const nav = $("tabs"); nav.textContent = "";
   tabs.forEach(t => {
-    const a = h("a", { href: "#" + t[0], "aria-current": S.route === t[0] ? "page" : null }, SVG(t[2]), t[1]);
+    const a = h("a", { href: "#" + t[0], "aria-current": S.route === t[0] || (S.route === "ea" && t[0] === "signals") ? "page" : null }, SVG(t[2]), t[1]);
     nav.append(a);
   });
 }
@@ -1809,7 +1810,7 @@ async function Home() {
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
   root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
-  root.append(h("a", { class: "vlink", href: "#ea" }, h("b", null, "🤖 نتائج الاكسبيرت"), h("small", { class: "muted" }, "نمو الحساب · الأرباح شهر بشهر · لايف ←")));
+  root.append(eaMini());
 
   // كرت التوصية: لايف للمشترك، تشويقة لغيره
   const lives = openSigs.map(s => liveCard(s, ups));
@@ -3089,11 +3090,33 @@ function installHint() {
 }
 
 /* ================== 🤖 نتائج الاكسبيرت (من GR_Results.mq5) ================== */
+function resSeg(cur) {
+  return h("div", { class: "seg" }, h("button", { type: "button", "aria-pressed": String(cur === "signals"), onclick: () => location.hash = "#signals" }, "📈 التوصيات"),
+    h("button", { type: "button", "aria-pressed": String(cur === "ea"), onclick: () => location.hash = "#ea" }, "🤖 الاكسبيرت"));
+}
+function eaSpark(pts, W, H, col, id) {
+  if (!pts || pts.length < 2) return "";
+  const t0 = pts[0][0], ts = (pts[pts.length - 1][0] - t0) || 1, lo = Math.min(...pts.map(p => p[1])), sp = (Math.max(...pts.map(p => p[1])) - lo) || 1;
+  const ln = "M" + pts.map(p => [Math.round((p[0] - t0) / ts * W * 10) / 10, Math.round((H - 4 - (p[1] - lo) / sp * (H - 10)) * 10) / 10].join(",")).join(" L");
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H + '" preserveAspectRatio="none"><defs><linearGradient id="' + id + '" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="' + col + '" stop-opacity=".42"/><stop offset="1" stop-color="' + col + '" stop-opacity="0"/></linearGradient></defs><path d="' + ln + ' L' + W + ',' + H + ' L0,' + H + 'Z" fill="url(#' + id + ')"/><path d="' + ln + '" fill="none" stroke="' + col + '" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>';
+}
+//--- كرت صغير بصفحة الأخبار: رقم النمو + رسمة صغيرة
+function eaMini() {
+  const box = h("a", { class: "card eamini", href: "#ea" }, h("div", { class: "between" }, h("b", null, "🤖 نتائج الاكسبيرت"), h("small", { class: "muted" }, "شوف التفاصيل ←")));
+  sb.from("ea_snap").select("data,updated_at").eq("id", 1).maybeSingle().then(({ data: row }) => {
+    const d = (row && row.data) || {};
+    if (d.balance == null) { box.append(h("small", { class: "muted" }, "نمو الحساب والأرباح شهر بشهر، لايف من MT5")); return; }
+    const up = (d.growth || 0) >= 0, sp = h("div", { class: "grw" }); sp.innerHTML = eaSpark((d.curve || []).filter(r => r[1] != null), 300, 46, up ? "#F2B705" : "#FF6B6B", "eam");
+    box.append(h("div", { class: "between" }, h("b", { class: "num " + (up ? "pos" : "neg"), style: "font-size:1.5rem", dir: "ltr" }, (up ? "+" : "") + fmt(d.growth) + "%"),
+      h("small", { class: "muted" }, (d.days ? d.days + " يوم" : "") + (d.demo ? " · 🧪 ديمو" : " · ✅ حقيقي"))), sp);
+  }).catch(() => {});
+  return box;
+}
 async function EaPage() {
   const root = h("div", { class: "screen" });
   const { data: row } = await sb.from("ea_snap").select("data,updated_at").eq("id", 1).maybeSingle();
   const d = (row && row.data) || {};
-  root.append(h("div", null, h("p", { class: "eyebrow" }, "GOLDEN RATIO · EA"), h("h1", { class: "h1" }, "🤖 نتائج الاكسبيرت" + (d.name ? " · " + d.name : ""))));
+  root.append(h("h1", { class: "h1" }, "التوصيات"), resSeg("ea"), h("h2", { class: "h2" }, "🤖 الاكسبيرت" + (d.name ? " · " + d.name : "")));
   if (d.balance == null) { root.append(h("div", { class: "empty" }, "النتائج بتطلع هني أول ما يتصل الاكسبيرت بالموقع 🚀")); return root; }
   const usd = v => (v < 0 ? "-" : "") + "$" + fmt(Math.abs(Math.round(v * 100) / 100));
   const sg = v => (v > 0 ? "+" : "") + usd(v);
@@ -3203,7 +3226,7 @@ function statsPanel(closed, ups) {
 }
 
 async function Signals() {
-  const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"));
+  const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"), resSeg("signals"));
   const [sig, teaser] = await Promise.all([
     sb.from("signals").select("*").gte("created_at", RESET_AT).order("created_at", { ascending: false }).limit(60),
     sb.rpc("open_signals_teaser")
