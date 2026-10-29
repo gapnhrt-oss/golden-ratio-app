@@ -312,6 +312,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .pill.newp{background:color-mix(in srgb,var(--up) 18%,transparent);color:var(--up)}
 .pcard.fresh{border-color:color-mix(in srgb,var(--up) 55%,var(--line));box-shadow:0 0 0 1px color-mix(in srgb,var(--up) 20%,transparent)}
 .pbody{border-top:1px dashed var(--line);padding-top:8px}
+.tgate{gap:10px}.tg-hd{display:flex;gap:10px;align-items:center}.tg-hd img{width:48px;height:48px}.tg-risk{border-color:rgba(255,107,107,.6);background:rgba(255,107,107,.08)}.tg-risk b{color:#FF9F9F}.tg-risk p{margin:6px 0 0;line-height:1.8}.tg-ok{background:rgba(242,183,5,.1);border:1px solid rgba(242,183,5,.45);border-radius:12px;padding:10px 12px;font-size:.9rem}
 .card.terms{border-color:color-mix(in srgb,var(--gold) 30%,var(--line))}
 .ticon{flex:none;width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:var(--bg2);font-size:.9rem}
 .linkbtn{background:none;border:0;padding:0;color:var(--gold);text-decoration:underline;cursor:pointer;font-size:inherit}
@@ -566,14 +567,15 @@ function renderChrome() {
 async function logout() { await sb.auth.signOut(); toast("سجّلت خروج"); }
 
 /* ================== الدخول والتسجيل ================== */
-function authSheet(mode) {
+function authSheet(mode, ok) {
+  if (mode === "signup" && !ok) return termsGate(() => authSheet("signup", 1));   //--- 📜 قبل التسجيل: الشروط والمخاطر أول
   const err = h("p", { class: "neg", hidden: true });
   const name = h("input", { id: "a-name", autocomplete: "name", placeholder: "اسمك" });
   const phone = h("input", { id: "a-phone", inputmode: "tel", dir: "ltr", placeholder: "+965" });
   const email = h("input", { id: "a-email", type: "email", dir: "ltr", autocomplete: "email", placeholder: "you@email.com" });
   let refPre = ""; try { refPre = localStorage.getItem("gr-ref") || ""; } catch (_) {}
   const refIn = h("input", { id: "a-ref", dir: "ltr", placeholder: "اختياري", value: refPre, style: "text-transform:uppercase" });
-  const terms = h("input", { type: "checkbox", id: "a-terms", style: "width:auto;margin-top:4px" });
+  const terms = h("input", { type: "checkbox", id: "a-terms", style: "width:auto;margin-top:4px" }); if (ok) terms.checked = true;
   const pass = h("input", { id: "a-pass", type: "password", dir: "ltr", autocomplete: mode === "login" ? "current-password" : "new-password", placeholder: "6 أحرف أو أكثر" });
   const go = h("button", { class: "btn primary block", type: "submit" }, mode === "login" ? "دخول" : "سوّ حسابي");
   const form = h("form", { class: "screen", onsubmit: async e => {
@@ -603,7 +605,7 @@ function authSheet(mode) {
     h("div", { class: "field" }, h("label", { for: "a-pass" }, "الباسورد"), pass),
     mode === "signup" ? h("div", { class: "field" }, h("label", { for: "a-ref" }, "كود الدعوة (إذا عندك)"), refIn) : null,
     err, go,
-    mode === "signup" ? h("label", { class: "row", style: "gap:8px;align-items:flex-start;flex-wrap:nowrap;font-size:.88rem" }, terms, h("span", null, "قريت ", h("a", { href: "#", onclick: ev => { ev.preventDefault(); termsSheet(() => authSheet("signup")); } }, "الشروط وإخلاء المسؤولية"), " وأوافق عليها، وأعرف إن التداول فيه مخاطرة.")) : null,
+    mode === "signup" ? h("label", { class: "row", style: "gap:8px;align-items:flex-start;flex-wrap:nowrap;font-size:.88rem" }, terms, h("span", null, "قريت ", h("a", { href: "#", onclick: ev => { ev.preventDefault(); termsSheet(() => authSheet("signup", 1)); } }, "الشروط وإخلاء المسؤولية"), " وأوافق عليها، وأعرف إن التداول فيه مخاطرة.")) : null,
     h("button", { class: "btn ghost block", type: "button", onclick: () => authSheet(mode === "login" ? "signup" : "login") }, mode === "login" ? "ما عندك حساب؟ سوّ حساب جديد" : "عندك حساب؟ سجّل دخول")
   );
   openSheet(form);
@@ -1803,6 +1805,23 @@ function termsSheet(back) {
   const box = h("div", { class: "screen" }, h("div", { class: "between" }, h("h2", { class: "h1" }, "الشروط وإخلاء المسؤولية"), h("button", { class: "btn ghost sm", type: "button", onclick: () => back ? back() : closeSheet() }, back ? "رجوع" : "إغلاق")));
   TERMS.forEach(([t, b]) => box.append(h("div", { class: "card soft" }, h("b", null, t), h("p", { style: "line-height:1.8" }, b))));
   box.append(h("button", { class: "btn primary block", type: "button", onclick: () => back ? back() : closeSheet() }, back ? "فهمت، رجوع للتسجيل" : "فهمت"));
+  openSheet(box);
+}
+
+//--- 📜 قبل التسجيل: يقرا الشروط والمخاطر، ويوافق، وبعدها يطلع نموذج التسجيل
+function termsGate(next) {
+  const box = h("div", { class: "screen tgate" });
+  box.append(h("div", { class: "tg-hd" }, h("img", { src: "icon-512.png", alt: "" }), h("div", null, h("h2", { class: "h1", style: "margin:0" }, "📜 قبل ما تسجّل"), h("p", { class: "muted", style: "margin:2px 0 0;font-size:.85rem" }, "اقرا الشروط والمخاطر، وإذا موافق كمّل التسجيل"))));
+  box.append(h("div", { class: "card tg-risk" }, h("b", null, "⚠️ تنبيه مهم عن المخاطر"),
+    h("p", null, "التداول بالذهب والعملات فيه مخاطرة عالية، وممكن تخسر جزء من فلوسك أو كلها. التوصيات مو ضمان ربح، والنتائج اللي فاتت ما تضمن اللي جاي. لا تتداول بفلوس ما تقدر تتحمل خسارتها.")));
+  TERMS.forEach(([t, b]) => box.append(h("div", { class: "card soft" }, h("b", null, t), h("p", { style: "line-height:1.8" }, b))));
+  const chk = h("input", { type: "checkbox", style: "width:auto;margin-top:4px" });
+  const go = h("button", { class: "btn primary block", type: "button", disabled: true }, "✅ موافق — كمّل التسجيل");
+  const hint = h("small", { class: "muted", style: "text-align:center" }, "⬇️ انزل لين آخر الشروط وأشّر على الموافقة");
+  chk.onchange = () => { go.disabled = !chk.checked; hint.hidden = chk.checked; };
+  go.onclick = () => { if (chk.checked) next(); };
+  box.append(h("label", { class: "row tg-ok", style: "gap:8px;align-items:flex-start;flex-wrap:nowrap" }, chk, h("span", null, "قريت الشروط والأحكام، وفاهم إن التداول فيه مخاطرة، وأنا المسؤول عن قراراتي")), go, hint,
+    h("button", { class: "btn ghost block", type: "button", onclick: closeSheet }, "مو موافق — رجوع"));
   openSheet(box);
 }
 
