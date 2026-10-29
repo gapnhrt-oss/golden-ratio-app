@@ -3294,9 +3294,10 @@ async function Signals() {
 
   // ملخص النتائج: تبويبات الفترة + 4 خانات
   if (closed.length) {
-    root.append(statsPanel(closed, ups));
-    add(root, growthCard(closed));
-    if (S.admin) root.append(h("button", { class: "btn primary", type: "button", onclick: () => shareMonthImage(closed) }, "📸 صورة نتائج الشهر للنشر"));
+    const sp = statsPanel(closed, ups); const sh = sp.querySelector(".h2"); if (sh) sh.remove();
+    const gc = growthCard(closed); if (gc) { const gh = gc.querySelector(".h2"); if (gh) gh.remove(); }
+    add(root, fold("sig-res", "📊 النتائج · اليوم · الأسبوع · الشهر", sp), fold("sig-grow", "📈 نمو الحساب شهر بشهر", gc),
+      S.admin ? h("button", { class: "btn ghost sm", type: "button", style: "align-self:flex-start", onclick: () => shareMonthImage(closed) }, "📸 صورة نتائج الشهر للنشر") : null);
     add(root, fold("sig-arch", "🗂️ الأرشيف (" + closed.length + " توصية)", closed.map(s => signalCard(s, ups))));
   } else root.append(h("div", { class: "empty" }, "التوصيات المقفلة ونتايجها بتظهر هني."));
   return root;
