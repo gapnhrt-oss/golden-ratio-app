@@ -322,6 +322,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.fold{display:flex;flex-direction:column;gap:8px}.fold-b{display:flex;flex-direction:column;gap:10px}.fold-b[hidden]{display:none}.fold-h[aria-expanded="true"]{border-color:color-mix(in srgb,var(--gold) 45%,var(--line))}.fold-h .chx-exg{font-size:15px}
 .eamini{text-decoration:none;color:inherit;gap:6px;border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}.eamini .grw{margin:0 -4px}
 .chx-mtrs{display:flex;flex-direction:column;gap:6px;margin:6px 0}.chx-mrow{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;padding:4px 6px;border-radius:8px}.chx-mrow.on{background:rgba(242,183,5,.09);box-shadow:inset 0 0 0 1px rgba(242,183,5,.35)}.chx-mrow .chx-bar2.big{width:100%}.chx-mv{font-size:13px;white-space:nowrap}
 .chx-gen{display:flex;flex-direction:column;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:6px 0}.chx-gen .chx-bar2.big{width:100%;flex:none}
@@ -1786,6 +1787,18 @@ function postsFeed(ps, limit) {
   return wrap;
 }
 
+//--- 📂 كل قسم بالأخبار مسكّر، يفتح لمن تضغطه (والموقع يتذكر الي فتحته)
+function fold(key, title, node) {
+  if (!node || (Array.isArray(node) && !node.length)) return null;
+  let open = {}; try { open = JSON.parse(localStorage.getItem("gr-fold") || "{}"); } catch (_) {}
+  const body = h("div", { class: "fold-b", hidden: !open[key] }); add(body, node);
+  const btn = h("button", { class: "chx-exb fold-h", type: "button", "aria-expanded": String(!!open[key]) }, h("b", null, title), h("span", { class: "chx-exg" }, open[key] ? "▴" : "▾"));
+  btn.onclick = () => {
+    const on = body.hidden; body.hidden = !on; btn.setAttribute("aria-expanded", String(on)); btn.lastChild.textContent = on ? "▴" : "▾";
+    try { const o = JSON.parse(localStorage.getItem("gr-fold") || "{}"); if (on) o[key] = 1; else delete o[key]; localStorage.setItem("gr-fold", JSON.stringify(o)); } catch (_) {}
+  };
+  return h("div", { class: "fold" }, btn, body);
+}
 async function Home() {
   if (homeTimer) { clearInterval(homeTimer); homeTimer = null; }
   const [teaser, posts, closedQ, openQ, proofs] = await Promise.all([
@@ -1808,7 +1821,7 @@ async function Home() {
 
   const root = h("div", { class: "screen" });
   const greet = S.profile && S.profile.name ? "هلا " + S.profile.name + " 👋" : "توصيات الذهب ونسخ الصفقات";
-  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), goldPrice());
+  root.append(h("div", null, h("p", { class: "eyebrow" }, "XAUUSD · GOLD"), h("h1", { class: "h1" }, greet)), onlineNode(), fold("gp", "💰 سعر الذهب لايف", goldPrice()));
   if (!S.member) root.append(h("a", { class: "vlink", href: "#vip" }, h("b", null, "👑 شنو بتحصل في VIP؟"), h("small", { class: "muted" }, "التوصيات لايف · الشارت الذهبي · مناطق الانعكاس ←")));
   root.append(eaMini());
 
@@ -1840,13 +1853,15 @@ async function Home() {
   add(root, launch);
   if (S.member) {
     // المشترك: الصفقة ← قراءة اليوم ← الخبر الجاي ← المنشورات ← النتائج والباقي
-    add(root, welcomeCard(ps), renewCard(), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), closed.length ? resultsStrip(closed, partialToday) : null, poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, renewCard(), sigBox, fold("news", "📅 الخبر الجاي", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)),
+      closed.length ? fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)) : null, fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   } else {
     // الزائر: النتائج ← الإثبات ← التوصية ← الاشتراك ← القراءة والباقي
-    add(root, welcomeCard(ps), resultsStrip(closed, partialToday), proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT))), sigBox, news, postsFeed(feedPs, 3), todayReading(ps), signup, freeW, renewCard(), poll, lead, brokerCard(), installHint(), notifyHint());
+    add(root, sigBox, signup, freeW, renewCard(), fold("res", "📊 نتائج التوصيات", resultsStrip(closed, partialToday)), fold("proof", "✅ آخر الأهداف المحققة", proofCard((proofs.data || []).filter(p => new Date(p.created_at) >= new Date(RESET_AT)))),
+      fold("news", "📅 الخبر الجاي", news), fold("read", "☀️ قراءة اليوم", todayReading(ps)), fold("posts", "📰 المنشورات", postsFeed(feedPs, 3)), fold("wel", "🎉 الإعلانات", welcomeCard(ps)), fold("poll", "🗳️ تصويت اليوم", poll), fold("lead", "🏆 المتصدرين", lead), fold("broker", "🏦 الوسيط", brokerCard()), installHint(), notifyHint());
   }
 
-  root.append(contactCard());
+  root.append(fold("contact", "💬 تواصل معنا", contactCard()));
 
   // ⏱️ تحديث السعر والربح كل 15 ثانية
   const ticks = lives.filter(c => c._tick);
