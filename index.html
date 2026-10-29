@@ -1122,7 +1122,7 @@ async function ChartScreen() {
   const why = s => String(s || "").split(/\n|·/).map(x => x.replace(/^[\s•↳]+/, "").trim()).filter(Boolean);
 
   let srKey = "";
-  const zSide = (z, p) => p < z.lo ? "r" : p > z.hi ? "s" : z.side;
+  const zSide = (z, p) => p < z.lo ? "r" : p > z.hi ? "s" : "in";
   function draw() {
     clearX(); ZN = []; const TG = [];
     if (!data.length) return;
@@ -1135,11 +1135,14 @@ async function ChartScreen() {
       const sideOf = z => zSide(z, last);
       srKey = (L.zones || []).map(z => sideOf(z)).join("");
       const Zs = L.zones || [], near = side => Zs.filter(z => sideOf(z) === side).sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
-      const show = new Set([...Zs.filter(z => z.f), ...near("r"), ...near("s")]);
+      const show = new Set([...Zs.filter(z => z.f || sideOf(z) === "in"), ...near("r"), ...near("s")]);
       if (O.sr) Zs.forEach(z => {
-        const r = sideOf(z) === "r", e = r ? z.lo : z.hi, c = r ? "#FF6B6B" : "#3DD68C";
-        if (show.has(z)) pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + (r ? "مقاومة " : "دعم ") + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1, !z.f);
-        ZN.push({ lo: z.lo - 1, hi: z.hi + 1, c: z.f ? "#FF9F43" : c, h: (z.f ? "🔥 أقوى " : "🧱 ") + (r ? "مقاومة " : "دعم ") + f2(e) + " · " + st(z.s), why: why(z.n) });
+        //--- السعر داخل المنطقة نفسها: ما نقلب دعم/مقاومة كل شوي، نبين إنه داخلها (الخط بالنص)
+        const inZ = last >= z.lo && last <= z.hi && z.hi > z.lo;
+        const r = sideOf(z) === "r", e = inZ ? (z.lo + z.hi) / 2 : r ? z.lo : z.hi, c = inZ ? "#F2B705" : r ? "#FF6B6B" : "#3DD68C";
+        const nm = inZ ? "السعر داخل المنطقة " : r ? "مقاومة " : "دعم ";
+        if (show.has(z)) pl(e, z.f ? "#FF9F43" : c, (z.f ? "🔥 " : "🧱 ") + nm + st(z.s), z.f ? 0 : 1, z.s >= 3 || z.f ? 2 : 1, !z.f);
+        ZN.push({ lo: z.lo - 1, hi: z.hi + 1, c: z.f ? "#FF9F43" : c, h: (z.f ? "🔥 أقوى " : "🧱 ") + nm + (inZ || z.hi > z.lo ? f2(z.lo) + " – " + f2(z.hi) : f2(e)) + " · " + st(z.s), why: why(z.n) });
       });
       //--- 💧 السيولة
       if (O.lq) { const seen = {}; (L.raw || []).filter(x => /💧/.test(x.n)).forEach(x => { if (seen[x.n] || /فريم الساعة/.test(x.n)) return; seen[x.n] = 1; pl(x.p, "#4EA8FF", x.n, 3, 1, true); ZN.push({ lo: x.p - 2, hi: x.p + 2, c: "#4EA8FF", h: x.n + " " + f2(x.p), why: ["فوقها/تحتها وقوفات وايد — السعر يحب يروح يصيدها قبل ما ينعكس"] }); }); }
