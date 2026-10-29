@@ -322,6 +322,9 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+body.wmk-on article.sig,body.wmk-on .card.live,body.wmk-on .gj-card{position:relative}
+body.wmk-on article.sig::after,body.wmk-on .card.live::after,body.wmk-on .chx-card::after,body.wmk-on .gj-card::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:var(--wm);background-repeat:repeat;opacity:.07;z-index:6;border-radius:inherit}
+
 .fold{display:flex;flex-direction:column;gap:8px}.fold-b{display:flex;flex-direction:column;gap:10px}.fold-b[hidden]{display:none}.fold-h[aria-expanded="true"]{border-color:color-mix(in srgb,var(--gold) 45%,var(--line))}.fold-h .chx-exg{font-size:15px}
 .eamini{text-decoration:none;color:inherit;gap:6px;border-color:color-mix(in srgb,var(--gold) 35%,var(--line))}.eamini .grw{margin:0 -4px}
 .chx-mtrs{display:flex;flex-direction:column;gap:6px;margin:6px 0}.chx-mrow{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:10px;padding:4px 6px;border-radius:8px}.chx-mrow.on{background:rgba(242,183,5,.09);box-shadow:inset 0 0 0 1px rgba(242,183,5,.35)}.chx-mrow .chx-bar2.big{width:100%}.chx-mv{font-size:13px;white-space:nowrap}
@@ -3971,6 +3974,41 @@ function settingsSheet() {
     S.profile ? h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, S.profile.name || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, S.profile.phone || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))) : null,
     h("a", { class: "btn ghost", href: "#sub", onclick: closeSheet }, "💳 اشتراكي")));
 }
+/* ================== 🛡️ الحماية: علامة مائية + جهاز واحد لكل اشتراك ================== */
+function devId() { try { let v = localStorage.getItem("gr-vid"); if (!v) { v = Math.random().toString(36).slice(2, 12) + Date.now().toString(36); localStorage.setItem("gr-vid", v); } return v; } catch (_) { return null; } }
+//--- 💧 اسم المشترك ورقمه خفيف على التوصيات والشارت (إذا صوّرها وأرسلها، تبين منو)
+function setWatermark() {
+  const on = !!(S.session && S.member && S.profile);
+  document.body.classList.toggle("wmk-on", on);
+  if (!on) return;
+  const t = ((S.profile.name || "") + " · " + (S.profile.phone || S.session.user.email || "")).replace(/[<&>"]/g, "");
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="260" height="140"><text x="10" y="80" transform="rotate(-22 130 70)" fill="#ffffff" font-family="Arial,sans-serif" font-size="15" font-weight="700">' + t + '</text></svg>';
+  document.documentElement.style.setProperty("--wm", 'url("data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg) + '")');
+}
+//--- 📱 جهاز واحد: إذا انفتح الحساب من جهاز ثاني، هالجهاز يطلع
+let devTimer = null;
+async function guardDevice(force) {
+  if (!S.session || S.admin || !S.member) return;
+  const me = devId(); if (!me) return;
+  try {
+    const { data: cur, error } = await sb.rpc("claim_device", { dev: me, force: !!force });
+    if (error || !cur || cur === me) return;
+    clearInterval(devTimer); devTimer = null;
+    await sb.auth.signOut();
+    openSheet(h("div", { class: "screen" }, h("h2", { class: "h1" }, "🔒 حسابك انفتح من جهاز ثاني"),
+      h("p", { class: "muted", style: "line-height:1.8" }, "الاشتراك يشتغل على جهاز واحد بس. إذا تبي تكمّل من هالجهاز سجّل دخول مرة ثانية، والجهاز الثاني بيطلع."),
+      h("p", { class: "muted", style: "font-size:.85rem" }, "إذا ما كنت أنت، غيّر كلمة السر وكلّمنا."),
+      h("button", { class: "btn primary block", type: "button", onclick: () => { closeSheet(); authSheet("login"); } }, "دخول")));
+  } catch (_) {}
+}
+function startDeviceGuard(force) {
+  clearInterval(devTimer); devTimer = null;
+  if (!S.session || S.admin || !S.member) return;
+  guardDevice(force);
+  devTimer = setInterval(() => { if (!document.hidden) guardDevice(false); }, 60000);
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") guardDevice(false); });
+
 /* ================== 👀 زوار اليوم (للأرقام) ================== */
 function trackVisit() {
   try {
@@ -4064,7 +4102,7 @@ async function launchAdmin() {
 /* ================== التشغيل ================== */
 async function boot() {
   await loadUser();
-  trackVisit();
+  trackVisit(); setWatermark(); startDeviceGuard(false);
   subscribeLive();
   joinPresence();
   route();
@@ -4074,7 +4112,7 @@ let lastUid = undefined;
 sb.auth.onAuthStateChange((ev, session) => {
   const uid = session ? session.user.id : null;
   if (lastUid === undefined) { lastUid = uid; return; }
-  if (uid !== lastUid) { lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); ensurePush(); trackVisit(); }); }
+  if (uid !== lastUid) { const login = !!uid; lastUid = uid; loadUser().then(() => { subscribeLive(); joinPresence(); route(); ensurePush(); trackVisit(); setWatermark(); startDeviceGuard(login); }); }
 });
 // لمّا يرجع التطبيق من الخلفية نجدد الجلسة (الآيفون يوقف التجديد التلقائي)
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.session) sb.auth.refreshSession().then(() => loadUser()).then(() => route()).catch(() => {}); });
