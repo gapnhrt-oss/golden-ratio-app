@@ -898,7 +898,7 @@ async function ChartScreen() {
   //--- 📋 جدول الفريمات: كل الفريمات بنظرة وحدة
   const mtfBox = h("div", { class: "chx-mtf" });
   async function mtf() {
-    const rows = await Promise.all(TFS.map(async t => [t, readTF(await botCandles(t[0], 300))]));
+    const rows = await Promise.all(TFS.map(async t => [t, t[0] === O.tf && data.length ? readTF(data) : readTF(await botCandles(t[0], 300))]));   // الفريم المختار = نفس شموع الشارت (علشان يطابق الكرت فوق)
     mtfBox.textContent = "";
     const tb = h("table", null, h("tr", null, h("th", null, "الفريم"), h("th", null, "الاتجاه"), h("th", null, "القوة")));
     rows.forEach(([t, x]) => { const det = h("tr", { class: "det", hidden: true }, h("td", { colspan: "3" }, x ? "ليش " + x.word.replace(" 💪", "") + "؟ " + x.why.join(" · ") : ""));
