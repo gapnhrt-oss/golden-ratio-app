@@ -71,6 +71,7 @@ p{margin:0}
 .tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:430px){.top .wrap{gap:6px}.brand{gap:6px}.brand img{width:30px;height:30px}.brand b,.brand span{font-size:15px}.who{gap:6px}.who .pill{padding:3px 8px;font-size:.72rem}.who .btn.sm{padding-inline:11px}.who .chatbtn{height:36px;width:50px}}
 .chatbtn{position:relative;display:inline-flex;align-items:center;justify-content:center;height:38px;width:54px;border-radius:999px;text-decoration:none;color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,transparent);border:1px solid transparent;transition:transform .15s,box-shadow .2s}.chatbtn span{display:none}
+.chatbtn.gearbtn{width:40px;cursor:pointer;font:inherit}@media (max-width:430px){.who .chatbtn.gearbtn{width:36px}}
 .chatbtn:active{transform:scale(.94)}.chatbtn svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .chatbtn[aria-current="page"]{border-color:color-mix(in srgb,var(--gold) 60%,transparent)}
 .chatbtn .dotbadge{top:-6px;inset-inline-end:-6px;box-shadow:0 0 0 2px var(--bg)}.chatbtn.has{animation:chatGlow 1.6s ease-in-out infinite}@keyframes chatGlow{50%{box-shadow:0 0 0 5px rgba(242,183,5,.18)}}
@@ -488,6 +489,7 @@ const ICON = {
   sig: "M3 17l5-5 4 4 8-8M15 8h5v5",
   sub: "M3 7h18v10H3zM3 11h18M7 15h3",
   chat: "M4 5h16v11H9l-5 4z",
+  gear: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z",
   market: "M5 4h11l3 3v13H5zM8 10h8M8 14h8M8 18h5",
   chart: "M4 4v16h16M8 15l3-4 3 2 5-6",
   admin: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z",
@@ -578,6 +580,8 @@ function renderChrome() {
   const chatA = h("a", { class: "chatbtn" + (S.unread ? " has" : ""), href: "#chat", "aria-label": "تواصل", "aria-current": S.route === "chat" ? "page" : null }, SVG(ICON.chat), h("span", null, "تواصل"));
   if (S.unread) chatA.append(h("span", { class: "dotbadge" }, S.unread));
   who.append(chatA);
+  //--- ⚙️ الإعدادات (التنبيهات)
+  if (S.session) who.append(h("button", { class: "chatbtn gearbtn", type: "button", "aria-label": "الإعدادات", title: "الإعدادات", onclick: settingsSheet }, SVG(ICON.gear)));
   if (S.session) {
     add(who, S.admin ? h("span", { class: "pill wait" }, "مدير") : S.member ? h("span", { class: "pill on" }, "VIP") : null,
       h("button", { class: "btn ghost sm", onclick: logout }, "خروج"));
@@ -3734,7 +3738,7 @@ const NCATS = [["signal", "📢 توصية جديدة و«ادخل الآن»"],
 function notifCard() {
   if (!S.session || !S.profile) return null;
   const cur = Object.assign({}, S.profile.notif || {});
-  const box = h("div", { class: "card" }, h("b", null, "⚙️ التنبيهات"), h("small", { class: "muted" }, "اختار شنو يوصلك إشعار على التلفون:"));
+  const box = h("div", { class: "card" }, h("b", null, "🔔 التنبيهات"), h("small", { class: "muted" }, "اختار شنو يوصلك إشعار على التلفون:"));
   if ("Notification" in window && Notification.permission !== "granted") {
     const b = h("button", { class: "btn primary sm", type: "button", style: "align-self:flex-start" }, "🔔 فعّل الإشعارات على هالجهاز");
     b.onclick = async () => { const r = await askNotif(); if (r === "ok") { toast("تفعّلت التنبيهات ✅"); b.remove(); } else toast(notifWhy(r) || "ما تفعّلت التنبيهات", true); };
@@ -3756,6 +3760,14 @@ function notifCard() {
   return box;
 }
 
+function settingsSheet() {
+  const nc = notifCard();
+  openSheet(h("div", { class: "screen" },
+    h("div", { class: "between" }, h("h2", { class: "h1" }, "⚙️ الإعدادات"), h("button", { class: "btn ghost sm", type: "button", onclick: closeSheet }, "إغلاق")),
+    nc || h("div", { class: "empty" }, "سجّل دخول عشان تختار التنبيهات"),
+    S.profile ? h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, S.profile.name || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, S.profile.phone || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))) : null,
+    h("a", { class: "btn ghost", href: "#sub", onclick: closeSheet }, "💳 اشتراكي")));
+}
 /* ================== 👀 زوار اليوم (للأرقام) ================== */
 function trackVisit() {
   try {
