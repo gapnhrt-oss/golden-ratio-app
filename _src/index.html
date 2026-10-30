@@ -4332,8 +4332,11 @@ function widgetCard() {
     } catch (e) { go.disabled = false; go.textContent = "📱 جهّز الخلفية"; toast("ما قدرت أجهزه، جرّب مرة ثانية", true); }
   };
   go.onclick = () => load(false);
-  body.append(h("p", { class: "muted", style: "margin:0" }, "سعر الذهب وشارت صغير والتوصية على خلفية تلفونك وشاشة القفل — تتحدث بروحها بدون ما تفتح التطبيق"), go);
-  return fold("sub-widget", "📱 خلفية للآيفون", body);
+  const guide = h("img", { src: "iphone-guide.jpg?v=1", alt: "خطوات تركيب خلفية الآيفون", loading: "lazy", style: "width:100%;border-radius:14px;border:1px solid var(--line);cursor:zoom-in" });
+  guide.onclick = () => openSheet(h("div", { class: "screen" }, h("img", { src: "iphone-guide.jpg?v=1", alt: "", style: "width:100%;border-radius:14px" })));
+  body.append(h("p", { class: "muted", style: "margin:0" }, "سعر الذهب وشارت الشموع والأشكال والتوصية على خلفية تلفونك وشاشة القفل — تتحدث بروحها بدون ما تفتح التطبيق"), guide,
+    h("small", { class: "muted" }, "⬇️ قبل: نزّل تطبيق Scriptable المجاني من الـ App Store · بعدها اضغط «جهّز الخلفية» تحت"), go);
+  return fold("sub-widget", "📱 خلفية للآيفون", body, true);
 }
 function notifCard() {
   if (!S.session || !S.profile) return null;
