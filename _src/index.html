@@ -3523,7 +3523,7 @@ async function pendData() {
 }
 function pendNode(d) {
   if (!d || !d.on) return h("div", { hidden: true });
-  if (!S.member && !S.admin) return h("a", { class: "card pend tap", href: "#sub" }, h("div", { class: "ph" }, h("b", null, "⏳ في توصية تتجهز الحين"), h("span", { class: "pill wait" }, "🔒 VIP")),
+  if (!S.member && !S.admin) return h("a", { class: "card pend tap", href: "#sub" }, h("div", { class: "ph" }, h("b", null, d.side === "sell" ? "⏳ توصية بيع 🔴 تتجهز الحين" : d.side === "buy" ? "⏳ توصية شراء 🟢 تتجهز الحين" : "⏳ في توصية تتجهز الحين"), h("span", { class: "pill wait" }, "🔒 VIP")),
     h("small", { class: "muted" }, "البوت قاعد يتأكد من الشروط قبل الدخول — المشتركين يتابعونها خطوة بخطوة ويوصلهم «ادخل الآن» أول ما تكتمل"), h("span", { class: "btn primary sm" }, "اشترك وتابعها"));
   const sell = d.side === "sell", ch = d.checks || [], okN = ch.filter(c => c.ok).length;
   const sc = Number(d.score) || 0, need = Number(d.need) || 8;
