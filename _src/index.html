@@ -4313,7 +4313,14 @@ function widgetCard() {
     try {
       const [{ data: tok, error }, code] = await Promise.all([sb.rpc("my_widget_token", { regen: !!regen }), fetch("gr-widget.js?v=" + APP_VER).then(r => r.text())]);
       if (error || !tok) throw error || new Error("no token");
-      const full = code.replace("__TOKEN__", tok);
+      if (!/ListWidget/.test(code)) throw new Error("no code");
+      //--- الكود القصير: المفتاح + ينزل الكود الأساسي من الموقع كل ساعة (أي تحسين يوصله بروحه)
+      const full = "// GOLDEN RATIO · ويدجت الآيفون\n// ⚠️ فيه مفتاحك الشخصي — لا ترسله لأحد\nconst TOKEN = \"" + tok + "\";\n" +
+        "const fm = FileManager.local(), cp = fm.joinPath(fm.cacheDirectory(), \"gr-widget-core.js\");\nlet code = null;\n" +
+        "try { const r = new Request(\"" + APP_URL + "gr-widget.js?v=\" + Math.floor(Date.now() / 3600e3)); r.timeoutInterval = 10; const t = await r.loadString(); if (t.includes(\"ListWidget\")) { code = t; fm.writeString(cp, t); } } catch (e) {}\n" +
+        "if (!code && fm.fileExists(cp)) code = fm.readString(cp);\n" +
+        "if (code) await (new Function(\"TOKEN\", \"return (async () => {\" + code + \"\\n})()\"))(TOKEN);\n" +
+        "else { const w = new ListWidget(); w.addText(\"GOLDEN RATIO · افتح النت مرة وحدة\"); Script.setWidget(w); Script.complete(); }\n";
       const ta = h("textarea", { readonly: true, dir: "ltr", style: "height:90px;font-size:.7rem;font-family:monospace", "data-noen": "1" }); ta.value = full;
       const cp = h("button", { class: "btn primary", type: "button" }, "📋 انسخ الكود");
       cp.onclick = () => { try { navigator.clipboard.writeText(full).then(() => { cp.textContent = "✅ انسخ — الحين الصقه بـ Scriptable"; }, () => { ta.select(); document.execCommand("copy"); cp.textContent = "✅ انسخ"; }); } catch (_) { ta.select(); document.execCommand("copy"); } };

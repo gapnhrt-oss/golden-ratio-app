@@ -1,6 +1,5 @@
-// GOLDEN RATIO · ويدجت الآيفون (تطبيق Scriptable)
-// ⚠️ هالكود فيه مفتاحك الشخصي — لا ترسله لأحد
-const TOKEN = "__TOKEN__";
+// GOLDEN RATIO · ويدجت الآيفون (تطبيق Scriptable) — الكود الأساسي (ينزل بروحه من الموقع ويتحدث)
+// المتغير TOKEN يجي من الكود القصير اللي بتلصقه بـ Scriptable
 const API = "https://vrimrmltlmmwapxpvgeh.supabase.co/functions/v1/widget?t=" + TOKEN;
 const APP = "https://gapnhrt-oss.github.io/golden-ratio-app/#chart";
 
@@ -66,8 +65,8 @@ if (fam === "accessoryInline") {
   w.setPadding(12, 14, 12, 14);
   //--- الرأس
   const hd = w.addStack(); hd.centerAlignContent();
-  txt(hd, "GOLDEN RATIO", fam === "small" ? 10 : 11, C.gold, true); hd.addSpacer();
-  txt(hd, stale ? "📴 محفوظ" : (d ? new Date(d.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""), 9, C.mut);
+  const brand = txt(hd, "GOLDEN RATIO", fam === "small" ? 10 : 11, C.gold, true); brand.minimumScaleFactor = 0.8;
+  if (fam !== "small" || stale) { hd.addSpacer(); txt(hd, stale ? "📴" : (d ? new Date(d.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : ""), 9, C.mut); }
   w.addSpacer(fam === "small" ? 4 : 6);
   if (!d) { txt(w, "ما قدرت أجيب البيانات", 13, C.mut); }
   else {
