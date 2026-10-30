@@ -264,6 +264,18 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .toast.bad{background:var(--down);color:#2A0505}
 .offbar{position:fixed;z-index:60;top:0;left:0;right:0;padding:calc(6px + env(safe-area-inset-top)) 12px 6px;background:#3a2a06;color:var(--gold);border-bottom:1px solid var(--gold2);text-align:center;font-size:.82rem;font-weight:600}
 .updbar{position:fixed;z-index:61;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold2);color:var(--fg);padding:8px 10px 8px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:.85rem;white-space:nowrap}
+.pend{gap:10px;border-color:var(--gold2)}
+a.pend{text-decoration:none;color:inherit}
+.pend .ph{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.pend .ph b{font-size:1.05rem}
+.pend .sbar{position:relative;height:10px;border-radius:99px;background:var(--bg2);overflow:visible}
+.pend .sbar i{position:absolute;inset:0 auto 0 0;border-radius:99px;background:linear-gradient(90deg,var(--gold2),var(--gold))}
+html[dir=rtl] .pend .sbar i{inset:0 0 0 auto}
+.pend .sbar u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--up);border-radius:2px}
+.pend .chk{display:flex;gap:8px;align-items:flex-start;font-size:.88rem;line-height:1.6}
+.pend .chk.no{color:var(--muted)}
+.pend .chk span{flex:none}
+.pend .adm{border-top:1px dashed var(--line);padding-top:8px;font-size:.8rem;color:var(--muted);line-height:1.8;white-space:pre-line}
 .evtxt{white-space:pre-wrap;line-height:1.85;font-size:.88rem}
 .evtxt b{color:var(--gold)}
 .evmsg{border-top:1px solid var(--line);padding:8px 0;font-size:.84rem;white-space:pre-wrap;line-height:1.7}
@@ -3499,8 +3511,47 @@ function statsPanel(closed, ups) {
 }
 
 let sigTimer = null;
+//--- ⏳ التوصية اللي تتجهز: القوة + الشروط ✅/⏳ (المشترك بدون أسعار · المدير بالأسعار · الزائر تشويق)
+let pendTimer = null;
+async function pendData() {
+  if (S.admin) {
+    const { data } = await sb.from("pending_status").select("data,updated_at").eq("id", 1).maybeSingle();
+    if (!data || !data.data || !data.data.on || Date.now() - new Date(data.updated_at) > 4 * 60e3) return { on: false };
+    return Object.assign({ at: data.updated_at, admin: true }, data.data);
+  }
+  const { data } = await sb.rpc("pending_public"); return data || { on: false };
+}
+function pendNode(d) {
+  if (!d || !d.on) return h("div", { hidden: true });
+  if (!S.member && !S.admin) return h("a", { class: "card pend tap", href: "#sub" }, h("div", { class: "ph" }, h("b", null, "⏳ في توصية تتجهز الحين"), h("span", { class: "pill wait" }, "🔒 VIP")),
+    h("small", { class: "muted" }, "البوت قاعد يتأكد من الشروط قبل الدخول — المشتركين يتابعونها خطوة بخطوة ويوصلهم «ادخل الآن» أول ما تكتمل"), h("span", { class: "btn primary sm" }, "اشترك وتابعها"));
+  const sell = d.side === "sell", ch = d.checks || [], okN = ch.filter(c => c.ok).length;
+  const sc = Number(d.score) || 0, need = Number(d.need) || 8;
+  const c = h("div", { class: "card pend" });
+  c.append(h("div", { class: "ph" }, h("b", null, "⏳ توصية " + (sell ? "بيع 🔴" : "شراء 🟢") + " تتجهز"), h("span", { class: "pill wait" }, (d.sys === "TA" ? "📐 تحليل فني" : "🏛️ SMC") + (d.tf && d.sys !== "TA" ? " · " + d.tf : ""))));
+  c.append(h("div", { class: "between" }, h("span", null, "💪 القوة ", h("b", { class: "num " + (sc >= need ? "pos" : "gold") }, sc + "/10")), h("small", { class: "muted" }, "تحتاج " + need + " للتفعيل")));
+  const bar = h("div", { class: "sbar" }, h("i", { style: "width:" + Math.min(100, sc * 10) + "%" }), h("u", { style: (document.documentElement.dir === "rtl" ? "right:" : "left:") + (need * 10) + "%" }));
+  c.append(bar, h("small", { class: "muted" }, "✔️ " + okN + " من " + ch.length + " شروط تحققت" + (d.since ? " · بدت " + ago(d.since) : "")));
+  ch.forEach(x => c.append(h("div", { class: "chk" + (x.ok ? "" : " no") }, h("span", null, x.ok ? "✅" : "⏳"), h("span", null, (d.admin ? x.ta : x.t) || x.t))));
+  if (d.admin) c.append(h("div", { class: "adm" }, "👑 لك بس: المنطقة " + f2n(d.zlo) + " – " + f2n(d.zhi) + (d.mid ? " · النص " + f2n(d.mid) : "") + " · الوقف " + f2n(d.sl) + (d.base ? " · القوة الأصلية " + d.base + "/10" : "") + (d.sw ? "\nالخصم:" + d.sw : "")));
+  c.append(h("small", { class: "gold" }, "📲 أول ما تكتمل الشروط توصلك «ادخل الآن» بإشعار — لا تدخل قبلها"));
+  return c;
+}
+async function pendCard() {
+  let node = pendNode(await pendData().catch(() => ({ on: false })));
+  const wrap = h("div", { style: "display:contents" }, node);
+  if (pendTimer) clearInterval(pendTimer);
+  pendTimer = setInterval(async () => {
+    if (!document.body.contains(wrap)) { clearInterval(pendTimer); pendTimer = null; return; }
+    if (document.hidden) return;
+    const n = pendNode(await pendData().catch(() => ({ on: false }))); wrap.replaceChildren(n);
+  }, 60000);
+  return wrap;
+}
+
 async function Signals() {
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "التوصيات"), resSeg("signals"), goldPrice());
+  root.append(await pendCard().catch(() => h("div")));
   const [sig, teaser] = await Promise.all([
     sb.from("signals").select("*").gte("created_at", RESET_AT).order("created_at", { ascending: false }).limit(60),
     sb.rpc("open_signals_teaser")
