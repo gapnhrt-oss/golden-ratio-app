@@ -3673,7 +3673,7 @@ async function Sub() {
   root.append(plansCard(active));
   add(root, await referralCard());
   root.append(copyCard(copies.data || []));
-  add(root, await myJournal().catch(() => null), notifCard());
+  add(root, await myJournal().catch(() => null), notifCard(), S.session ? widgetCard() : null);
   root.append(h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, (S.profile && S.profile.name) || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, (S.profile && S.profile.phone) || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))));
   root.append(faqCard());
   return root;
@@ -4298,6 +4298,36 @@ async function launchCard() {
 
 /* ================== ⚙️ اختيار التنبيهات ================== */
 const NCATS = [["signal", "📢 توصية جديدة و«ادخل الآن»"], ["update", "🎯 الأهداف وتحريك الوقف والإغلاق"], ["idea", "💡 الأفكار (مناطق نراقبها)"], ["morning", "☀️ قراءة الصبح"], ["post", "📰 المنشورات والأخبار"], ["poll", "🗳️ التصويت اليومي"], ["alert", "🔔 تنبيهات السعر حقتي"]];
+//--- 📱 ويدجت الآيفون (Scriptable): السعر + شارت صغير + التوصية على الشاشة الرئيسية وشاشة القفل
+function widgetCard() {
+  const body = h("div", { style: "display:flex;flex-direction:column;gap:10px" });
+  const go = h("button", { class: "btn primary", type: "button" }, "📱 جهّز الويدجت");
+  const steps = [
+    ["1️⃣", "نزّل تطبيق ", h("a", { href: "https://apps.apple.com/app/scriptable/id1405459188", target: "_blank", rel: "noopener", class: "gold" }, "Scriptable"), " من الـ App Store (مجاني)"],
+    ["2️⃣", "اضغط «📋 انسخ الكود» تحت"],
+    ["3️⃣", "افتح Scriptable ← اضغط ➕ فوق ← الصق الكود ← سمّه GOLDEN RATIO ← Done"],
+    ["4️⃣", "الشاشة الرئيسية: اضغط مطوّل ← ➕ ← Scriptable ← اختار الحجم ← حطه ← اضغط عليه ← Script: GOLDEN RATIO"],
+    ["5️⃣", "شاشة القفل (اختياري): اضغط مطوّل على شاشة القفل ← تخصيص ← الويدجت ← Scriptable ← نفس الخطوة"]];
+  const load = async regen => {
+    go.disabled = true; go.textContent = "⏳ لحظة…";
+    try {
+      const [{ data: tok, error }, code] = await Promise.all([sb.rpc("my_widget_token", { regen: !!regen }), fetch("gr-widget.js?v=" + APP_VER).then(r => r.text())]);
+      if (error || !tok) throw error || new Error("no token");
+      const full = code.replace("__TOKEN__", tok);
+      const ta = h("textarea", { readonly: true, dir: "ltr", style: "height:90px;font-size:.7rem;font-family:monospace", "data-noen": "1" }); ta.value = full;
+      const cp = h("button", { class: "btn primary", type: "button" }, "📋 انسخ الكود");
+      cp.onclick = () => { try { navigator.clipboard.writeText(full).then(() => { cp.textContent = "✅ انسخ — الحين الصقه بـ Scriptable"; }, () => { ta.select(); document.execCommand("copy"); cp.textContent = "✅ انسخ"; }); } catch (_) { ta.select(); document.execCommand("copy"); } };
+      const rg = h("button", { class: "btn ghost sm", type: "button", style: "align-self:flex-start" }, "🔄 مفتاح جديد (يوقف الويدجت القديم)");
+      rg.onclick = ev => { if (!confirmInline(ev)) return; load(true); };
+      body.replaceChildren(...steps.map(x => h("div", { style: "display:flex;gap:8px;align-items:flex-start;line-height:1.7;font-size:.9rem" }, h("span", { style: "flex:none" }, x[0]), h("span", { style: "flex:1" }, ...x.slice(1)))), cp, ta,
+        h("small", { class: "muted" }, S.member ? "👑 بيطلع لك السعر والشارت والتوصية الشغالة (الدخول والربح والأهداف) أو «⏳ توصية تتجهز» — ويتحدث كل كم دقيقة" : "بيطلع لك السعر والشارت — والتوصيات تطلع بعد ما تشترك 👑"),
+        h("small", { style: "color:var(--down)" }, "⚠️ الكود فيه مفتاحك الشخصي — لا ترسله لأحد. إذا انتشر اضغط «مفتاح جديد»."), rg);
+    } catch (e) { go.disabled = false; go.textContent = "📱 جهّز الويدجت"; toast("ما قدرت أجهزه، جرّب مرة ثانية", true); }
+  };
+  go.onclick = () => load(false);
+  body.append(h("p", { class: "muted", style: "margin:0" }, "سعر الذهب وشارت صغير والتوصية على شاشة تلفونك وشاشة القفل — بدون ما تفتح التطبيق"), go);
+  return fold("sub-widget", "📱 ويدجت للآيفون", body);
+}
 function notifCard() {
   if (!S.session || !S.profile) return null;
   const cur = Object.assign({}, S.profile.notif || {});
