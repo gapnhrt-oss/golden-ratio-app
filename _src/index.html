@@ -1384,6 +1384,26 @@ async function ChartScreen() {
         const item = { lo: z.lo, hi: z.hi, c, h: later ? (b ? "🧱 منطقة مشترين " : "🧱 منطقة بيّاعين ") + z.tf + " قدّام الصفقة" : (b ? "🟢 فكرة شراء " : "🔴 فكرة بيع ") + z.tf + (same ? " ✅ يأكد " + aName : "") + " · " + f2(z.lo) + " – " + f2(z.hi), why: pre.concat(["📐 " + z.src], w, ["❌ الفكرة تنلغي " + (b ? "تحت " : "فوق ") + f2(z.inv)]) };
         ZN.push(item); TG.push({ side: b ? "buy" : "sell", p: mid, t: "", z: item });
       });
+      //--- 🟥🟩 مناطق البيّاعين والمشترين (SMC من البوت): أقرب 2 فوق السعر للبيّاعين + أقرب 2 تحته للمشترين — مستطيل واضح بحدودها
+      if (O.lv) {
+        const idz = L.ideas || [], dup = z => idz.some(i => i.d === z.d && z.lo <= i.hi && z.hi >= i.lo);
+        const pick = d => (L.sz || []).filter(z => z.d === d && !dup(z) && (d === -1 ? z.hi > last : z.lo < last))
+          .sort((a, b) => Math.abs((a.lo + a.hi) / 2 - last) - Math.abs((b.lo + b.hi) / 2 - last)).slice(0, 2);
+        [...pick(-1), ...pick(1)].forEach(z => {
+          const sell = z.d === -1, c = sell ? "#FF6B6B" : "#3DD68C", inZ = last >= z.lo && last <= z.hi;
+          const big = z.tf === "D1" || z.tf === "H4", nm = sell ? "منطقة بيّاعين" : "منطقة مشترين", dist = Math.round(sell ? z.lo - last : last - z.hi);
+          band(z.lo, z.hi, sell ? "rgba(255,107,107," + (big ? ".20" : ".14") + ")" : "rgba(61,214,140," + (big ? ".20" : ".14") + ")", z.t && z.t > n0 ? z.t : n0);
+          pl(sell ? z.lo : z.hi, c, (sell ? "🟥 " : "🟩 ") + nm + " " + z.tf, 0, big ? 2 : 1);
+          pl(sell ? z.hi : z.lo, sell ? "rgba(255,107,107,.55)" : "rgba(61,214,140,.55)", "", 2, 1, 1);
+          const tradeTxt = aD === 0 ? [] : aD === z.d ? ["✅ بنفس اتجاه صفقة " + aName + " الشغالة — إذا رجع لها السعر بعد ما تخلص الصفقة ممكن تطلع منها توصية جديدة"]
+            : ["💰 جهة أهداف صفقة " + aName + " — أمّن ربحك قبل ما يوصلها السعر (" + f2(sell ? z.lo : z.hi) + ")"];
+          const item = { lo: z.lo, hi: z.hi, c, h: (sell ? "🟥 " : "🟩 ") + nm + " " + z.tf + " · " + f2(z.lo) + " – " + f2(z.hi) + (inZ ? " · السعر داخلها" : dist > 0 ? " · بعيدة " + dist + "$" : ""),
+            why: [sell ? "🧱 هني دخلوا البيّاعين بقوة قبل — إذا رجع لها السعر غالباً يوقف صعوده وينزل" : "🧱 هني دخلوا المشترين بقوة قبل — إذا نزل لها السعر غالباً يوقف نزوله ويرتد",
+              "📐 SMC على فريم " + z.tf + " (" + (z.s || 0) + "/10): اصطياد سيولة + كسر هيكل + منطقة", ...tradeTxt,
+              "⏳ لا تدخل منها بدون توصية من البوت — ننتظر وصول السعر + شمعة تأكيد", "❌ تنلغي إذا السعر " + (sell ? "اخترق فوقها " + f2(z.hi) : "كسر تحتها " + f2(z.lo))] };
+          ZN.push(item); TG.push({ side: sell ? "sell" : "buy", p: (z.lo + z.hi) / 2, t: "", z: item });
+        });
+      }
       //--- 🔄 مناطق الانعكاس القوية جهة الأهداف (دعوم قوية للبيع / مقاومات قوية للشراء)
       if (O.lv && aD !== 0) {
         const rev = (L.zones || []).filter(z => (aD === -1 ? z.side === "s" : z.side === "r") && (z.s >= 4 || z.f) && aD * ((z.lo + z.hi) / 2 - aE) > 3)
