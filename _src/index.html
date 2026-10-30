@@ -264,6 +264,11 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 .toast.bad{background:var(--down);color:#2A0505}
 .offbar{position:fixed;z-index:60;top:0;left:0;right:0;padding:calc(6px + env(safe-area-inset-top)) 12px 6px;background:#3a2a06;color:var(--gold);border-bottom:1px solid var(--gold2);text-align:center;font-size:.82rem;font-weight:600}
 .updbar{position:fixed;z-index:61;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--gold2);color:var(--fg);padding:8px 10px 8px 14px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:.85rem;white-space:nowrap}
+.evtxt{white-space:pre-wrap;line-height:1.85;font-size:.88rem}
+.evtxt b{color:var(--gold)}
+.evmsg{border-top:1px solid var(--line);padding:8px 0;font-size:.84rem;white-space:pre-wrap;line-height:1.7}
+.evmsg small{display:block;color:var(--muted);font-size:.72rem;margin-bottom:2px}
+.evtbl{width:100%;border-collapse:collapse;font-size:.8rem}.evtbl td,.evtbl th{padding:5px 3px;border-bottom:1px solid var(--line);text-align:start}.evtbl th{color:var(--muted);font-weight:400}
 .errrow{display:flex;flex-direction:column;gap:2px;border-top:1px solid var(--line);padding-top:6px;font-size:.8rem}
 .errrow code{direction:ltr;text-align:left;color:var(--down);word-break:break-word;font-size:.75rem}
 .sheet-bg{position:fixed;inset:0;z-index:40;background:rgba(5,6,20,.75);display:flex;align-items:flex-end;justify-content:center;padding:12px;padding-top:calc(12px + env(safe-area-inset-top));padding-bottom:calc(12px + env(safe-area-inset-bottom))}
@@ -3733,15 +3738,65 @@ async function chatThread(threadUser, root) {
 /* ================== الإدارة ================== */
 async function Admin() {
   const sub = (location.hash.split("/")[1]) || "stats";
-  const tabs = [["stats", "📊 الأرقام"], ["req", "الطلبات"], ["members", "المشتركين"], ["sig", "التوصيات"], ["post", "منشور"], ["msgs", "الرسائل"], ["copy", "النسخ"]];
+  const tabs = [["stats", "📊 الأرقام"], ["eval", "🧪 التقييم"], ["req", "الطلبات"], ["members", "المشتركين"], ["sig", "التوصيات"], ["post", "منشور"], ["msgs", "الرسائل"], ["copy", "النسخ"]];
   const root = h("div", { class: "screen" }, h("h1", { class: "h1" }, "الإدارة"));
   const seg = h("div", { class: "seg" });
   tabs.forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === sub), onclick: () => location.hash = "#admin/" + t[0] }, t[1])));
   root.append(seg);
-  const fn = { stats: AdmStats, req: AdmReq, members: AdmMembers, sig: AdmSig, post: AdmPost, msgs: AdmMsgs, copy: AdmCopy }[sub] || AdmReq;
+  const fn = { stats: AdmStats, eval: AdmEval, req: AdmReq, members: AdmMembers, sig: AdmSig, post: AdmPost, msgs: AdmMsgs, copy: AdmCopy }[sub] || AdmReq;
   root.append(await fn());
   return root;
 }
+
+//--- 🧪 التقييم (أنت وClaude بس): تقارير المتابعة + الأفكار اللي انمنعت + رسايل البوت الخاصة
+const evFmt = t => { const d = h("div", { class: "evtxt" }); String(t || "").split(/(\*[^*\n]+\*)/).forEach(x => d.append(/^\*[^*]+\*$/.test(x) ? h("b", null, x.slice(1, -1)) : document.createTextNode(x))); return d; };
+const evWhy = w => String(w || "ما تأكد الدخول").replace(/\(.*?\)/g, "").replace(/[0-9.]+(\/10)?/g, "").replace(/\s+/g, " ").trim();
+async function AdmEval() {
+  const part = location.hash.split("/")[2] || "rep";
+  const box = h("div", { class: "screen" });
+  const seg = h("div", { class: "seg" });
+  [["rep", "📋 التقارير"], ["flt", "🚫 اللي انمنعت"], ["msg", "📨 رسايل البوت"]].forEach(t => seg.append(h("button", { type: "button", "aria-pressed": String(t[0] === part), onclick: () => location.hash = "#admin/eval/" + t[0] }, t[1])));
+  box.append(h("small", { class: "muted" }, "🔒 هالقسم تشوفه إنت بس (وClaude يقراه علشان يقيّم البوت)"), seg);
+  if (part === "rep") {
+    const { data, error } = await sb.from("admin_reports").select("*").order("at", { ascending: false }).limit(40);
+    if (error) throw error;
+    if (!(data || []).length) { box.append(h("div", { class: "empty" }, "للحين ما في تقارير — أول تقرير يومي يطلع الساعة 11 بالليل 🌙")); return box; }
+    data.forEach((r, i) => {
+      const d = h("details", { class: "card", open: i === 0 }, h("summary", null, h("b", null, (r.kind === "weekly" ? "📅 " : "🌙 ") + r.title), h("small", { class: "muted", style: "display:block" }, kw(r.at))), evFmt(r.body));
+      box.append(d);
+    });
+    return box;
+  }
+  if (part === "flt") {
+    const { data, error } = await sb.from("signal_filtered").select("*").gte("at", new Date(Date.now() - 30 * 864e5).toISOString()).order("at", { ascending: false }).limit(500);
+    if (error) throw error;
+    const rows = data || [];
+    if (!rows.length) { box.append(h("div", { class: "empty" }, "للحين ما في أفكار انمنعت (تبدأ تتسجل من البوت v6.76)")); return box; }
+    const S2 = { INVALID: 0, MISSED: 0, other: 0 }, R = {};
+    rows.forEach(r => { const k = r.result === "INVALID" || r.result === "MISSED" ? r.result : "other"; S2[k]++; const w = evWhy(r.reason); R[w] = R[w] || { s: 0, m: 0, n: 0 }; R[w][k === "INVALID" ? "s" : k === "MISSED" ? "m" : "n"]++; });
+    box.append(h("div", { class: "grid2" },
+      h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "🛡️ بعدتنا عن خسارة"), h("b", { class: "num pos" }, String(S2.INVALID))),
+      h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "💸 فوّتت ربح"), h("b", { class: "num neg" }, String(S2.MISSED)))));
+    box.append(h("small", { class: "muted" }, "آخر 30 يوم · ⌛ بدون نتيجة: " + S2.other + " · 🛡️ = لو دخلنا كان ضرب الوقف · 💸 = لو دخلنا كان وصل الهدف 2"));
+    const t = h("table", { class: "evtbl" }, h("tr", null, h("th", null, "السبب"), h("th", null, "🛡️"), h("th", null, "💸"), h("th", null, "⌛")));
+    Object.entries(R).sort((a, b) => (b[1].s + b[1].m + b[1].n) - (a[1].s + a[1].m + a[1].n)).forEach(([w, v]) => t.append(h("tr", null, h("td", null, w), h("td", { class: "num pos" }, String(v.s)), h("td", { class: "num neg" }, String(v.m)), h("td", { class: "num" }, String(v.n)))));
+    box.append(h("div", { class: "card" }, h("b", null, "📊 حسب السبب"), t));
+    const l = h("div", { class: "card" }, h("b", null, "🕐 آخر الأفكار"));
+    rows.slice(0, 40).forEach(r => l.append(h("div", { class: "evmsg" }, h("small", null, kw(r.at) + " · " + (r.sys || "") + (r.score ? " · " + r.score + "/10" : "")),
+      (r.side === "sell" ? "🔴 بيع " : "🟢 شراء ") + (r.zlo ? f2n(r.zlo) + " – " + f2n(r.zhi) : "") + "  ←  " + (r.result === "INVALID" ? "🛡️ كان بيضرب الوقف" : r.result === "MISSED" ? "💸 كان بيوصل الهدف 2" : "⌛ انتهت") + "\n↳ " + (r.reason || "ما تأكد الدخول"))));
+    box.append(l);
+    return box;
+  }
+  const { data, error } = await sb.from("bot_msgs").select("*").order("at", { ascending: false }).limit(150);
+  if (error) throw error;
+  const q = h("input", { type: "search", placeholder: "🔍 دوّر بالرسايل (مثلاً: ADX ، نص المنطقة ، ضرب الوقف)" });
+  const list = h("div", { class: "card" });
+  const paint = () => { list.textContent = ""; const v = q.value.trim(); const rs = (data || []).filter(r => !v || r.body.includes(v)); if (!rs.length) list.append(h("small", { class: "muted" }, "ما في رسايل")); rs.forEach(r => list.append(h("div", { class: "evmsg" }, h("small", null, kw(r.at)), evFmt(r.body)))); };
+  q.oninput = paint; paint();
+  box.append(q, list);
+  return box;
+}
+const f2n = v => Number(v).toFixed(2);
 
 async function AdmReq() {
   const box = h("div", { class: "screen" });
