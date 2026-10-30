@@ -525,7 +525,7 @@ const APP_URL = "https://gapnhrt-oss.github.io/golden-ratio-app/";
 const FREE_LIMIT = 50;
 try { const r = new URLSearchParams(location.search).get("ref"); if (r) localStorage.setItem("gr-ref", r.toUpperCase().slice(0, 12)); } catch (_) {}
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } });
-const APP_VER = "2026.10.30";
+const APP_VER = "__BUILD__";
 
 /* ================== 🐞 سجل الأخطاء (المدير يشوفه بالإدارة) ================== */
 const ERR_SEEN = new Set(); let errN = 0;
@@ -4599,6 +4599,19 @@ sb.auth.onAuthStateChange((ev, session) => {
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && S.session) sb.auth.refreshSession().then(() => loadUser()).then(() => route()).catch(() => {}); });
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 paintOff();
+//--- ✨ بعد ما يفتح: نشيّك إذا فيه نسخة أجدد بالموقع، وإذا فيه نحدّث مرة وحدة
+setTimeout(async () => {
+  try {
+    const t = await (await fetch("./index.html?v=" + Date.now(), { cache: "no-store" })).text();
+    const m = /APP_VER="([^"]+)"/.exec(t) || /APP_VER = "([^"]+)"/.exec(t);
+    if (m && m[1] !== APP_VER && m[1] !== "__BUILD__" && sessionStorage.getItem("gr-vre") !== m[1]) {
+      sessionStorage.setItem("gr-vre", m[1]);                       // نحدّث مرة وحدة بس لكل نسخة (ما يصير تكرار)
+      const r = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+      if (r) { await r.update().catch(() => {}); const c = await caches.open("gr-shell-v10").catch(() => null); if (c) await c.put("./index.html", new Response(t, { headers: { "Content-Type": "text/html; charset=utf-8" } })).catch(() => {}); }
+      location.reload();
+    }
+  } catch (_) {}
+}, 2500);
 boot();
 </script>
 </body>

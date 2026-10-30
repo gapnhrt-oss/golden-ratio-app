@@ -2,13 +2,13 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v8', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL_C = 'gr-shell-v10', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(SHELL_C).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(SHELL_C).then(c => c.addAll(SHELL.map(u => new Request(u, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -25,7 +25,7 @@ const timeout = (p, ms) => Promise.race([p, new Promise((_, r) => setTimeout(() 
 async function shell(req) {
   const c = await caches.open(SHELL_C);
   const key = req.mode === 'navigate' ? './index.html' : req;
-  const old = await c.match(key, { ignoreSearch: req.mode === 'navigate' });
+  const old = await c.match(key);
   const net = fetch(req.mode === 'navigate' ? './index.html' : req, { cache: 'no-cache' }).then(async res => {
     if (res && res.ok) {
       if (old && req.mode === 'navigate') {
@@ -72,6 +72,7 @@ self.addEventListener('fetch', e => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
   if (url.origin === location.origin) {
+    if (url.search && req.mode !== 'navigate') return;                // فحص النسخة (?v=) يروح للنت على طول
     if (req.mode === 'navigate' || /\/(index\.html)?$/.test(url.pathname)) { e.respondWith(shell(req)); return; }
     e.respondWith(caches.match(req).then(r => r || fetch(req)).catch(() => fetch(req)));
     return;

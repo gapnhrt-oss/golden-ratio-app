@@ -8,7 +8,8 @@ for (const p of ["esbuild", "/opt/npm-tools/node_modules/esbuild"]) { try { esbu
 if (!esbuild) { console.error("esbuild مو موجود"); process.exit(1); }
 
 const dir = new URL(".", import.meta.url).pathname;
-const src = readFileSync(dir + "index.html", "utf8");
+const BUILD = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 16).replace("T", " ");   // وقت البناء (الكويت) = رقم النسخة
+const src = readFileSync(dir + "index.html", "utf8").replace('"__BUILD__"', JSON.stringify(BUILD));
 
 // 1) CSS حق الصفحة (أول <style> بالـ head)
 const cs = src.indexOf("<style>"), ce = src.indexOf("</style>", cs);
