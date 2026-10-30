@@ -538,6 +538,7 @@ if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("mess
   const d = e.data || {};
   if (d.type === "offline") { const b = document.getElementById("offbar"); if (b) b.hidden = false; }
   if (d.type === "online") paintOff();                               // رجع النت (طلب نجح) → نخفي الشريط
+  if (d.type === "updated" && performance.now() < 15000 && !sessionStorage.getItem("gr-upd")) { try { sessionStorage.setItem("gr-upd", "1"); } catch (_) {} location.reload(); return; }   // ✨ توه فتح: نطبق التحديث على طول
   if (d.type === "updated" && !document.getElementById("updbar")) {
     const bar = document.createElement("div"); bar.className = "updbar"; bar.id = "updbar";
     const t = document.createElement("span"); t.textContent = "✨ فيه تحديث جديد للموقع";
