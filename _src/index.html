@@ -1271,7 +1271,7 @@ async function ChartScreen() {
       };
       //--- رسمة الأهداف: مخروط ذهبي من نقطة الانطلاق + 5 خطوط + الطريق المتوقع + الوقف + الاحتفالية
       const goldTargets = (o, tps, sl0, J, bull, lab) => {
-        const sl = J.csl != null ? J.csl : sl0; if (J.n >= 1) lab = J.n === 1 ? "🔒 الوقف على الدخول" : "🔒 الوقف على 🎯" + (J.n - 1);
+        const sl = J.csl != null ? J.csl : sl0; lab = "الوقف " + f2(sl); if (J.n >= 1) lab = J.n === 1 ? "🔒 الوقف على الدخول " + f2(sl) : "🔒 الوقف على 🎯" + (J.n - 1) + " · " + f2(sl);
         focusRange = [Math.min(sl, ...tps) - 2, Math.max(sl, ...tps) + 2]; cs.applyOptions({ autoscaleInfoProvider: autoFR });
         //--- 🎯 خط قصير لكل هدف + كبسولة (رقم الهدف · النسبة · السعر) — بدون خطوط مايلة ولا مخروط
         tps.forEach((t, k) => polys.push({ t: "tick", p: { lg: 3, value: t }, txt: (k < J.n ? "✅" : "🎯") + (k + 1) + " · " + ["38%", "62%", "100%", "127%", "162%"][k] + " · " + Math.round(t), hit: k < J.n, an: 3 }));
@@ -1310,7 +1310,7 @@ async function ChartScreen() {
             P.forEach((p, i) => polys.push({ t: "dot", p, txt: labs[i] || "", up: i > 0 ? p.value > P[i - 1].value : p.value > P[1].value, an: 1 }));
             //--- المنطقة الذهبية = منطقة D (أفضل دخول)
             const zl = s.done ? Math.min(last.value, last.value + dd * Math.abs(tps[0] - last.value) * 0.35) : s.lo, zh = s.done ? Math.max(last.value, last.value + dd * Math.abs(tps[0] - last.value) * 0.35) : s.hi;
-            polys.push({ t: "gzone", t1: last.time, lg2: 10, v1: zl, v2: zh, txt: s.done ? "🟡 دخول ثاني" : "🟡 منطقة D", up: !bull, an: 2 });
+            polys.push({ t: "gzone", t1: last.time, lg2: 10, v1: zl, v2: zh, txt: s.done ? "🟡 دخول " + f2((zl + zh) / 2) : "🟡 منطقة D", up: !bull, an: 2 });
             if (s.done) polys.push({ t: "burst", p: last, an: 2 });
             goldTargets(o, tps, s.sl, J, bull, "الوقف تحت D");
             shapeCard(s, P, tps, J, bull, s.done ? (J.stop === 1 ? "🛑 فشل" : "✅ اكتمل عند D") : "⏳ قريب من D");
@@ -1341,7 +1341,7 @@ async function ChartScreen() {
             const o = brk && brk.time != null ? brk : { time: endT(), value: s.lv };
             //--- 4) المنطقة الذهبية عند الاختراق + الاختراق اللي يشع + الأهداف الخمسة
             const zw = Math.max(1.2, hgt * 0.12);
-            polys.push({ t: "gzone", t1: o.time, lg2: 6, v1: s.lv - zw, v2: s.lv + zw, txt: "🟡 دخول ثاني", up: !bull, an: 2 });
+            polys.push({ t: "gzone", t1: o.time, lg2: 6, v1: s.lv - zw, v2: s.lv + zw, txt: "🟡 دخول " + f2(s.lv), up: !bull, an: 2 });
             polys.push({ t: "burst", p: o, an: 2 });
             goldTargets(o, tps, s.sl, J, bull, bull ? "الوقف تحت آخر قاع" : "الوقف فوق آخر قمة");
             shapeCard(s, Z.length >= 2 ? Z : [o, o], tps, J, bull, J.stop === 1 ? "🛑 فشل" : bull ? "✅ اخترق" : "✅ كسر");
