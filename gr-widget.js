@@ -133,11 +133,48 @@ function sigLine() {
   return { t: "📡 ما في توصية الحين", c: C.mut };
 }
 
+const up = d && d.change != null ? d.change >= 0 : true, pc = up ? C.up : C.dn;
+const tfName = d && d.tf === "M15" ? "M15" : "H1";
+
+//--- 🖼️ خلفية الشاشة (من الاختصارات: Run Script + المدخل "wallpaper" ← Set Wallpaper)
+const WALL = (typeof args !== "undefined" && /wall/i.test(String(args.shortcutParameter || args.plainTexts && args.plainTexts[0] || ""))) || PARAM === "WALLPAPER";
+function wallpaper() {
+  const WW = 430, HH = 932, ctx = new DrawContext(); ctx.size = new Size(WW, HH); ctx.opaque = true; ctx.respectScreenScale = true;
+  //--- خلفية متدرجة (شرايط)
+  const top = [27, 32, 96], bot = [5, 6, 26];
+  for (let i = 0; i < 60; i++) { const k = i / 59, c = top.map((v, j) => Math.round(v + (bot[j] - v) * k)); ctx.setFillColor(new Color("#" + c.map(v => v.toString(16).padStart(2, "0")).join(""))); ctx.fillRect(new Rect(0, i * HH / 60, WW, HH / 60 + 1)); }
+  const T = (t, x, y, w, sz, col, al, bold) => { ctx.setFont(bold ? Font.boldSystemFont(sz) : Font.mediumSystemFont(sz)); ctx.setTextColor(col); al === "c" ? ctx.setTextAlignedCenter() : al === "r" ? ctx.setTextAlignedRight() : ctx.setTextAlignedLeft(); ctx.drawTextInRect(t, new Rect(x, y, w, sz + 8)); };
+  if (!d) { T("GOLDEN RATIO", 0, 430, WW, 22, C.gold, "c", true); return ctx.getImage(); }
+  const Y0 = 300;   // فوق فاضي حق الساعة
+  T("GOLDEN RATIO · " + tfName, 20, Y0, 220, 14, C.gold, "l", true);
+  T(f2(d.price), 180, Y0 - 6, 230, 26, C.fg, "r", true);
+  if (d.changePct != null) T((up ? "▲ " : "▼ ") + sgn(d.change) + "  " + d.changePct.toFixed(2) + "%", 180, Y0 + 26, 230, 13, pc, "r", true);
+  ctx.drawImageInRect(candleChart(390, 330, 40, true), new Rect(20, Y0 + 52, 390, 330));
+  //--- التوصية
+  const sl = sigLine(), by = Y0 + 396;
+  if (sl) {
+    const p = new Path(); p.addRoundedRect(new Rect(20, by, 390, sl.s ? 78 : 40), 12, 12); ctx.addPath(p); ctx.setFillColor(new Color("#0B0C28", 0.75)); ctx.fillPath();
+    T(sl.t, 32, by + 10, 366, 15, sl.c, "r", true);
+    if (sl.s) {
+      T("🛑 الوقف " + f2(sl.s.sl) + (sl.s.be ? " · 🔒 مأمّن" : ""), 32, by + 32, 366, 12, C.mut, "r");
+      T((sl.s.tps || []).map((t, i) => (i < sl.s.hit ? "✅" : "🎯") + Math.round(t)).join("   "), 32, by + 52, 366, 12, C.fg, "r", true);
+    }
+  }
+  if (d.shapes && d.shapes.length) T(d.shapes.slice(0, 3).map(s => (s.k === "harm" ? "🦈 " : "📐 ") + s.n + " " + s.tf).join("   ·   "), 20, by + (sl && sl.s ? 88 : 50), 390, 11, C.gold, "r", true);
+  T("آخر تحديث " + new Date(d.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) + "  ·  أعلى " + f2(d.high) + "  ·  أدنى " + f2(d.low), 20, by + 112, 390, 10, C.mut, "c");
+  return ctx.getImage();
+}
+if (WALL) {
+  const img = wallpaper();
+  if (config.runsInApp) QuickLook.present(img, true);
+  Script.setShortcutOutput(img);
+  Script.complete();
+  return;
+}
+
 const w = new ListWidget();
 w.url = APP;
 w.refreshAfterDate = new Date(Date.now() + 5 * 60e3);
-const up = d && d.change != null ? d.change >= 0 : true, pc = up ? C.up : C.dn;
-const tfName = d && d.tf === "M15" ? "M15" : "H1";
 
 if (fam === "accessoryInline") {
   txt(w, "🥇 " + (d ? f2(d.price) : "—") + (d && d.changePct != null ? " " + (up ? "▲" : "▼") + Math.abs(d.changePct).toFixed(2) + "%" : ""), 12, C.fg, true);
