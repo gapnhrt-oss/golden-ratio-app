@@ -3673,7 +3673,7 @@ async function Sub() {
   root.append(plansCard(active));
   add(root, await referralCard());
   root.append(copyCard(copies.data || []));
-  add(root, await myJournal().catch(() => null), notifCard(), S.session ? widgetCard() : null);
+  add(root, await myJournal().catch(() => null), notifCard());   // 📱 widgetCard() شلناه من الصفحة (الكود محفوظ لو احتجناه)
   root.append(h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, (S.profile && S.profile.name) || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, (S.profile && S.profile.phone) || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))));
   root.append(faqCard());
   return root;
