@@ -532,10 +532,12 @@ window.addEventListener("unhandledrejection", e => { const r = e.reason || {}; l
 /* ================== 📴 بدون نت + ✨ تحديث جديد ================== */
 function paintOff() { const b = document.getElementById("offbar"); if (b) b.hidden = navigator.onLine; }
 window.addEventListener("offline", paintOff);
+setInterval(() => { const b = document.getElementById("offbar"); if (b && !b.hidden && navigator.onLine) fetch(SUPABASE_URL + "/rest/v1/", { method: "HEAD", headers: { apikey: SUPABASE_KEY } }).then(() => paintOff(), () => {}); }, 20000);
 window.addEventListener("online", () => { paintOff(); if (typeof route === "function") try { route(); } catch (_) {} });
 if ("serviceWorker" in navigator) navigator.serviceWorker.addEventListener("message", e => {
   const d = e.data || {};
   if (d.type === "offline") { const b = document.getElementById("offbar"); if (b) b.hidden = false; }
+  if (d.type === "online") paintOff();                               // رجع النت (طلب نجح) → نخفي الشريط
   if (d.type === "updated" && !document.getElementById("updbar")) {
     const bar = document.createElement("div"); bar.className = "updbar"; bar.id = "updbar";
     const t = document.createElement("span"); t.textContent = "✨ فيه تحديث جديد للموقع";

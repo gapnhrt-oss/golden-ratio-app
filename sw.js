@@ -1,7 +1,8 @@
 // GOLDEN RATIO — service worker
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
-const SHELL_C = 'gr-shell-v7', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+let wasOff = false;
+const SHELL_C = 'gr-shell-v8', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
@@ -53,14 +54,15 @@ async function lib(req) {
 async function data(req) {
   const c = await caches.open(DATA_C);
   try {
-    const res = await timeout(fetch(req), 8000);
+    const res = await timeout(fetch(req), 15000);
     if (res && res.ok) {
+      if (wasOff) { wasOff = false; tell({ type: 'online' }); }
       c.put(req, res.clone()).then(() => c.keys()).then(k => { if (k.length > 120) k.slice(0, k.length - 120).forEach(x => c.delete(x)); }).catch(() => {});
     }
     return res;
   } catch (err) {
     const hit = await c.match(req);
-    if (hit) { tell({ type: 'offline' }); return hit; }
+    if (hit) { wasOff = true; tell({ type: 'offline' }); return hit; }
     throw err;
   }
 }
