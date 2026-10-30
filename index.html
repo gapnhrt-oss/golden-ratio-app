@@ -324,6 +324,7 @@ code.copy{display:block;background:var(--bg);border:1px dashed var(--line);borde
 /* 📈 الشارت */
 .chx-top{display:flex;align-items:center;gap:10px}
 .chx-stack{display:flex;flex-direction:column;gap:8px}
+.entw{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}.entn{font-size:.85rem;color:var(--gold);font-weight:600}
 .lotw{display:flex;flex-direction:column;gap:8px}.lotb{display:flex;flex-direction:column;gap:8px;background:var(--bg2);border:1px solid var(--line);border-radius:12px;padding:10px 12px}.lotb label{display:flex;flex-direction:column;gap:4px}.lotout{display:flex;flex-direction:column;gap:4px}.lotout b.gold{color:var(--gold)}
 .segsv{display:block;font-size:.68rem;color:var(--up);font-weight:700}
 .chx-news{display:flex;flex-direction:column;gap:6px}.fold.near>.fold-h{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 16%,var(--panel));animation:nsGlow 1.8s ease-in-out infinite}.fold.near>.fold-h b{color:var(--gold)}@keyframes nsGlow{50%{box-shadow:0 0 0 4px rgba(242,183,5,.18)}}.chx-news[hidden]{display:none}
@@ -563,7 +564,7 @@ const tLbl = (s, k) => { const n = tNum(s, k); return n ? "الهدف " + n : (R
 const WIN = { qtp: 1, tp1: 1, tp2: 1, tp3: 1, tp4: 1, tp5: 1 };
 
 /* ================== الحالة ================== */
-const S = { session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0, online: 0, views: {}, ratings: {}, myRatings: {} };
+const S = { entries: {}, entryN: {}, session: null, profile: null, admin: false, member: false, plans: [], route: "home", unread: 0, online: 0, views: {}, ratings: {}, myRatings: {} };
 
 /* ================== المتصلين الحين والمشاهدات ================== */
 let presence = null;
@@ -1548,6 +1549,71 @@ function refreshIf(...routes) { if (routes.includes(S.route)) route(); }
 /* ================== بطاقة التوصية ================== */
 function strengthBar(n) { const s = h("span", { class: "strength", title: n + "/10" }); for (let i = 1; i <= 10; i++) s.append(h("b", { class: i <= n ? "f" : "" })); return s; }
 //--- 🧮 حاسبة اللوت لهالتوصية: رصيدك × المخاطرة ÷ (المسافة للوقف × 100) — الذهب: اللوت الكامل = 100 أونصة
+//--- ✅ «دخلت الصفقة»: المشترك يسجل لوته، والعداد يبين كم واحد دخل
+async function loadEntries(ids) {
+  if (!ids || !ids.length) return;
+  const [c, m] = await Promise.all([sb.rpc("entry_counts", { ids }), S.session ? sb.from("signal_entries").select("signal_id,lot").in("signal_id", ids) : Promise.resolve({ data: [] })]);
+  (c.data || []).forEach(r => S.entryN[r.signal_id] = Number(r.n));
+  (m.data || []).forEach(r => S.entries[r.signal_id] = Number(r.lot));
+}
+function entryRow(s) {
+  const open = s.status === "open", n = S.entryN[s.id] || 0, mine = S.entries[s.id];
+  const canAct = S.session && (S.member || S.admin) && (open || mine);
+  if (!n && !canAct) return null;
+  const box = h("div", { class: "entw" });
+  const paint = () => {
+    const n2 = S.entryN[s.id] || 0, my = S.entries[s.id];
+    box.replaceChildren(n2 ? h("span", { class: "entn" }, "👥 " + n2 + (n2 === 1 ? " مشترك دخلها" : " مشترك دخلوها")) : h("span"));
+    if (!(S.session && (S.member || S.admin))) return;
+    if (my) {
+      box.append(h("span", { class: "row", style: "gap:6px" }, h("span", { class: "pill on" }, "✅ دخلتها · ", h("bdi", { class: "num", dir: "ltr" }, String(my)), " لوت"),
+        open ? h("button", { class: "linkbtn", type: "button", onclick: e => { e.stopPropagation(); ask(); } }, "تعديل") : null,
+        open ? h("button", { class: "linkbtn", type: "button", style: "color:var(--down)", onclick: async e => { e.stopPropagation(); const { error } = await sb.from("signal_entries").delete().eq("signal_id", s.id).eq("user_id", S.session.user.id); if (error) { toast(errText(error), true); return; } delete S.entries[s.id]; if (!S.admin) S.entryN[s.id] = Math.max(0, (S.entryN[s.id] || 1) - 1); paint(); } }, "✕") : null));
+    } else if (open) box.append(h("button", { class: "btn ghost sm", type: "button", onclick: e => { e.stopPropagation(); ask(); } }, "✅ دخلت الصفقة"));
+  };
+  const ask = () => {
+    let last = 0.01; try { last = Number(localStorage.getItem("gr-lastlot")) || 0.01; } catch (_) {}
+    const inp = h("input", { type: "number", inputmode: "decimal", dir: "ltr", step: "0.01", min: "0.01", value: S.entries[s.id] || last, style: "max-width:110px" });
+    const save = h("button", { class: "btn primary sm", type: "button" }, "حفظ");
+    save.onclick = async e => {
+      e.stopPropagation(); const lot = Math.round(Number(inp.value) * 100) / 100; if (!(lot > 0)) { toast("اكتب اللوت", true); return; }
+      save.disabled = true; const had = !!S.entries[s.id];
+      const { error } = await sb.from("signal_entries").upsert({ signal_id: s.id, user_id: S.session.user.id, lot }, { onConflict: "signal_id,user_id" });
+      save.disabled = false; if (error) { toast(errText(error), true); return; }
+      S.entries[s.id] = lot; if (!had && !S.admin) S.entryN[s.id] = (S.entryN[s.id] || 0) + 1;
+      try { localStorage.setItem("gr-lastlot", String(lot)); } catch (_) {}
+      toast("✅ تسجلت بسجل أرباحك"); paint();
+    };
+    box.replaceChildren(h("span", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("small", { class: "muted" }, "كم لوت دخلت؟"), inp, save, h("button", { class: "linkbtn", type: "button", onclick: e => { e.stopPropagation(); paint(); } }, "إلغاء")));
+    inp.focus();
+  };
+  paint();
+  return box;
+}
+//--- 📒 سجل أرباحي: الصفقات الي سجلها المشترك، والربح محسوب بنفس طريقة النتائج (صفقتين) على لوته
+async function myJournal() {
+  if (!S.session || S.admin) return null;
+  const { data } = await sb.from("signal_entries").select("lot,at,signals(*)").order("at", { ascending: false }).limit(300);
+  const L = (data || []).filter(r => r.signals);
+  const box = h("div", { class: "card" }, h("b", null, "📒 سجل أرباحي"));
+  if (!L.length) { box.append(h("small", { class: "muted", style: "line-height:1.8" }, "لمن تدخل توصية اضغط «✅ دخلت الصفقة» عليها واكتب لوتك، ويطلع لك هني ربحك الحقيقي شهر بشهر.")); return box; }
+  const pl = r => r.signals.status === "closed" ? r2(legs(r.signals).tot * (Number(r.lot) / 0.02)) : null;
+  const done = L.filter(r => pl(r) != null), tot = r2(done.reduce((a, r) => a + pl(r), 0)), wins = done.filter(r => pl(r) > 0).length;
+  box.append(h("div", { class: "grid2" },
+    h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "💰 ربحي الإجمالي"), h("b", { class: "num " + (tot >= 0 ? "pos" : "neg"), dir: "ltr" }, money(tot)), h("small", { class: "muted" }, done.length + " صفقة مسكّرة")),
+    h("div", { class: "card soft kp" }, h("small", { class: "muted" }, "🎯 الرابحة"), h("b", { class: "num" }, done.length ? Math.round(wins / done.length * 100) + "%" : "—"), h("small", { class: "muted" }, (L.length - done.length) ? (L.length - done.length) + " شغالة الحين" : "ما في صفقة شغالة"))));
+  const M = new Map();
+  done.forEach(r => { const k = new Date(new Date(r.signals.closed_at).toLocaleString("en-US", { timeZone: "Asia/Kuwait" })); const key = k.getFullYear() * 100 + k.getMonth(); if (!M.has(key)) M.set(key, { y: k.getFullYear(), m: k.getMonth(), n: 0, p: 0 }); const g = M.get(key); g.n++; g.p = r2(g.p + pl(r)); });
+  if (M.size) {
+    const tb = h("table", { class: "mtab" }, h("tr", null, h("th", null, "الشهر"), h("th", null, "صفقات"), h("th", null, "ربحي")));
+    [...M.values()].sort((a, b) => b.y * 100 + b.m - (a.y * 100 + a.m)).forEach(x => tb.append(h("tr", null, h("td", null, new Date(Date.UTC(x.y, x.m, 15)).toLocaleString("ar-KW-u-nu-latn", { month: "long", year: "numeric" })), h("td", { class: "num" }, String(x.n)), h("td", { class: "num " + (x.p >= 0 ? "pos" : "neg"), dir: "ltr" }, money(x.p)))));
+    box.append(tb);
+  }
+  const last = h("div", { class: "screen", style: "gap:6px" });
+  L.slice(0, 8).forEach(r => { const v = pl(r), sg = r.signals; last.append(h("div", { class: "between", style: "font-size:.88rem" }, h("span", null, (sg.side === "buy" ? "🟢 شراء " : "🔴 بيع ") , h("bdi", { class: "num", dir: "ltr" }, fmt(sg.entry_from)), h("small", { class: "muted" }, " · " + r.lot + " لوت · " + kw(r.at, { day: "numeric", month: "short" }))), v == null ? h("span", { class: "pill wait" }, "شغالة") : h("b", { class: "num " + (v >= 0 ? "pos" : "neg"), dir: "ltr" }, money(v)))); });
+  box.append(h("small", { class: "muted" }, "آخر صفقاتك"), last, h("small", { class: "muted", style: "font-size:.78rem" }, "💡 الربح تقريبي: نفس طريقة حساب النتائج (نص اللوت يتسكّر بالهدف الأول ونص يكمّل)."));
+  return box;
+}
 function lotBox(s) {
   let st = { b: 1000, r: 1 }; try { st = Object.assign(st, JSON.parse(localStorage.getItem("gr-lot") || "{}")); } catch (_) {}
   const e = s.entry_to ? (Number(s.entry_from) + Number(s.entry_to)) / 2 : Number(s.entry_from), d = Math.abs(e - Number(s.sl));
@@ -1598,6 +1664,7 @@ function signalCard(s, updates) {
     if (S.admin && s.status === "closed") body.append(h("button", { class: "btn primary sm", type: "button", onclick: () => shareSignalImage(s) }, "📸 صورة للنشر"));
   }
   if (open && s.sl != null && s.entry_from != null) body.append(lotBox(s));
+  { const er = entryRow(s); if (er) body.append(er); }
   const ups = (updates || []).filter(u => u.signal_id === s.id);
   if (ups.length) {
     const tl = h("div", { class: "timeline" });
@@ -1685,6 +1752,7 @@ function liveCard(s, ups) {
   const last = mine[mine.length - 1];
   if (last) c.append(h("small", { class: "muted" }, "آخر تحديث: " + (KIND[last.kind] || last.kind) + " · " + ago(last.created_at)));
   if (s.status === "open" && s.sl != null && s.entry_from != null) c.append(lotBox(s));
+  { const er = entryRow(s); if (er) c.append(er); }
   c.append(h("a", { class: "btn primary sm", href: "#signals" }, "التفاصيل والمتابعة"));
   return c;
 }
@@ -3371,6 +3439,7 @@ async function Signals() {
   const open = all.filter(s => s.status === "open" || s.status === "idea");
   const closed = all.filter(s => s.status === "closed");
   try { await loadViews(all, true); } catch (_) {}
+  try { await loadEntries(ids); } catch (_) {}
   try {
     const cids = closed.map(s => s.id);
     if (cids.length) {
@@ -3480,7 +3549,7 @@ async function Sub() {
   root.append(plansCard(active));
   add(root, await referralCard());
   root.append(copyCard(copies.data || []));
-  add(root, notifCard());
+  add(root, await myJournal().catch(() => null), notifCard());
   root.append(h("div", { class: "card soft" }, h("b", null, "حسابي"), h("div", { class: "kv" }, h("span", null, "الاسم"), h("b", null, (S.profile && S.profile.name) || "—")), h("div", { class: "kv" }, h("span", null, "الواتساب"), h("b", { class: "num" }, (S.profile && S.profile.phone) || "—")), h("div", { class: "kv" }, h("span", null, "الإيميل"), h("b", { class: "num" }, S.session.user.email))));
   root.append(faqCard());
   return root;
