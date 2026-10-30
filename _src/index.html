@@ -3523,11 +3523,20 @@ async function pendData() {
 }
 function pendNode(d) {
   if (!d || !d.on) return h("div", { hidden: true });
-  if (!S.member && !S.admin) return h("a", { class: "card pend tap", href: "#sub" }, h("div", { class: "ph" }, h("b", null, d.side === "sell" ? "⏳ توصية بيع 🔴 تتجهز الحين" : d.side === "buy" ? "⏳ توصية شراء 🟢 تتجهز الحين" : "⏳ في توصية تتجهز الحين"), h("span", { class: "pill wait" }, "🔒 VIP")),
+  if (!S.member && !S.admin) return h("a", { class: "card pend tap", href: "#sub" }, h("div", { class: "ph" }, h("b", null, d.idea ? "👀 فكرة " + (d.side === "sell" ? "بيع 🔴" : "شراء 🟢") + " تحت المراقبة" : d.side === "sell" ? "⏳ توصية بيع 🔴 تتجهز الحين" : d.side === "buy" ? "⏳ توصية شراء 🟢 تتجهز الحين" : "⏳ في توصية تتجهز الحين"), h("span", { class: "pill wait" }, "🔒 VIP")),
     h("small", { class: "muted" }, "البوت قاعد يتأكد من الشروط قبل الدخول — المشتركين يتابعونها خطوة بخطوة ويوصلهم «ادخل الآن» أول ما تكتمل"), h("span", { class: "btn primary sm" }, "اشترك وتابعها"));
   const sell = d.side === "sell", ch = d.checks || [], okN = ch.filter(c => c.ok).length;
   const sc = Number(d.score) || 0, need = Number(d.need) || 8;
   const c = h("div", { class: "card pend" });
+  if (d.idea) {   /* 👀 فكرة بعيدة: ننتظر السعر يوصل المنطقة (بدون أسعار للمشترك) */
+    const dist = Number(d.dist) || 0;
+    c.append(h("div", { class: "ph" }, h("b", null, "👀 فكرة " + (sell ? "بيع 🔴" : "شراء 🟢") + (d.tf ? " " + d.tf : "")), h("span", { class: "pill wait" }, "تحت المراقبة")));
+    c.append(h("small", { class: "muted" }, "ننتظر السعر " + (sell ? "يصعد" : "ينزل") + " للمنطقة" + (dist > 0 ? " · بعيدة تقريباً " + Math.round(dist) + "$" : "") + " — بعدها يبدأ البوت يتأكد من الشروط"));
+    if (sc) c.append(h("div", { class: "between" }, h("span", null, "💪 القوة المبدئية ", h("b", { class: "num gold" }, sc + "/10")), h("small", { class: "muted" }, "تحتاج " + need + " للتفعيل")));
+    if (d.admin) c.append(h("div", { class: "adm" }, "👑 لك بس: المنطقة " + f2n(d.zlo) + " – " + f2n(d.zhi)));
+    c.append(h("small", { class: "gold" }, "لا تدخل الحين — إذا وصل السعر واكتملت الشروط توصلك «ادخل الآن»"));
+    return c;
+  }
   c.append(h("div", { class: "ph" }, h("b", null, "⏳ توصية " + (sell ? "بيع 🔴" : "شراء 🟢") + " تتجهز"), h("span", { class: "pill wait" }, (d.sys === "TA" ? "📐 تحليل فني" : "🏛️ SMC") + (d.tf && d.sys !== "TA" ? " · " + d.tf : ""))));
   c.append(h("div", { class: "between" }, h("span", null, "💪 القوة ", h("b", { class: "num " + (sc >= need ? "pos" : "gold") }, sc + "/10")), h("small", { class: "muted" }, "تحتاج " + need + " للتفعيل")));
   const bar = h("div", { class: "sbar" }, h("i", { style: "width:" + Math.min(100, sc * 10) + "%" }), h("u", { style: (document.documentElement.dir === "rtl" ? "right:" : "left:") + (need * 10) + "%" }));
