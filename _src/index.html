@@ -184,7 +184,7 @@ input:focus,select:focus,textarea:focus,button:focus-visible,a:focus-visible{out
 .news b{font-size:1rem;line-height:1.55}.news .en{color:var(--muted);font-size:.75rem;line-height:1.4}
 .tv.price{max-height:84px}
 .btn.wa{background:#25D366;color:#fff;border-color:#25D366}
-.btn.tg{background:#2AABEE;color:#fff;border-color:#2AABEE}
+.btn.tg{background:#2AABEE;color:#fff;border-color:#2AABEE}.btn.xx{background:#000;color:#fff;border-color:#3A3F8F;grid-column:1/-1;gap:8px}
 .renew{display:grid;gap:8px;border-color:var(--gold);background:color-mix(in srgb,var(--gold) 10%,var(--bg2))}
 .sess.on{border-color:var(--up)}
 .sess .bar{height:6px;border-radius:999px;background:var(--bg);overflow:hidden}.sess .bar i{display:block;height:100%;background:var(--up)}
@@ -516,6 +516,7 @@ const PAY = {
   wamd: "90909635",
   whatsapp: "96590909635",
   freeChannel: "https://t.me/+O8NG8ZlfWIaIAfAc",
+  twitter: "https://x.com/Bu7amoood_84",
   broker: "http://live.multilp.com/signup/2llXOvrR"
 };
 // عدد المتصلين: المدير يشوفه دايماً، والناس يشوفونه إذا وصل هالرقم أو أكثر
@@ -3310,13 +3311,17 @@ async function Market() {
   return root;
 }
 
+// 𝕏 شعار X (تويتر)
+function svgX() { const s = document.createElementNS("http://www.w3.org/2000/svg", "svg"); s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("width", "16"); s.setAttribute("height", "16"); s.setAttribute("aria-hidden", "true");
+  const p = document.createElementNS("http://www.w3.org/2000/svg", "path"); p.setAttribute("fill", "currentColor"); p.setAttribute("d", "M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23Zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64Z"); s.append(p); return s; }
 // 💬 تواصل معنا (آخر الصفحة)
 function contactCard() {
   return h("div", { class: "card soft contact" },
     h("b", null, "💬 تواصل معنا"),
     h("div", { class: "grid2" },
       h("a", { class: "btn tg", href: PAY.freeChannel, target: "_blank", rel: "noopener" }, "✈️ القناة المجانية"),
-      h("a", { class: "btn wa", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 واتساب")),
+      h("a", { class: "btn wa", href: "https://wa.me/" + PAY.whatsapp, target: "_blank", rel: "noopener" }, "💬 واتساب"),
+      h("a", { class: "btn xx", href: PAY.twitter, target: "_blank", rel: "noopener", "aria-label": "تابعنا على X (تويتر)" }, svgX(), "تابعنا على X")),
     h("div", { class: "foot" }, h("span", null, "© GOLDEN RATIO"), h("span", null, "·"), h("button", { class: "linkbtn", type: "button", onclick: () => termsSheet() }, "الشروط وإخلاء المسؤولية")));
 }
 
