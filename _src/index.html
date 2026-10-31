@@ -4536,6 +4536,7 @@ async function AdmStats() {
   box.append(exc);
   if (st.alerts) box.append(h("small", { class: "muted" }, "🔔 تنبيهات سعر شغالة عند المسجلين: " + st.alerts));
   box.append(await healthCard().catch(() => h("div")));
+  box.append(await xLinkCard().catch(() => h("div")));
   box.append(await launchAdmin());
   return box;
 }
@@ -4555,6 +4556,39 @@ async function healthCard() {
   c.append(h("div", { class: "between" }, h("span", null, "🐞 أخطاء الموقع (آخر 7 أيام)"), h("span", { class: "pill " + (rows.length ? "wait" : "on") }, rows.length ? rows.length + " خطأ" : "✅ ما في")));
   list.slice(0, 8).forEach(x => c.append(h("div", { class: "errrow" }, h("code", null, x.r.msg), h("small", { class: "muted" }, "×" + x.n + " · آخر مرة " + kw(x.r.at) + " · " + (x.r.page || "#") + " · " + (/iPhone|iPad/.test(x.r.ua || "") ? "📱 آيفون" : /Android/.test(x.r.ua || "") ? "📱 أندرويد" : "💻 كمبيوتر") + " · v" + (x.r.ver || "?")))));
   if (rows.length) c.append(h("small", { class: "muted" }, "ارسل لي الخطأ وأصلحه 👌"));
+  return c;
+}
+//--- 𝕏 ربط تويتر: المفاتيح تنحفظ بالسيرفر (ما ترجع للمتصفح أبد) + تغريدة تجريبية
+async function xPost(body) {
+  const { data: ss } = await sb.auth.getSession(); const tok = ss && ss.session ? ss.session.access_token : "";
+  const r = await fetch(SUPABASE_URL + "/functions/v1/xpost", { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + tok, apikey: SUPABASE_KEY }, body: JSON.stringify(body) });
+  return r.json().catch(() => ({ ok: false, error: "HTTP " + r.status }));
+}
+async function xLinkCard() {
+  const { data: st } = await sb.rpc("admin_x_status");
+  const c = h("div", { class: "card" }, h("div", { class: "between" }, h("b", null, "𝕏 ربط تويتر (@GoldenRatioKW)"),
+    h("span", { class: "pill " + (st && st.linked ? "on" : "off") }, st && st.linked ? "✅ مربوط" : "غير مربوط")));
+  if (st && st.last) c.append(h("small", { class: "muted" }, "آخر تغريدة: " + kw(st.last.at) + (st.last.ok ? " ✅" : " ❌ " + String(st.last.err || "").slice(0, 120)) + " · هالشهر " + (st.month || 0)));
+  const inp = (ph) => h("input", { class: "inp", type: "password", placeholder: ph, autocomplete: "off", autocapitalize: "off", spellcheck: "false", dir: "ltr" });
+  const f = { ck: inp("API Key (Consumer Key)"), cs: inp("API Key Secret (Consumer Secret)"), at: inp("Access Token"), as: inp("Access Token Secret") };
+  const form = h("div", { style: "display:flex;flex-direction:column;gap:8px;margin-top:8px", hidden: !!(st && st.linked) }, h("small", { class: "muted" }, "الصق المفاتيح الأربعة من console.x.com — تنحفظ بالسيرفر بس، وما تطلع للموقع مرة ثانية."), f.ck, f.cs, f.at, f.as);
+  const save = h("button", { class: "btn primary", type: "button" }, "💾 احفظ المفاتيح");
+  save.onclick = async () => {
+    save.disabled = true;
+    const { error } = await sb.rpc("admin_set_x_keys", { ck: f.ck.value, cs: f.cs.value, at: f.at.value, ats: f.as.value });
+    save.disabled = false;
+    if (error) { toast(/missing/.test(error.message) ? "لازم تلصق المفاتيح الأربعة كاملة" : errText(error), true); return; }
+    Object.values(f).forEach(x => x.value = ""); toast("✅ انحفظت المفاتيح"); c.replaceWith(await xLinkCard());
+  };
+  form.append(save); c.append(form);
+  if (st && st.linked) {
+    const ed = h("button", { class: "btn sm", type: "button" }, "🔑 غيّر المفاتيح"); ed.onclick = () => { form.hidden = !form.hidden; };
+    const ta = h("textarea", { class: "inp", rows: 3, maxlength: 280, dir: "rtl" }); ta.value = "👑 GOLDEN RATIO — توصيات الذهب لايف\nتابعونا 🔔";
+    const go = h("button", { class: "btn primary sm", type: "button" }, "𝕏 انشر الحين");
+    go.onclick = async ev => { if (!confirmInline(ev)) return; go.disabled = true; const r = await xPost({ text: ta.value, kind: "admin" }); go.disabled = false;
+      if (r.ok) { toast("✅ انتشرت على X"); c.replaceWith(await xLinkCard()); } else toast("❌ " + String(r.error || r.status).slice(0, 160), true); };
+    c.append(h("small", { class: "muted" }, "✍️ تغريدة من الإدارة:"), ta, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, go, ed));
+  }
   return c;
 }
 async function launchAdmin() {
