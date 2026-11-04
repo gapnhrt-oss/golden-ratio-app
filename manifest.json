@@ -1,7 +1,7 @@
 {
   "name": "GOLDEN RATIO",
   "short_name": "Golden Ratio",
-  "description": "توصيات الذهب ونسخ الصفقات",
+  "description": "توصيات الذهب لايف XAUUSD: الدخول والوقف و5 أهداف، الشارت الذهبي، الأخبار القوية",
   "lang": "ar",
   "dir": "rtl",
   "start_url": "./",
@@ -12,16 +12,60 @@
   "theme_color": "#0B0C28",
   "icons": [
     {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
       "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "icon-512.png",
-      "sizes": "192x192",
+      "src": "icon-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "maskable"
+    }
+  ],
+  "id": "./",
+  "categories": [
+    "finance",
+    "education",
+    "news"
+  ],
+  "shortcuts": [
+    {
+      "name": "التوصيات",
+      "url": "./#signals",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "الشارت",
+      "url": "./#chart",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "الأخبار",
+      "url": "./#market/news",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gapnhrt-oss.github.io/golden-ratio-app/sitemap.xml

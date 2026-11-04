@@ -2,8 +2,8 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v10', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
-const SHELL = ['./', './index.html', './manifest.json', './icon-512.png'];
+const SHELL_C = 'gr-shell-v11', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL = ['./', './index.html', './manifest.json', './icon-512.png', './icon-192.png', './logo-80.webp'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
 
@@ -88,7 +88,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.registration.showNotification(d.title || 'GOLDEN RATIO', {
-    body: d.body || '', icon: 'icon-512.png', badge: 'icon-512.png', tag: d.tag || undefined, data: { url: d.url || './' }
+    body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './' }
   }));
 });
 
