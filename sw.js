@@ -2,7 +2,7 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v14', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL_C = 'gr-shell-v15', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data', CHUNK_C = 'gr-chunks';   // ⚡ v15: أجزاء الكود (js/*.js)
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png', './icon-192.png', './logo-80.webp'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
@@ -13,7 +13,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => ![SHELL_C, LIB_C, DATA_C, 'gr-badge'].includes(k)).map(k => caches.delete(k))))
+    caches.keys().then(keys => Promise.all(keys.filter(k => ![SHELL_C, LIB_C, DATA_C, CHUNK_C, 'gr-badge'].includes(k)).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -50,6 +50,15 @@ async function lib(req) {
   return res;
 }
 
+// ⚡ أجزاء الكود (js/اسم.رقم.js): الاسم يتغير مع كل تحديث، فالمحفوظ ما يخرب أبداً — نخلي آخر 20
+async function chunk(req) {
+  const c = await caches.open(CHUNK_C), hit = await c.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res && res.ok) c.put(req, res.clone()).then(() => c.keys()).then(k => { if (k.length > 20) k.slice(0, k.length - 20).forEach(x => c.delete(x)); }).catch(() => {});
+  return res;
+}
+
 // بيانات Supabase: من النت أول، وإذا ما فيه نت آخر نسخة محفوظة
 async function data(req) {
   const c = await caches.open(DATA_C);
@@ -74,6 +83,7 @@ self.addEventListener('fetch', e => {
   if (url.origin === location.origin) {
     if (url.search && req.mode !== 'navigate') return;                // فحص النسخة (?v=) يروح للنت على طول
     if (req.mode === 'navigate' || /\/(index\.html)?$/.test(url.pathname)) { e.respondWith(shell(req)); return; }
+    if (/\/js\/\w+\.[0-9a-f]{10}\.js$/.test(url.pathname)) { e.respondWith(chunk(req)); return; }
     e.respondWith(caches.match(req).then(r => r || fetch(req)).catch(() => fetch(req)));
     return;
   }
