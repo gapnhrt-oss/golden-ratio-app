@@ -2,7 +2,7 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v13', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL_C = 'gr-shell-v14', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png', './icon-192.png', './logo-80.webp'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
@@ -93,6 +93,20 @@ async function bumpBadge() {
     if (self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
   } catch (_) {}
 }
+// 📬 v14: نحفظ كل إشعار يوصل وانت برا (inbox) — التطبيق يعرضه بشريط فوق + قائمة · نفس الـ tag يبدّل القديم (مثل الإشعارات)
+async function inboxAdd(d, t) {
+  try {
+    const c = await caches.open('gr-badge'), r = await c.match('inbox'); let L = [];
+    try { L = r ? (JSON.parse(await r.text()) || []) : []; } catch (_) { L = []; }
+    if (d.tag) L = L.filter(x => x.tag !== d.tag);
+    L.unshift({ title: d.title || 'GOLDEN RATIO', body: d.body || '', url: d.url || './', tag: d.tag || '', t });
+    await c.put('inbox', new Response(JSON.stringify(L.slice(0, 30))));
+  } catch (_) {}
+}
+async function inboxDel(t) {
+  try { const c = await caches.open('gr-badge'), r = await c.match('inbox'); if (!r) return; const L = (JSON.parse(await r.text()) || []).filter(x => x.t !== t);
+    await (L.length ? c.put('inbox', new Response(JSON.stringify(L))) : c.delete('inbox')); } catch (_) {}
+}
 // 🌐 الإشعار بلغة الزائر (English / Türkçe): نترجمه هني (3 ثواني بالكثير) — وإذا ما مشى يطلع عربي
 async function swLang() { try { const c = await caches.open('gr-badge'), r = await c.match('lang'); return r ? (await r.text()) : 'ar'; } catch (_) { return 'ar'; } }
 async function swTr(d) {
@@ -107,20 +121,22 @@ async function swTr(d) {
 }
 self.addEventListener('push', e => {
   let d0 = {}; try { d0 = e.data ? e.data.json() : {}; } catch (_) { d0 = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
+  const t0 = Date.now();
   e.waitUntil(Promise.all([
     swTr(d0).then(d => self.registration.showNotification(d.title || 'GOLDEN RATIO', {
-      body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './' }
+      body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './', t: t0 }
     })),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       const front = list.some(c => c.visibilityState === 'visible');
       list.forEach(c => { try { c.postMessage({ t: 'push', tag: d0.tag || '' }); } catch (_) {} });
-      return front ? null : bumpBadge();            // التطبيق قدامك = ما نحط علامة
+      return front ? null : Promise.all([bumpBadge(), inboxAdd(d0, t0)]);            // التطبيق قدامك = ما نحط علامة
     })
   ]));
 });
 
 self.addEventListener('notificationclick', e => {
   e.notification.close();
+  if (e.notification.data && e.notification.data.t) e.waitUntil(inboxDel(e.notification.data.t));   // 📬 فتحته من الإشعار = انشاف
   e.waitUntil(self.clients.matchAll({ type: 'window' }).then(list => {
     const target = (e.notification.data && e.notification.data.url) || './#signals';
     for (const c of list) { if ('focus' in c) { c.navigate(target); return c.focus(); } }
