@@ -2,7 +2,7 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v11', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL_C = 'gr-shell-v12', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png', './icon-192.png', './logo-80.webp'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
@@ -13,7 +13,7 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => ![SHELL_C, LIB_C, DATA_C].includes(k)).map(k => caches.delete(k))))
+    caches.keys().then(keys => Promise.all(keys.filter(k => ![SHELL_C, LIB_C, DATA_C, 'gr-badge'].includes(k)).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
@@ -85,11 +85,26 @@ self.addEventListener('fetch', e => {
 });
 
 // إشعار يوصل من السيرفر حتى لو التطبيق مسكّر
+// 🔢 علامة على أيقونة التطبيق (الآيفون كتطبيق) — عدد اللي وصل وانت برا · تنمسح أول ما تفتح التطبيق
+async function bumpBadge() {
+  try {
+    const c = await caches.open('gr-badge'), r = await c.match('n'), n = (r ? Number(await r.text()) || 0 : 0) + 1;
+    await c.put('n', new Response(String(n)));
+    if (self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
+  } catch (_) {}
+}
 self.addEventListener('push', e => {
   let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
-  e.waitUntil(self.registration.showNotification(d.title || 'GOLDEN RATIO', {
-    body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './' }
-  }));
+  e.waitUntil(Promise.all([
+    self.registration.showNotification(d.title || 'GOLDEN RATIO', {
+      body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './' }
+    }),
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
+      const front = list.some(c => c.visibilityState === 'visible');
+      list.forEach(c => { try { c.postMessage({ t: 'push', tag: d.tag || '' }); } catch (_) {} });
+      return front ? null : bumpBadge();            // التطبيق قدامك = ما نحط علامة
+    })
+  ]));
 });
 
 self.addEventListener('notificationclick', e => {
