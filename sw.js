@@ -2,7 +2,7 @@
 // ⚡ يفتح فوراً من النسخة المحفوظة، والتحديث ينزل بالخلفية (ويطلع «✨ تحديث جديد»)
 // 📴 بدون نت: آخر بيانات محفوظة
 let wasOff = false;
-const SHELL_C = 'gr-shell-v12', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
+const SHELL_C = 'gr-shell-v13', LIB_C = 'gr-lib-v1', DATA_C = 'gr-data';
 const SHELL = ['./', './index.html', './manifest.json', './icon-512.png', './icon-192.png', './logo-80.webp'];
 const LIB_HOSTS = ['cdn.jsdelivr.net', 'unpkg.com', 'fonts.googleapis.com', 'fonts.gstatic.com', 'cdnjs.cloudflare.com'];
 const SB_HOST = 'vrimrmltlmmwapxpvgeh.supabase.co';
@@ -93,15 +93,27 @@ async function bumpBadge() {
     if (self.navigator && self.navigator.setAppBadge) await self.navigator.setAppBadge(n);
   } catch (_) {}
 }
+// 🌐 الإشعار بلغة الزائر (English / Türkçe): نترجمه هني (3 ثواني بالكثير) — وإذا ما مشى يطلع عربي
+async function swLang() { try { const c = await caches.open('gr-badge'), r = await c.match('lang'); return r ? (await r.text()) : 'ar'; } catch (_) { return 'ar'; } }
+async function swTr(d) {
+  const lang = await swLang(); if (lang !== 'en' && lang !== 'tr') return d;
+  const T = [d.title || '', d.body || ''], AR = /[\u0600-\u06FF]/; if (!AR.test(T.join(''))) return d;
+  try {
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 3000);
+    const r = await fetch('https://translate.googleapis.com/translate_a/single?client=gtx&sl=ar&tl=' + lang + '&dt=t&q=' + encodeURIComponent(T.join('\n')), { signal: ctl.signal });
+    clearTimeout(tm); const j = await r.json(), out = ((j[0] || []).map(p => p[0]).join('')).split('\n').map(x => x.trim());
+    return out.length >= 2 ? Object.assign({}, d, { title: out[0] || d.title, body: out.slice(1).join(' ') || d.body }) : d;
+  } catch (_) { return d; }
+}
 self.addEventListener('push', e => {
-  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
+  let d0 = {}; try { d0 = e.data ? e.data.json() : {}; } catch (_) { d0 = { title: 'GOLDEN RATIO', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(Promise.all([
-    self.registration.showNotification(d.title || 'GOLDEN RATIO', {
+    swTr(d0).then(d => self.registration.showNotification(d.title || 'GOLDEN RATIO', {
       body: d.body || '', icon: 'icon-192.png', badge: 'icon-192.png', tag: d.tag || undefined, data: { url: d.url || './' }
-    }),
+    })),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
       const front = list.some(c => c.visibilityState === 'visible');
-      list.forEach(c => { try { c.postMessage({ t: 'push', tag: d.tag || '' }); } catch (_) {} });
+      list.forEach(c => { try { c.postMessage({ t: 'push', tag: d0.tag || '' }); } catch (_) {} });
       return front ? null : bumpBadge();            // التطبيق قدامك = ما نحط علامة
     })
   ]));
